@@ -1,0 +1,41 @@
+{
+  "name": "DunkSimulator",
+  "globIgnorePaths": ["**/README.md"],
+  "tree": {
+    "$className": "DataModel",
+    "$ignoreUnknownInstances": true,
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "$path": "src/server",
+      "$ignoreUnknownInstances": true
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "$ignoreUnknownInstances": true,
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "$path": "src/client",
+        "$ignoreUnknownInstances": true
+      }
+    },
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "$ignoreUnknownInstances": true,
+      "Shared": {
+        "$className": "Folder",
+        "$path": "src/shared",
+        "$ignoreUnknownInstances": false
+      },
+      "Remotes": {
+        "$className": "Folder",
+        "$ignoreUnknownInstances": false,
+        "RequestDunk": {
+          "$className": "RemoteEvent"
+        },
+        "DunkResult": {
+          "$className": "RemoteEvent"
+        }
+      }
+    }
+  }
+}

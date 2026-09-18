@@ -6,21 +6,31 @@ This roadmap sequences work so the core movement and dunk experience is proven b
 
 Create documentation, repository structure, Rojo conventions, and shared engineering rules.
 
+Status: implemented, including Rojo mappings that leave Workspace assets Studio-owned.
+
 ## 2. Movement and Jump Prototype
 
 Prototype responsive player movement and a measurable jump/vertical model without persistence or economy.
+
+Status: jump curve implemented using existing Roblox movement controls; Studio playtesting and tuning remain. This prototype brings forward the minimal trainer and visible cash counter from milestones 4 and 5 to make progression playable. It does not implement a full economy.
 
 ## 3. First Dunk Prototype
 
 Build one server-validated dunk interaction on one court, including clear success and failure feedback.
 
+Status: Dunk v0.1 implemented with a pickup, welded ball, F-key request, server validation, +25 Cash, confirmed success feedback, and validation rejection messages. Studio playtesting and tuning remain; setup/checklist are in `DUNK_PROTOTYPE.md`. Animations and physical ball-through-rim detection remain deferred.
+
 ## 4. Training and Progression
 
 Add a small training loop and server-owned attribute progression that improves dunk capability.
 
+Status: continuous hold-to-train implemented and playtested (+1 Vertical and +5 Cash per server-timed 0.5-second interval). Sessions end on release or invalid player/station conditions. Its existing jump curve naturally determines physical reach for Dunk v0.1. See `VERTICAL_PROTOTYPE.md` for setup and acceptance checks.
+
 ## 5. Economy and Shop
 
 Introduce validated cash rewards, upgrade pricing, and a simple server-authoritative shop flow.
+
+Status: session-only training cash rewards implemented. Spending, pricing, and shops remain deferred.
 
 ## 6. Multiple Courts
 

@@ -27,6 +27,8 @@ Vertical is a marquee stat. It increases a player's reachable height and broaden
 
 ## Cash and Economy Concept
 
+The first playable prototype starts players at Vertical 30 and Cash 0. Holding the trainer interaction grants +1 Vertical and +5 Cash approximately every 0.5 seconds per player after an initial 0.5-second wait. Releasing stops training. Cash is visible but cannot be spent yet; all progress is session-only. The initial jump curve is `7.2 * (Vertical / 30)^1.7` studs, giving progressively exaggerated jumps without changing the default movement controls. These values require playtesting and are not final balance.
+
 Cash is the primary progression currency. It is earned through validated gameplay performance, training activities, and future events. It funds attribute upgrades, court access, and selected cosmetic or convenience offerings. Economy values will live in configuration rather than gameplay scripts.
 
 ## Courts
@@ -36,6 +38,8 @@ Courts provide distinct progression spaces with different hoop heights, access r
 ## Dunk System
 
 The dunk system should combine player movement, jump timing, proximity to the basket, and eligible dunk styles. It should feel physical and satisfying, while the server validates every attempt and determines success, rewards, and competition scoring. The first prototype will deliberately keep this system narrow.
+
+Dunk v0.1 is implemented as a forgiving airborne proximity check. Players acquire one visible basketball from BasketballPickup, jump near DunkHoop.Rim, and press F. The server checks possession and physical character position, then awards +25 Cash and confirms success to the UI. Vertical is unchanged; its existing effect on actual jumping determines reach. Possession remains after success but is lost on death. Dribbling, shooting, ball-through-rim detection, dunk animations, and competition scoring remain deferred.
 
 ## Competitive Events
 
