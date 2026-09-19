@@ -4,6 +4,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config.DunkConfig)
 local PlayerService = require(script.Parent.PlayerService)
+local GameplayObjects = require(script.Parent.GameplayObjects)
 
 type Possession = {
 	Character: Model,
@@ -44,6 +45,42 @@ function BasketballService.HasBall(player: Player): boolean
 	return true
 end
 
+function BasketballService.GetBall(player: Player): Part?
+	return BasketballService.HasBall(player) and possessions[player].Ball or nil
+end
+
+function BasketballService.GetHeldCFrame(player: Player): CFrame?
+	if not BasketballService.HasBall(player) then
+		return nil
+	end
+	local hand = possessions[player].Hand
+	return hand.CFrame * CFrame.new(0, -hand.Size.Y / 2, -Config.BallDiameter / 2)
+end
+
+function BasketballService.BeginDunkMotion(player: Player)
+	assert(BasketballService.HasBall(player), "Basketball possession was lost")
+	local possession = possessions[player]
+	possession.Weld.Enabled = false
+	possession.Ball.Anchored = true
+end
+
+function BasketballService.EndDunkMotion(player: Player, ball: Part)
+	local possession = possessions[player]
+	if not possession or possession.Ball ~= ball then
+		return
+	end
+	local heldCFrame = BasketballService.GetHeldCFrame(player)
+	if not heldCFrame then
+		clearPossession(player)
+		return
+	end
+	ball.CFrame = heldCFrame
+	ball.Anchored = false
+	ball.AssemblyLinearVelocity = Vector3.zero
+	ball.AssemblyAngularVelocity = Vector3.zero
+	possession.Weld.Enabled = true
+end
+
 local function pickup(player: Player, station: BasePart, prompt: ProximityPrompt)
 	if not PlayerService.IsReady(player) then
 		return
@@ -56,7 +93,7 @@ local function pickup(player: Player, station: BasePart, prompt: ProximityPrompt
 	if BasketballService.HasBall(player) then
 		return
 	end
-	if station.Parent ~= Workspace or station.Name ~= "BasketballPickup" or not station.Anchored
+	if GameplayObjects.Find("BasketballPickup") ~= station or not station.Anchored
 		or prompt.Parent ~= station or not prompt.Enabled then
 		return
 	end
@@ -145,14 +182,14 @@ function BasketballService.Init()
 		trackPlayer(player)
 	end
 
-	local station = Workspace:FindFirstChild("BasketballPickup")
+	local station = GameplayObjects.Find("BasketballPickup")
 	if not station or not station:IsA("BasePart") or not station.Anchored then
-		warn("[BasketballService] Create an anchored Part at Workspace.BasketballPickup with a ProximityPrompt directly inside it. Restart Play after setup.")
+		warn("[BasketballService] Create Workspace.Gameplay (Folder) containing an anchored BasketballPickup Part with a direct ProximityPrompt. Legacy Workspace.BasketballPickup is also supported. Restart Play after setup.")
 		return
 	end
 	local prompt = station:FindFirstChildOfClass("ProximityPrompt")
 	if not prompt then
-		warn("[BasketballService] Missing ProximityPrompt directly inside Workspace.BasketballPickup. Add it and restart Play.")
+		warn("[BasketballService] Missing ProximityPrompt directly inside " .. station:GetFullName() .. ". Add it and restart Play.")
 		return
 	end
 	prompt.ActionText = "Pick Up Basketball"

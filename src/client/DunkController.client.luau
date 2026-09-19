@@ -47,10 +47,11 @@ local feedbackVersion = 0
 local nextRequest = 0
 
 local function updateHint()
-	hint.Visible = player:GetAttribute("HasBasketball") == true
+	hint.Visible = player:GetAttribute("HasBasketball") == true and player:GetAttribute("DunkState") ~= "Executing"
 end
 
 player:GetAttributeChangedSignal("HasBasketball"):Connect(updateHint)
+player:GetAttributeChangedSignal("DunkState"):Connect(updateHint)
 updateHint()
 
 UserInputService.InputBegan:Connect(function(input, processed)
@@ -58,6 +59,9 @@ UserInputService.InputBegan:Connect(function(input, processed)
 		return
 	end
 	if player:GetAttribute("HasBasketball") ~= true or os.clock() < nextRequest then
+		return
+	end
+	if player:GetAttribute("DunkState") == "Executing" then
 		return
 	end
 	nextRequest = os.clock() + Config.DunkCooldown

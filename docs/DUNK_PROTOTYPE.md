@@ -1,5 +1,7 @@
 # Dunk System v0.1
 
+This document describes the preserved entry rules and Studio setup. Execution and reward timing are now extended by [Dunk v0.2](DUNK_EXECUTION.md): valid entry starts the short scripted sequence; cash and success feedback occur only after full completion and cleanup. Use its checklist for cancellation/control restoration. Keep the playtested hoop position unchanged.
+
 ## Studio Setup
 
 Quick setup: stop Play, open Studio's Command Bar, and paste the entire contents of `docs/SetupDunkStudio.luau`, then press Enter. It creates only missing pickup/prompt/hoop/rim objects and selects the pickup and rim for inspection. Existing objects and VerticalTrainer are preserved. New objects are positioned relative to the first SpawnLocation's top surface (or Y = 0 at the origin if none exists); adjust for your floor and clear approach, then save the place. This is a one-time editor helper outside Rojo's mapped source, not a gameplay script.

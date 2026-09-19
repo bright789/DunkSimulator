@@ -18,7 +18,7 @@ Status: jump curve implemented using existing Roblox movement controls; Studio p
 
 Build one server-validated dunk interaction on one court, including clear success and failure feedback.
 
-Status: Dunk v0.1 implemented with a pickup, welded ball, F-key request, server validation, +25 Cash, confirmed success feedback, and validation rejection messages. Studio playtesting and tuning remain; setup/checklist are in `DUNK_PROTOTYPE.md`. Animations and physical ball-through-rim detection remain deferred.
+Status: Dunk v0.1 entry detection and v0.2 execution are playtested. Dunk v0.3 adds smooth approach-facing, hand-follow gather, and optional BasicOneHand animation/marker architecture with a scripted fallback. Presentation testing and authoring/publishing the first real asset remain; see `DUNK_PRESENTATION.md`. Multiple dunk types and physical rim/net interactions remain deferred.
 
 ## 4. Training and Progression
 
@@ -33,6 +33,8 @@ Introduce validated cash rewards, upgrade pricing, and a simple server-authorita
 Status: session-only training cash rewards implemented. Spending, pricing, and shops remain deferred.
 
 ## 6. Multiple Courts
+
+Current prerequisite: Court #1, The Neighborhood. Workspace.Gameplay migration and the gameplay loop are playtested. The Neighborhood v0.1 edit-mode builder is implemented and packaged: permanent half-court markings, hoop visuals, station dressing, fence, entrance, street and simple neighborhood props, preserving the existing Rim and tested floor height. Normal Workspace Rojo ownership is unchanged. Import/run in the working Studio place and visual/gameplay acceptance testing remain pending; see `NEIGHBORHOOD_V01.md`. This takes priority over further Dunk v0.3 presentation work. No second court or unlock system is implemented.
 
 Add unlockable courts with distinct requirements, reward structures, and difficulty.
 

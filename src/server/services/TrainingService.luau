@@ -5,6 +5,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config.ProgressionConfig)
 local PlayerService = require(script.Parent.PlayerService)
+local GameplayObjects = require(script.Parent.GameplayObjects)
 
 local TrainingService = {}
 type TrainingSession = {
@@ -16,10 +17,10 @@ local sessions: { [Player]: TrainingSession } = {}
 local initialized = false
 
 local function getValidCharacter(player: Player, station: BasePart, prompt: ProximityPrompt): Model?
-	if not PlayerService.IsReady(player) then
+	if not PlayerService.IsReady(player) or PlayerService.GetDunkState(player) == "Executing" then
 		return nil
 	end
-	if station.Parent ~= Workspace or station.Name ~= Config.Training.StationName or not station.Anchored
+	if GameplayObjects.Find(Config.Training.StationName) ~= station or not station.Anchored
 		or prompt.Parent ~= station or not prompt.Enabled then
 		return nil
 	end
@@ -94,15 +95,15 @@ function TrainingService.Init()
 	assert(Config.Training.TickIntervalSeconds > 0 and Config.Training.TickIntervalSeconds < math.huge,
 		"Training.TickIntervalSeconds must be a finite positive number")
 
-	local station = Workspace:FindFirstChild(Config.Training.StationName)
+	local station = GameplayObjects.Find(Config.Training.StationName)
 	if not station or not station:IsA("BasePart") or not station.Anchored then
-		warn("[DunkSimulator] Training unavailable: create an anchored Part named VerticalTrainer directly under Workspace, with a ProximityPrompt directly inside it. Restart Play after setup.")
+		warn("[DunkSimulator] Training unavailable: create Workspace.Gameplay (Folder) containing an anchored Part named VerticalTrainer with a direct ProximityPrompt. Legacy Workspace.VerticalTrainer is also supported. Restart Play after setup.")
 		return
 	end
 
 	local prompt = station:FindFirstChildOfClass("ProximityPrompt")
 	if not prompt then
-		warn("[DunkSimulator] Training unavailable: add a ProximityPrompt directly inside Workspace.VerticalTrainer. Restart Play after setup.")
+		warn("[DunkSimulator] Training unavailable: add a ProximityPrompt directly inside " .. station:GetFullName() .. ". Restart Play after setup.")
 		return
 	end
 
@@ -120,7 +121,7 @@ function TrainingService.Init()
 		updateSessions(station, prompt)
 	end)
 
-	print("[DunkSimulator] Training ready at Workspace.VerticalTrainer.")
+	print("[DunkSimulator] Training ready at " .. station:GetFullName() .. ".")
 end
 
 return TrainingService

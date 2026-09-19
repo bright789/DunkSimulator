@@ -3,8 +3,6 @@ local ProgressionConfig = {
 	StartingCash = 0,
 	Training = {
 		StationName = "VerticalTrainer",
-		VerticalReward = 1,
-		CashReward = 5,
 		TickIntervalSeconds = 0.5,
 		MaxDistance = 10,
 	},

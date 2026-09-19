@@ -27,13 +27,25 @@ The playable prototypes provide session-only Vertical training, a configurable j
 
 Players start at Vertical 30 and Cash 0. Hold E at VerticalTrainer to earn +1 Vertical and +5 Cash approximately every 0.5 seconds, starting after the first interval. Release E to stop. The server owns session validation and tick timing. Jump height updates after each reward and is reapplied on respawn. Data resets when leaving the server; no persistence is implemented.
 
-Pick up a basketball at BasketballPickup, jump near DunkHoop.Rim, and press F. A server-confirmed dunk awards +25 Cash without changing Vertical and displays `DUNK!` / `+$25`. Possession persists after a dunk but resets on death/respawn. No dribbling, shooting, or dunk animations are implemented.
+Pick up a basketball at BasketballPickup, jump near DunkHoop.Rim, and press F. A valid attempt starts a short server-owned alignment and scripted ball-through-rim sequence. Completion awards +25 Cash without changing Vertical and displays `DUNK!` / `+$25`. Controls and held possession are restored afterward; death/respawn clears possession. No dribbling, shooting, or uploaded dunk animations are implemented.
 
 See [prototype setup and manual tests](docs/VERTICAL_PROTOTYPE.md) before pressing Play.
 
 See [Dunk System v0.1 setup, tuning, and tests](docs/DUNK_PROTOTYPE.md) to add the pickup and hoop in Studio.
 
+See [Dunk System v0.2 execution and cleanup tests](docs/DUNK_EXECUTION.md) for the new sequence. Existing Studio objects and Rojo remotes need no changes.
+
+[Dunk v0.3 presentation](docs/DUNK_PRESENTATION.md) adds smooth facing, early hand-follow ball motion, and optional BasicOneHand animation support. It includes exact Animation Editor/publishing instructions and a Parts-based visual hoop guide. AnimationId is empty by default, so the scripted sequence remains usable without an upload.
+
 ## Rojo Setup
+
+### Court #1: The Neighborhood
+
+Use [Neighborhood v0.1 automated setup](docs/NEIGHBORHOOD_V01.md): import the supplied `tools/NeighborhoodBuilder.rbxmx` into ServerStorage, then run `require(game:GetService("ServerStorage").NeighborhoodBuilder.Build).Run()` in Studio's edit-mode Command Bar. Save a backup first. The builder reuses the existing 60 x 55 court and 130 x 120 ground, preserves the fixed logical Rim and floor-to-rim height, and creates permanent scenery. It repositions the surfaces horizontally and the original stations/spawn into an entrance layout. Do not delete existing Map objects before running it.
+
+Workspace remains completely outside normal Rojo ownership. The separate tool project packages editor-only modules, not a live-server generator; save the finished map in Studio. See the guide for replaceable output folders, rebuilding, and regression tests. Workspace.Gameplay migration is tested; no further gameplay path changes are needed.
+
+### Tools
 
 Use Roblox Studio and the Rojo CLI with a compatible Rojo Studio plugin. The existing `rokit.toml` selects Rojo 7.7.0. If you use Rokit, run `rokit install` from the repository root to install the selected tool. See the [official installation guide](https://rojo.space/docs/v7/getting-started/installation/) for CLI and plugin setup.
 

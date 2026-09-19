@@ -3,6 +3,7 @@ local Workspace = game:GetService("Workspace")
 local Selection = game:GetService("Selection")
 
 assert(RunService:IsStudio() and not RunService:IsRunning(), "Stop Play before running this setup in Studio's Command Bar.")
+assert(not Workspace:FindFirstChild("Gameplay"), "This legacy test-area helper is not for the Neighborhood. Use docs/NEIGHBORHOOD_COURT.md; no objects have been changed.")
 
 local pickup = Workspace:FindFirstChild("BasketballPickup")
 local hoop = Workspace:FindFirstChild("DunkHoop")

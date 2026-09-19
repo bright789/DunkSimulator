@@ -34,6 +34,12 @@
         },
         "DunkResult": {
           "$className": "RemoteEvent"
+        },
+        "TrainingUpgradeRequest": {
+          "$className": "RemoteEvent"
+        },
+        "TrainingUpgradeState": {
+          "$className": "RemoteEvent"
         }
       }
     }

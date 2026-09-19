@@ -6,21 +6,13 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage.Shared.Config.DunkConfig)
 local PlayerService = require(script.Parent.PlayerService)
 local BasketballService = require(script.Parent.BasketballService)
+local DunkExecution = require(script.Parent.DunkExecution)
+local GameplayObjects = require(script.Parent.GameplayObjects)
 local remotes = ReplicatedStorage.Remotes
 
 local DunkService = {}
 local nextAttempt: { [Player]: number } = {}
-local processing: { [Player]: boolean } = {}
 local initialized = false
-
-local function findRim(): BasePart?
-	local hoop = Workspace:FindFirstChild("DunkHoop")
-	local rim = hoop and hoop:FindFirstChild("Rim")
-	if not hoop or not hoop:IsA("Model") or not rim or not rim:IsA("BasePart") or not rim.Anchored then
-		return nil
-	end
-	return rim
-end
 
 local function validateAttempt(player: Player, expectedCharacter: Model?, expectedRim: BasePart?): (string?, boolean)
 	if not PlayerService.IsReady(player) then
@@ -36,7 +28,7 @@ local function validateAttempt(player: Player, expectedCharacter: Model?, expect
 	if not BasketballService.HasBall(player) then
 		return "Pick up a basketball first.", false
 	end
-	local rim = findRim()
+	local rim = GameplayObjects.FindRim()
 	if not rim or rim ~= expectedRim then
 		return "The hoop is missing, changed, or its Rim is not anchored.", false
 	end
@@ -62,12 +54,18 @@ end
 
 local function attemptDunk(player: Player): string?
 	local character = player.Character
-	local rim = findRim()
+	local rim = GameplayObjects.FindRim()
 	local expiresAt = os.clock() + Config.DunkInputBufferSeconds
 	local lastReason = "Dunk request expired. Press F again near the rim."
 	repeat
 		local reason, canBuffer = validateAttempt(player, character, rim)
-		if not reason then
+		if not reason and character and rim then
+			PlayerService.SetDunkState(player, "Executing")
+			local completed, cancellation = DunkExecution.Run(player, character, rim)
+			if not completed then
+				return cancellation
+			end
+			PlayerService.SetDunkState(player, "Completed")
 			if not PlayerService.RegisterDunk(player) then
 				return "Player data is not ready."
 			end
@@ -90,15 +88,14 @@ function DunkService.Init()
 		return
 	end
 	initialized = true
-	if not findRim() then
-		warn("[DunkService] Missing valid rim: create Workspace.DunkHoop (Model) with an anchored Part named Rim directly inside it.")
+	if not GameplayObjects.FindRim() then
+		warn("[DunkService] Missing valid rim: create Workspace.Gameplay (Folder), containing DunkHoop (Model) with a direct anchored Rim Part. Legacy Workspace.DunkHoop.Rim is also supported.")
 	end
 	Players.PlayerRemoving:Connect(function(player)
 		nextAttempt[player] = nil
-		processing[player] = nil
 	end)
 	remotes.RequestDunk.OnServerEvent:Connect(function(player)
-		if not PlayerService.IsReady(player) or processing[player] then
+		if not PlayerService.IsReady(player) or PlayerService.GetDunkState(player) ~= "Idle" then
 			return
 		end
 		local now = os.clock()
@@ -106,9 +103,9 @@ function DunkService.Init()
 			return
 		end
 		nextAttempt[player] = now + Config.DunkCooldown
-		processing[player] = true
+		PlayerService.SetDunkState(player, "Attempting")
 		local success, message = pcall(attemptDunk, player)
-		processing[player] = nil
+		PlayerService.SetDunkState(player, "Idle")
 		if player.Parent ~= Players then
 			return
 		end

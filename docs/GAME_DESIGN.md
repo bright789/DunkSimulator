@@ -33,13 +33,17 @@ Cash is the primary progression currency. It is earned through validated gamepla
 
 ## Courts
 
+Court #1, **The Neighborhood**, is a compact Studio-built outdoor half-court with one existing hoop, entrance spawn, nearby basketball pickup, sideline VerticalTrainer, and non-interactive neighborhood scenery. Its playtested 60 x 55 stud playing surface and 130 x 120 park retain the tested floor-to-rim height: Vertical 30 remains below normal dunk capability, around 35 is the first basic dunk milestone, and 40+ is increasingly comfortable. The v0.1 editor builder creates permanent court markings, visual hoop, stations, fencing and a lightweight neighborhood backdrop; see `NEIGHBORHOOD_V01.md`. Reserve space for future stations and Court #2 without implementing either. This environment changes presentation and organization, not progression, rewards, or dunk rules.
+
 Courts provide distinct progression spaces with different hoop heights, access requirements, rewards, presentation, and challenge. The first court will support the MVP. Additional courts should create aspirational goals rather than duplicate the same activity with only different visuals.
 
 ## Dunk System
 
 The dunk system should combine player movement, jump timing, proximity to the basket, and eligible dunk styles. It should feel physical and satisfying, while the server validates every attempt and determines success, rewards, and competition scoring. The first prototype will deliberately keep this system narrow.
 
-Dunk v0.1 is implemented as a forgiving airborne proximity check. Players acquire one visible basketball from BasketballPickup, jump near DunkHoop.Rim, and press F. The server checks possession and physical character position, then awards +25 Cash and confirms success to the UI. Vertical is unchanged; its existing effect on actual jumping determines reach. Possession remains after success but is lost on death. Dribbling, shooting, ball-through-rim detection, dunk animations, and competition scoring remain deferred.
+Dunk v0.2 preserves the playtested airborne entry zone and input buffer. Players acquire one visible basketball from BasketballPickup, jump near DunkHoop.Rim, and press F. A valid entry starts a roughly 0.75-second server-owned sequence: subtle horizontal alignment, scripted ball motion above and down through the rim, then restoration to the hand. Only completed execution awards +25 Cash and confirms success to the UI. Vertical is unchanged; actual jumping determines entry capability. Possession remains after success but is lost on death. Training is suspended during execution. Dribbling, shooting, physical rim/net simulation, uploaded dunk animations, and competition scoring remain deferred.
+
+Dunk v0.3 adds presentation to this same basic dunk: smooth server-side facing toward the basket from the player's approach side, hand-follow gather motion, and an optional BasicOneHand animation definition. No asset is supplied; the scripted execution remains the fallback. Markers support presentation hooks but do not determine success or rewards. Entry requirements and the playtested Vertical progression remain unchanged.
 
 ## Competitive Events
 

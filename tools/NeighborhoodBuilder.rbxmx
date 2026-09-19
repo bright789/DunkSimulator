@@ -1,0 +1,508 @@
+<roblox version="4">
+  <Item class="Folder" referent="0">
+    <Properties>
+      <string name="Name">NeighborhoodBuilder</string>
+    </Properties>
+    <Item class="ModuleScript" referent="1">
+      <Properties>
+        <string name="Name">Build</string>
+        <string name="Source"><![CDATA[local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local Config = require(script.Parent.Config)
+local Geometry = require(script.Parent.Geometry)
+local Scenery = require(script.Parent.Scenery)
+
+local Build = {}
+
+local function child(parent, name, className)
+	local found = nil
+	for _, object in parent:GetChildren() do
+		if object.Name == name then
+			assert(not found, "Duplicate name: " .. parent:GetFullName() .. "." .. name)
+			found = object
+		end
+	end
+	assert(found and found:IsA(className), "Expected " .. className .. " at " .. parent:GetFullName() .. "." .. name)
+	return found
+end
+
+local function optionalFolder(parent, name)
+	if parent:FindFirstChild(name) then
+		return child(parent, name, "Folder")
+	end
+	return nil
+end
+
+local function preflight()
+	assert(RunService:IsStudio() and not RunService:IsRunning(), "Neighborhood builder is edit-mode only. Stop Play first.")
+	local map = child(Workspace, "Map", "Folder")
+	local neighborhood = child(map, "Neighborhood", "Folder")
+	local courtFolder = child(neighborhood, "Court", "Folder")
+	local environment = child(neighborhood, "Environment", "Folder")
+	local court = child(courtFolder, "CourtSurface", "BasePart")
+	local ground = child(environment, "ParkGround", "BasePart")
+	local gameplay = child(Workspace, "Gameplay", "Folder")
+	local hoop = child(gameplay, "DunkHoop", "Model")
+	local rim = child(hoop, "Rim", "BasePart")
+	local trainer = child(gameplay, "VerticalTrainer", "BasePart")
+	local pickup = child(gameplay, "BasketballPickup", "BasePart")
+	local spawn = child(Workspace, "SpawnLocation", "SpawnLocation")
+	for _, station in { trainer, pickup } do
+		assert(station:FindFirstChildOfClass("ProximityPrompt"), station.Name .. " requires its existing direct ProximityPrompt")
+		assert(station.Anchored, station.Name .. " must already be anchored")
+	end
+	assert(court.Anchored and ground.Anchored and rim.Anchored and spawn.Anchored, "Court, ground, rim and spawn must already be anchored")
+	assert(court.CanCollide and ground.CanCollide, "Existing court and ground must provide collidable floors")
+	assert(court.CFrame.UpVector:Dot(Vector3.yAxis) > 0.99999 and ground.CFrame.UpVector:Dot(Vector3.yAxis) > 0.99999,
+		"CourtSurface and ParkGround must be horizontal (yaw rotation is supported)")
+	assert(math.abs(court.Size.X - 60) <= 2 and math.abs(court.Size.Z - 55) <= 2,
+		"Expected the tested approximately 60 x 55 CourtSurface; no dimensions will be changed")
+	assert(math.abs(ground.Size.X - 130) <= 2 and math.abs(ground.Size.Z - 120) <= 2,
+		"Expected the tested approximately 130 x 120 ParkGround; no dimensions will be changed")
+	local floorY = court.Position.Y + court.Size.Y / 2
+	local groundY = ground.Position.Y + ground.Size.Y / 2
+	assert(groundY <= floorY and floorY - groundY <= 1, "ParkGround top must be at or up to one stud below CourtSurface top")
+	assert(rim.Position.Y > floorY + 6, "Rim must be above the tested takeoff floor")
+	local rotation = court.CFrame.Rotation
+	if court.CFrame:PointToObjectSpace(rim.Position).Z < 0 then
+		rotation *= CFrame.Angles(0, math.pi, 0)
+	end
+	local rimDepth = court.Size.Z / 2 - Config.RimInset
+	local offset = rotation:VectorToWorldSpace(Vector3.new(0, 0, rimDepth))
+	local center = Vector3.new(rim.Position.X - offset.X, floorY, rim.Position.Z - offset.Z)
+	local frame = CFrame.new(center) * rotation
+	local groundFrame = CFrame.new(center.X, groundY, center.Z) * rotation
+	return {
+		Neighborhood = neighborhood, CourtFolder = courtFolder, Environment = environment,
+		Props = optionalFolder(neighborhood, "Props"), Boundaries = optionalFolder(neighborhood, "Boundaries"),
+		Court = court, Ground = ground, Hoop = hoop, Rim = rim, Trainer = trainer, Pickup = pickup, Spawn = spawn,
+		FloorY = floorY, Frame = frame, GroundFrame = groundFrame,
+		TrainerFrame = groundFrame * CFrame.new(-43, 0.035, -18),
+		PickupFrame = groundFrame * CFrame.new(-18, 0.035, -35),
+	}
+end
+
+function Build.Run()
+	local context = preflight()
+	local stage = Instance.new("Folder")
+	stage.Name = "NeighborhoodBuildStaging"
+	local roots = {}
+	local destinations = {
+		Court = context.CourtFolder, Environment = context.Environment,
+		Props = context.Props, Boundaries = context.Boundaries, Hoop = context.Hoop,
+	}
+	local oldRoots = {}
+	local changes = {}
+	local createdFolders = {}
+	local originalRimFrame = context.Rim.CFrame
+	local originalRimSize = context.Rim.Size
+	local originalHeight = context.Rim.Position.Y - context.FloorY
+	local count = 0
+	local function change(object, property, value)
+		table.insert(changes, { Object = object, Property = property, Value = object[property] })
+		object[property] = value
+	end
+	local success, failure = pcall(function()
+		for _, name in { "Court", "Environment", "Props", "Boundaries", "Hoop" } do
+			local root = Geometry.Folder(stage, name)
+			root:SetAttribute("BuilderOwner", Config.Owner)
+			roots[name] = root
+			local destination = destinations[name]
+			local previous = destination and destination:FindFirstChild(Config.GeneratedName)
+			if previous then
+				child(destination, Config.GeneratedName, "Folder")
+				assert(previous:GetAttribute("BuilderOwner") == Config.Owner, "Refusing to replace unowned " .. previous:GetFullName())
+				table.insert(oldRoots, { Object = previous, Parent = destination })
+			end
+		end
+		Scenery.Court(roots.Court, context)
+		Scenery.Hoop(roots.Hoop, context)
+		Scenery.Stations(roots.Props, context)
+		Scenery.Environment(roots.Environment, roots.Props, roots.Boundaries, context)
+		for _, object in stage:GetDescendants() do
+			assert(not object:IsA("LuaSourceContainer"), "Generated scenery cannot contain scripts")
+			if object:IsA("BasePart") then
+				count += 1
+				assert(object.Anchored, "Unanchored generated Part")
+			end
+		end
+		assert(count <= Config.MaxParts, "Scenery exceeded its Part budget")
+		for _, name in { "Props", "Boundaries" } do
+			if not destinations[name] then
+				local folder = Geometry.Folder(context.Neighborhood, name)
+				table.insert(createdFolders, folder)
+				destinations[name] = folder
+			end
+		end
+		for _, previous in oldRoots do
+			previous.Object.Parent = nil
+		end
+		for name, root in roots do
+			root.Name = Config.GeneratedName
+			root.Parent = destinations[name]
+		end
+		change(context.Court, "CFrame", context.Frame * CFrame.new(0, -context.Court.Size.Y / 2, 0))
+		change(context.Court, "Color", Config.Colors.Court)
+		change(context.Court, "Material", Enum.Material.Asphalt)
+		change(context.Ground, "CFrame", context.GroundFrame * CFrame.new(0, -context.Ground.Size.Y / 2, 0))
+		change(context.Ground, "Color", Config.Colors.Grass)
+		change(context.Ground, "Material", Enum.Material.Grass)
+		change(context.Trainer, "CFrame", context.TrainerFrame * CFrame.new(0, context.Trainer.Size.Y / 2, 0))
+		change(context.Pickup, "CFrame", context.PickupFrame * CFrame.new(0, context.Pickup.Size.Y / 2, 0))
+		change(context.Spawn, "CFrame", context.GroundFrame * CFrame.new(0, context.Spawn.Size.Y / 2, -context.Ground.Size.Z / 2 + 12) * CFrame.Angles(0, math.pi, 0))
+		change(context.Spawn, "Transparency", 1)
+		change(context.Spawn, "CastShadow", false)
+		for _, object in context.Spawn:GetDescendants() do
+			if object:IsA("Decal") or object:IsA("Texture") then
+				change(object, "Transparency", 1)
+			end
+		end
+		change(context.Rim, "Transparency", 1)
+		for _, name in { "Backboard", "Pole", "Support", "VisualRim", "TargetBox", "Visuals" } do
+			local legacy = context.Hoop:FindFirstChild(name)
+			if legacy then
+				local objects = legacy:GetDescendants()
+				table.insert(objects, legacy)
+				for _, object in objects do
+					if object:IsA("BasePart") then
+						change(object, "Transparency", 1)
+						change(object, "CanCollide", false)
+						change(object, "CanQuery", false)
+					end
+				end
+			end
+		end
+		change(Lighting, "ClockTime", 15.5)
+		change(Lighting, "Brightness", 2)
+		change(Lighting, "OutdoorAmbient", Color3.fromRGB(140, 140, 140))
+		assert(context.Rim.CFrame == originalRimFrame and context.Rim.Size == originalRimSize, "Logical rim changed")
+		assert(math.abs(context.Rim.Position.Y - (context.Court.Position.Y + context.Court.Size.Y / 2) - originalHeight) < 0.0001,
+			"Floor-to-rim height changed")
+	end)
+	if not success then
+		for index = #changes, 1, -1 do
+			local entry = changes[index]
+			entry.Object[entry.Property] = entry.Value
+		end
+		for _, root in roots do
+			root:Destroy()
+		end
+		for _, previous in oldRoots do
+			previous.Object.Parent = previous.Parent
+		end
+		for _, folder in createdFolders do
+			folder:Destroy()
+		end
+		stage:Destroy()
+		error("Neighborhood build cancelled and rolled back: " .. tostring(failure), 0)
+	end
+	for _, previous in oldRoots do
+		previous.Object:Destroy()
+	end
+	stage:Destroy()
+	print(string.format("[Neighborhood] Built %d anchored Parts. Rim height preserved: %.3f studs. Save this Studio place; no runtime generator is needed.", count, originalHeight))
+	print("[Neighborhood] Court/ground aligned horizontally around the fixed Rim; trainer, pickup and spawn moved to the entrance layout. Existing unrelated map objects were not removed.")
+	return count
+end
+
+return Build
+]]></string>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript" referent="2">
+      <Properties>
+        <string name="Name">Config</string>
+        <string name="Source"><![CDATA[return {
+	Owner = "DunkSimulator.Neighborhood.v1",
+	GeneratedName = "NeighborhoodV01",
+	RimInset = 6,
+	KeyWidth = 16,
+	KeyDepth = 19,
+	ArcRadius = 24,
+	ArcSegments = 28,
+	FreeThrowSegments = 20,
+	RimRadius = 2.2,
+	RimSegments = 20,
+	FenceHeight = 9,
+	EntranceWidth = 20,
+	EntrancePostWidth = 1,
+	EntrancePostHeight = 11.5,
+	EntranceFenceGap = 0.1,
+	MaxParts = 400,
+	Colors = {
+		Court = Color3.fromRGB(60, 83, 91),
+		Paint = Color3.fromRGB(70, 119, 132),
+		Line = Color3.fromRGB(235, 228, 207),
+		Grass = Color3.fromRGB(91, 115, 70),
+		Metal = Color3.fromRGB(60, 70, 68),
+		Orange = Color3.fromRGB(214, 111, 40),
+		Concrete = Color3.fromRGB(163, 157, 143),
+		Road = Color3.fromRGB(50, 53, 56),
+		Wood = Color3.fromRGB(137, 105, 70),
+		Leaf = Color3.fromRGB(70, 105, 76),
+	},
+}
+]]></string>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript" referent="3">
+      <Properties>
+        <string name="Name">Geometry</string>
+        <string name="Source"><![CDATA[local Geometry = {}
+
+function Geometry.Folder(parent, name)
+	local folder = Instance.new("Folder")
+	folder.Name = name
+	folder.Parent = parent
+	return folder
+end
+
+function Geometry.Part(parent, name, size, frame, color, material, collision)
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Size = size
+	part.CFrame = frame
+	part.Color = color
+	part.Material = material or Enum.Material.SmoothPlastic
+	part.Anchored = true
+	part.CanCollide = collision == true
+	part.CanTouch = false
+	part.CanQuery = collision == true
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.Parent = parent
+	return part
+end
+
+function Geometry.Line(parent, name, first, last, width, thickness, color)
+	local length = (last - first).Magnitude
+	assert(length > 0, "Line endpoints must differ")
+	return Geometry.Part(parent, name, Vector3.new(width, thickness, length),
+		CFrame.lookAt((first + last) / 2, last), color)
+end
+
+function Geometry.Arc(parent, name, frame, radius, startAngle, endAngle, segments, width, thickness, color)
+	local folder = Geometry.Folder(parent, name)
+	for index = 1, segments do
+		local firstAngle = startAngle + (endAngle - startAngle) * (index - 1) / segments
+		local lastAngle = startAngle + (endAngle - startAngle) * index / segments
+		local first = frame:PointToWorldSpace(Vector3.new(radius * math.cos(firstAngle), 0, -radius * math.sin(firstAngle)))
+		local last = frame:PointToWorldSpace(Vector3.new(radius * math.cos(lastAngle), 0, -radius * math.sin(lastAngle)))
+		Geometry.Line(folder, string.format("Segment%02d", index), first, last, width, thickness, color)
+	end
+	return folder
+end
+
+function Geometry.Sign(parent, name, frame, text, color, width)
+	local board = Geometry.Part(parent, name, Vector3.new(width, 2.5, 0.2), frame, color)
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		local gui = Instance.new("SurfaceGui")
+		gui.Name = face.Name .. "Label"
+		gui.Face = face
+		gui.CanvasSize = Vector2.new(768, 160)
+		gui.LightInfluence = 0.5
+		gui.MaxDistance = 160
+		gui.Parent = board
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.Text = text
+		label.TextColor3 = Color3.fromRGB(242, 235, 215)
+		label.TextScaled = true
+		label.Font = Enum.Font.GothamBold
+		label.Parent = gui
+	end
+	return board
+end
+
+return Geometry
+]]></string>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript" referent="4">
+      <Properties>
+        <string name="Name">Scenery</string>
+        <string name="Source"><![CDATA[local Config = require(script.Parent.Config)
+local Geometry = require(script.Parent.Geometry)
+local Colors = Config.Colors
+
+local Scenery = {}
+
+function Scenery.Court(parent, context)
+	local frame = context.Frame
+	local halfWidth = context.Court.Size.X / 2
+	local baseline = context.Court.Size.Z / 2
+	local rimDepth = baseline - Config.RimInset
+	local lineHeight = 0.055
+	local lines = Geometry.Folder(parent, "Lines")
+	local function stripe(name, size, position)
+		Geometry.Part(lines, name, size, frame * CFrame.new(position), Colors.Line)
+	end
+	stripe("Baseline", Vector3.new(halfWidth * 2, 0.02, 0.3), Vector3.new(0, lineHeight, baseline))
+	stripe("HalfCourt", Vector3.new(halfWidth * 2, 0.02, 0.3), Vector3.new(0, lineHeight, -baseline))
+	for _, side in { -1, 1 } do
+		stripe("Sideline" .. side, Vector3.new(0.3, 0.02, baseline * 2), Vector3.new(side * halfWidth, lineHeight, 0))
+		stripe("KeySide" .. side, Vector3.new(0.3, 0.02, Config.KeyDepth), Vector3.new(side * Config.KeyWidth / 2, lineHeight, baseline - Config.KeyDepth / 2))
+		stripe("CornerThree" .. side, Vector3.new(0.3, 0.02, Config.RimInset), Vector3.new(side * Config.ArcRadius, lineHeight, baseline - Config.RimInset / 2))
+	end
+	Geometry.Part(parent, "Paint", Vector3.new(Config.KeyWidth, 0.02, Config.KeyDepth),
+		frame * CFrame.new(0, 0.025, baseline - Config.KeyDepth / 2), Colors.Paint)
+	stripe("FreeThrow", Vector3.new(Config.KeyWidth, 0.02, 0.3), Vector3.new(0, lineHeight, baseline - Config.KeyDepth))
+	Geometry.Arc(lines, "FreeThrowCircle", frame * CFrame.new(0, lineHeight, baseline - Config.KeyDepth),
+		6, 0, math.pi * 2, Config.FreeThrowSegments, 0.25, 0.02, Colors.Line)
+	Geometry.Arc(lines, "ThreePointArc", frame * CFrame.new(0, lineHeight, rimDepth),
+		Config.ArcRadius, 0, math.pi, Config.ArcSegments, 0.3, 0.02, Colors.Line)
+end
+
+function Scenery.Hoop(parent, context)
+	local frame = CFrame.new(context.Rim.Position) * context.Frame.Rotation
+	local height = context.Rim.Position.Y - context.FloorY
+	Geometry.Arc(parent, "VisibleRim", frame, Config.RimRadius, 0, math.pi * 2,
+		Config.RimSegments, 0.22, 0.22, Colors.Orange)
+	Geometry.Part(parent, "Backboard", Vector3.new(14, 8, 0.4), frame * CFrame.new(0, 3, 3.6), Colors.Line)
+	Geometry.Part(parent, "Pole", Vector3.new(1, height + 6, 1), frame * CFrame.new(0, (6 - height) / 2, 6), Colors.Metal, Enum.Material.Metal)
+	Geometry.Part(parent, "Base", Vector3.new(4, 0.4, 4), frame * CFrame.new(0, -height + 0.2, 6), Colors.Metal)
+	Geometry.Part(parent, "Support", Vector3.new(0.7, 0.7, 3), frame * CFrame.new(0, 3, 5), Colors.Metal, Enum.Material.Metal)
+	Geometry.Part(parent, "RimBracket", Vector3.new(0.5, 0.3, 1.3), frame * CFrame.new(0, 0, 2.9), Colors.Orange)
+	for _, side in { -1, 1 } do
+		Geometry.Part(parent, "TargetSide" .. side, Vector3.new(0.15, 3.5, 0.04), frame * CFrame.new(side * 2.5, 1.8, 3.37), Colors.Orange)
+		Geometry.Part(parent, "TargetEdge" .. side, Vector3.new(5, 0.15, 0.04), frame * CFrame.new(0, 1.8 + side * 1.75, 3.37), Colors.Orange)
+	end
+end
+
+function Scenery.Stations(parent, context)
+	local trainer = Geometry.Folder(parent, "TrainingArea")
+	local pickup = Geometry.Folder(parent, "BallStand")
+	local trainingFrame = context.TrainerFrame
+	local pickupFrame = context.PickupFrame
+	Geometry.Part(trainer, "RubberPad", Vector3.new(12, 0.04, 12), trainingFrame, Colors.Metal)
+	Geometry.Sign(trainer, "TrainingSign", trainingFrame * CFrame.new(0, 5, 6), "VERTICAL TRAINING", Colors.Paint, 12)
+	Geometry.Part(trainer, "SignPost", Vector3.new(0.3, 5, 0.3), trainingFrame * CFrame.new(0, 2.5, 6), Colors.Metal)
+	for index = 1, 3 do
+		Geometry.Part(trainer, "JumpMark" .. index, Vector3.new(4, 0.02, 0.3), trainingFrame * CFrame.new(0, 0.04, -2 - index), Colors.Line)
+	end
+	Geometry.Part(pickup, "StandShelf", Vector3.new(6, 0.3, 3), pickupFrame * CFrame.new(0, 2.2, 3), Colors.Wood, Enum.Material.Wood)
+	for _, side in { -1, 1 } do
+		Geometry.Part(pickup, "Leg" .. side, Vector3.new(0.4, 2.2, 2.5), pickupFrame * CFrame.new(side * 2.5, 1.1, 3), Colors.Metal)
+		local ball = Geometry.Part(pickup, "DisplayBall" .. side, Vector3.new(1.8, 1.8, 1.8), pickupFrame * CFrame.new(side * 1.3, 3.2, 3), Colors.Orange)
+		ball.Shape = Enum.PartType.Ball
+	end
+	Geometry.Sign(pickup, "PickupSign", pickupFrame * CFrame.new(0, 5, 4), "BASKETBALL  /  PICK UP", Colors.Metal, 10)
+end
+
+function Scenery.Environment(parent, props, boundaries, context)
+	local frame = context.GroundFrame
+	local halfWidth = context.Ground.Size.X / 2
+	local halfDepth = context.Ground.Size.Z / 2
+	local function part(folder, name, size, position, color, material, collision)
+		return Geometry.Part(folder, name, size, frame * CFrame.new(position), color, material, collision)
+	end
+	part(parent, "Sidewalk", Vector3.new(halfWidth * 2 + 10, 0.4, 10), Vector3.new(0, -0.2, -halfDepth - 5), Colors.Concrete, Enum.Material.Concrete, true)
+	part(parent, "Curb", Vector3.new(halfWidth * 2 + 10, 0.4, 0.6), Vector3.new(0, -0.1, -halfDepth - 10), Colors.Line, Enum.Material.Concrete, true)
+	part(parent, "Street", Vector3.new(halfWidth * 2 + 30, 0.5, 24), Vector3.new(0, -0.5, -halfDepth - 22), Colors.Road, Enum.Material.Asphalt, true)
+	for index = -3, 3 do
+		part(parent, "RoadDash" .. index, Vector3.new(10, 0.02, 0.3), Vector3.new(index * 20, -0.235, -halfDepth - 22), Colors.Line)
+	end
+	local houses = Geometry.Folder(parent, "Houses")
+	for index = -1, 1 do
+		local house = Geometry.Folder(houses, "House" .. index)
+		local center = Vector3.new(index * 38, 0, -halfDepth - 49)
+		part(house, "Facade", Vector3.new(24, 17 + index * 2, 16), center + Vector3.new(0, (17 + index * 2) / 2, 0), Color3.fromRGB(158 + index * 12, 143, 122), Enum.Material.Brick)
+		part(house, "Roof", Vector3.new(26, 1.2, 18), center + Vector3.new(0, 17.6 + index * 2, 0), Colors.Metal)
+		part(house, "Door", Vector3.new(3, 6, 0.15), center + Vector3.new(0, 3, 8.1), Colors.Wood)
+		for _, side in { -1, 1 } do
+			part(house, "Window" .. side, Vector3.new(4, 4, 0.15), center + Vector3.new(side * 7, 10, 8.1), Colors.Paint)
+		end
+	end
+	local benches = Geometry.Folder(props, "Benches")
+	local trees = Geometry.Folder(props, "Trees")
+	local lights = Geometry.Folder(props, "Lights")
+	for _, side in { -1, 1 } do
+		local bench = Geometry.Folder(benches, "Bench" .. side)
+		local center = Vector3.new(side * 45, 0, 28)
+		part(bench, "Seat", Vector3.new(8, 0.4, 2.5), center + Vector3.new(0, 2, 0), Colors.Wood, Enum.Material.Wood)
+		part(bench, "Back", Vector3.new(8, 2, 0.3), center + Vector3.new(0, 3.1, 1.2), Colors.Wood, Enum.Material.Wood)
+		for _, leg in { -1, 1 } do
+			part(bench, "Leg" .. leg, Vector3.new(0.4, 2, 2), center + Vector3.new(leg * 3, 1, 0), Colors.Metal)
+		end
+		part(props, "TrashCan" .. side, Vector3.new(2, 3, 2), center + Vector3.new(7, 1.5, 0), Colors.Metal, Enum.Material.Metal)
+		for _, depth in { -25, 40 } do
+			local tree = Geometry.Folder(trees, "Tree" .. side .. "_" .. depth)
+			local treeCenter = Vector3.new(side * (halfWidth - 10), 0, depth)
+			part(tree, "Trunk", Vector3.new(1.5, 9, 1.5), treeCenter + Vector3.new(0, 4.5, 0), Colors.Wood, Enum.Material.Wood)
+			local crown = part(tree, "Crown", Vector3.new(11, 12, 10), treeCenter + Vector3.new(0, 12, 0), Colors.Leaf, Enum.Material.Grass)
+			crown.Shape = Enum.PartType.Ball
+		end
+		local bush = part(props, "Bush" .. side, Vector3.new(8, 3, 4), Vector3.new(side * 32, 1.5, -halfDepth + 6), Colors.Leaf, Enum.Material.Grass)
+		bush.Shape = Enum.PartType.Ball
+		part(lights, "Pole" .. side, Vector3.new(0.7, 22, 0.7), Vector3.new(side * 45, 11, 8), Colors.Metal, Enum.Material.Metal)
+		local fixture = part(lights, "Fixture" .. side, Vector3.new(4, 0.4, 2), Vector3.new(side * 45, 22, 8), Colors.Line)
+		local light = Instance.new("SpotLight")
+		light.Name = "CourtLight"
+		light.Face = Enum.NormalId.Bottom
+		light.Angle = 100
+		light.Range = 60
+		light.Brightness = 1
+		light.Shadows = false
+		light.Color = Color3.fromRGB(255, 237, 209)
+		light.Parent = fixture
+	end
+	local gate = Config.EntranceWidth / 2
+	local postWidth = Config.EntrancePostWidth
+	local postHeight = Config.EntrancePostHeight
+	local fenceEnd = gate + postWidth + Config.EntranceFenceGap
+	assert(gate > 0 and postWidth > 0 and Config.EntranceFenceGap >= 0.1 and fenceEnd < halfWidth,
+		"Entrance dimensions must leave separate front fence sections and positive post clearance")
+	assert(postHeight - 2.5 >= Config.FenceHeight, "Entrance sign must sit above the fence")
+	local entrance = Geometry.Folder(props, "Entrance")
+	Geometry.Sign(entrance, "EntranceSign", frame * CFrame.new(0, postHeight - 1.25, -halfDepth),
+		"THE NEIGHBORHOOD", Colors.Metal, Config.EntranceWidth + 2 * postWidth)
+	for _, side in { -1, 1 } do
+		part(entrance, "EntrancePost" .. side, Vector3.new(postWidth, postHeight, postWidth),
+			Vector3.new(side * (gate + postWidth / 2), postHeight / 2, -halfDepth), Colors.Metal, Enum.Material.Metal, true)
+	end
+	local fences = Geometry.Folder(boundaries, "Fences")
+	local function fence(name, first, last, skipFirstPost, skipLastPost)
+		local folder = Geometry.Folder(fences, name)
+		local length = (last - first).Magnitude
+		local sections = math.ceil(length / 32)
+		for index = 0, sections do
+			if not ((index == 0 and skipFirstPost) or (index == sections and skipLastPost)) then
+				local point = first:Lerp(last, index / sections)
+				part(folder, "Post" .. index, Vector3.new(0.4, Config.FenceHeight, 0.4), point + Vector3.new(0, Config.FenceHeight / 2, 0), Colors.Metal, Enum.Material.Metal)
+			end
+		end
+		for index = 1, sections do
+			local start = first:Lerp(last, (index - 1) / sections)
+			local finish = first:Lerp(last, index / sections)
+			for _, height in { 0.5, Config.FenceHeight - 0.5 } do
+				Geometry.Line(folder, "Rail" .. index .. "_" .. height, frame:PointToWorldSpace(start + Vector3.new(0, height, 0)), frame:PointToWorldSpace(finish + Vector3.new(0, height, 0)), 0.15, 0.15, Colors.Metal)
+			end
+			for half = 0, 1 do
+				local left = start:Lerp(finish, half / 2)
+				local right = start:Lerp(finish, (half + 1) / 2)
+				for _, reverse in { false, true } do
+					local low = left + Vector3.new(0, reverse and Config.FenceHeight - 0.5 or 0.5, 0)
+					local high = right + Vector3.new(0, reverse and 0.5 or Config.FenceHeight - 0.5, 0)
+					Geometry.Line(folder, "Wire" .. index .. "_" .. half .. "_" .. tostring(reverse), frame:PointToWorldSpace(low), frame:PointToWorldSpace(high), 0.05, 0.05, Colors.Metal)
+				end
+			end
+		end
+		local center = frame:PointToWorldSpace((first + last) / 2 + Vector3.new(0, Config.FenceHeight / 2, 0))
+		local barrier = Geometry.Part(folder, "Collision", Vector3.new(0.4, Config.FenceHeight, length), CFrame.lookAt(center, center + frame:VectorToWorldSpace(last - first)), Colors.Metal, nil, true)
+		barrier.Transparency = 1
+	end
+	fence("Left", Vector3.new(-halfWidth, 0, -halfDepth), Vector3.new(-halfWidth, 0, halfDepth))
+	fence("Right", Vector3.new(halfWidth, 0, -halfDepth), Vector3.new(halfWidth, 0, halfDepth))
+	fence("Back", Vector3.new(-halfWidth, 0, halfDepth), Vector3.new(halfWidth, 0, halfDepth))
+	fence("FrontLeft", Vector3.new(-halfWidth, 0, -halfDepth), Vector3.new(-fenceEnd, 0, -halfDepth), false, true)
+	fence("FrontRight", Vector3.new(fenceEnd, 0, -halfDepth), Vector3.new(halfWidth, 0, -halfDepth), true, false)
+end
+
+return Scenery
+]]></string>
+      </Properties>
+    </Item>
+  </Item>
+</roblox>
