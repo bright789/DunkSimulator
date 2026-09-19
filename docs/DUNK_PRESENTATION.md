@@ -1,10 +1,10 @@
 # Dunk v0.3: Presentation and Approach
 
-Sync Rojo and restart Play. No animation upload, new remote, or Studio object is required to test the code changes. The verified v0.2 entry checks, input buffer, jump curve, rewards, possession, phase durations, state machine, and cleanup remain the baseline. Only BasicOneHand is defined.
+Sync Rojo and restart Play. No animation upload, new remote, or Studio object is required to test the code changes. Jump curve, rewards, possession, phase durations, state machine, and cleanup retain the verified v0.2 behavior. [Basic Dunk Assist](BASIC_DUNK_ASSIST.md) documents the current entry/buffer/translation tuning. Only BasicOneHand is defined.
 
 ## Approach and Ball Motion
 
-After server validation, the existing bounded AlignPosition assist still moves at most three horizontal studs with no upward lift. The new AlignOrientation constraint turns the root smoothly toward the rim from the player's actual approach side. Torque and angular speed are limited; neither position nor rotation is directly snapped. At effectively zero horizontal separation, it retains the current horizontal facing to avoid an undefined direction. This does not add a front-only restriction or make distant/grounded requests eligible.
+After server validation, AlignPosition first normalizes height toward Rim.Y - 3 while holding entry X/Z and keeping the ball in hand. It then applies the existing at-most-five-stud horizontal assist. The optional animation and original ball timeline start after normalization. AlignOrientation turns the root smoothly toward the rim. Neither position nor rotation is teleported; effectively zero horizontal separation retains current facing. Entry rejects clear retreating/backward approaches, without a front-of-hoop-only restriction. See Basic Dunk Assist for the Vertical-35 unlock, scaled height limits, and normalization deadlines.
 
 During the first 35% of the 0.30-second gather, the detached ball follows the current hand placement. It then smoothly blends from that moving hand toward the above-rim endpoint. This lets an authored reaching arm influence presentation without controlling completion. The existing 0.25-second downward pass and 0.20-second return stay intact. The optional animation fades out during return, allowing the hand to settle before the weld is restored. All position/rotation constraints and the optional animation track are cleaned up on success or cancellation.
 
@@ -99,7 +99,7 @@ These are approximate regulation-shaped proportions: a board roughly four rim di
 
 - [ ] With AnimationId empty, repeated v0.2 dunks still work: pickup, entry/buffer, alignment, downward ball pass, +25 only after return/cleanup, retained possession, normal movement/jump afterward.
 - [ ] Test approaching from front, left, right, and an oblique angle. The character turns smoothly toward the rim along its approach side, without translation/rotation snaps. Test directly beneath the rim for stable facing.
-- [ ] Recheck Vertical 30/35/40/50 on the SAME logical rim and avatar. Progression threshold, jump heights, six-stud entry range, and cooldown are unchanged. No assistance starts for invalid attempts.
+- [ ] Recheck Vertical 30/35/40/50/75/100 on the SAME logical rim and avatar. The explicit Vertical-35 unlock and scaled height envelope replace physical-only eligibility. Jump heights, eight-stud horizontal range and cooldown are unchanged. No assistance starts for invalid attempts.
 - [ ] Hold movement/jump and spam F: one execution/reward. Training cannot run while Executing and works again afterward. Test two clients and verify replicated facing/ball presentation.
 - [ ] Reset, disconnect, remove the ball, or remove/move the hoop during execution. Verify Idle, no reward, no stuck controls, and no leftover DunkFacing/DunkAlignment/attachments or animation tracks.
 - [ ] Configure the real R15 asset: the arm raises during gather, ball stays near the moving hand initially, transitions above the ring, releases downward, then smoothly rejoins the hand. Test the asset on the actual avatar proportions.

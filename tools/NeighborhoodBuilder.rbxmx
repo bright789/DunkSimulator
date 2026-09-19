@@ -47,6 +47,11 @@ local function preflight()
 	local rim = child(hoop, "Rim", "BasePart")
 	local trainer = child(gameplay, "VerticalTrainer", "BasePart")
 	local pickup = child(gameplay, "BasketballPickup", "BasePart")
+	local upgradeStation = nil
+	if gameplay:FindFirstChild("UpgradeStation") then
+		upgradeStation = child(gameplay, "UpgradeStation", "BasePart")
+		assert(upgradeStation.Anchored, "UpgradeStation must be anchored")
+	end
 	local spawn = child(Workspace, "SpawnLocation", "SpawnLocation")
 	for _, station in { trainer, pickup } do
 		assert(station:FindFirstChildOfClass("ProximityPrompt"), station.Name .. " requires its existing direct ProximityPrompt")
@@ -77,6 +82,7 @@ local function preflight()
 		Neighborhood = neighborhood, CourtFolder = courtFolder, Environment = environment,
 		Props = optionalFolder(neighborhood, "Props"), Boundaries = optionalFolder(neighborhood, "Boundaries"),
 		Court = court, Ground = ground, Hoop = hoop, Rim = rim, Trainer = trainer, Pickup = pickup, Spawn = spawn,
+		UpgradeStation = upgradeStation,
 		FloorY = floorY, Frame = frame, GroundFrame = groundFrame,
 		TrainerFrame = groundFrame * CFrame.new(-43, 0.035, -18),
 		PickupFrame = groundFrame * CFrame.new(-18, 0.035, -35),
@@ -389,6 +395,20 @@ function Scenery.Stations(parent, context)
 		ball.Shape = Enum.PartType.Ball
 	end
 	Geometry.Sign(pickup, "PickupSign", pickupFrame * CFrame.new(0, 5, 4), "BASKETBALL  /  PICK UP", Colors.Metal, 10)
+	if context.UpgradeStation then
+		local station = context.UpgradeStation
+		local upgrade = Geometry.Folder(parent, "UpgradeArea")
+		local upgradeFrame = station.CFrame * CFrame.new(0, -station.Size.Y / 2, 0)
+		Geometry.Part(upgrade, "Pad", Vector3.new(10, 0.03, 8), upgradeFrame, Colors.Paint)
+		Geometry.Part(upgrade, "EquipmentShelf", Vector3.new(8, 0.3, 2), upgradeFrame * CFrame.new(0, 2.5, 3), Colors.Wood, Enum.Material.Wood)
+		for _, side in { -1, 1 } do
+			Geometry.Part(upgrade, "Support" .. side, Vector3.new(0.4, 5, 0.4), upgradeFrame * CFrame.new(side * 3.5, 2.5, 3), Colors.Metal)
+			Geometry.Part(upgrade, "Equipment" .. side, Vector3.new(2, 0.6, 1), upgradeFrame * CFrame.new(side * 1.7, 3, 3), Colors.Orange)
+		end
+		Geometry.Sign(upgrade, "UpgradeSign", upgradeFrame * CFrame.new(0, 5.5, 3), "UPGRADES", Colors.Metal, 10)
+	else
+		warn("[Neighborhood] UpgradeStation is absent; skipping upgrade dressing. Run SetupUpgradeStation.Run once if needed.")
+	end
 end
 
 function Scenery.Environment(parent, props, boundaries, context)
@@ -501,6 +521,101 @@ function Scenery.Environment(parent, props, boundaries, context)
 end
 
 return Scenery
+]]></string>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript" referent="5">
+      <Properties>
+        <string name="Name">SetupUpgradeStation</string>
+        <string name="Source"><![CDATA[local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local SetupUpgradeStation = {}
+
+function SetupUpgradeStation.Run()
+	assert(RunService:IsStudio() and not RunService:IsRunning(), "Stop Play before creating UpgradeStation.")
+	local shared = ReplicatedStorage:FindFirstChild("Shared")
+	local configFolder = shared and shared:FindFirstChild("Config")
+	local configModule = configFolder and configFolder:FindFirstChild("UpgradeConfig")
+	assert(configModule and configModule:IsA("ModuleScript"), "Sync the gameplay Rojo project with UpgradeConfig before setup.")
+	local config = require(configModule)
+	local gameplay = Workspace:FindFirstChild("Gameplay")
+	assert(gameplay and gameplay:IsA("Folder"), "Expected Workspace.Gameplay Folder; nothing changed.")
+	local existing = gameplay:FindFirstChild(config.StationName)
+	if existing then
+		assert(existing:IsA("BasePart") and existing.Anchored and existing:FindFirstChildOfClass("ProximityPrompt"),
+			"Existing UpgradeStation needs Anchored=true and a direct ProximityPrompt; its properties were preserved.")
+		print("[Upgrade setup] Existing UpgradeStation preserved at " .. tostring(existing.Position)
+			.. ". Run PlaceExistingNearTrainer() explicitly in edit mode to repair misplaced station/dressing.")
+		return existing
+	end
+	local trainer = gameplay:FindFirstChild("VerticalTrainer")
+	assert(trainer and trainer:IsA("BasePart"), "Expected existing VerticalTrainer; nothing changed.")
+	local station = Instance.new("Part")
+	station.Name = config.StationName
+	station.Size = Vector3.new(4, 2, 3)
+	station.CFrame = trainer.CFrame * CFrame.new(0, (station.Size.Y - trainer.Size.Y) / 2, -24)
+	station.Anchored = true
+	station.CanCollide = false
+	station.CanTouch = false
+	station.CanQuery = true
+	station.Color = Color3.fromRGB(70, 119, 132)
+	station.Material = Enum.Material.SmoothPlastic
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = "Upgrades"
+	prompt.ObjectText = "Training Upgrades"
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = config.MaxDistance
+	prompt.RequiresLineOfSight = true
+	prompt.Parent = station
+	station.Parent = gameplay
+	print("[Upgrade setup] Created Studio-owned Workspace.Gameplay.UpgradeStation, 24 studs behind the trainer. Save the place and restart Play.")
+	return station
+end
+
+function SetupUpgradeStation.PlaceExistingNearTrainer()
+	assert(RunService:IsStudio() and not RunService:IsRunning(), "Stop Play before repositioning UpgradeStation.")
+	local gameplay = Workspace:FindFirstChild("Gameplay")
+	assert(gameplay and gameplay:IsA("Folder"), "Expected Workspace.Gameplay Folder; nothing changed.")
+	local station = gameplay:FindFirstChild("UpgradeStation")
+	local trainer = gameplay:FindFirstChild("VerticalTrainer")
+	assert(station and station:IsA("BasePart") and station.Anchored
+		and station:FindFirstChildOfClass("ProximityPrompt"), "Expected existing anchored UpgradeStation with a direct ProximityPrompt; nothing changed.")
+	assert(trainer and trainer:IsA("BasePart") and trainer.Anchored, "Expected anchored VerticalTrainer; nothing changed.")
+	local config = require(script.Parent.Config)
+	assert(station:GetAttribute("BuilderOwner") == nil, "UpgradeStation must be Studio-owned, not builder-owned; nothing changed.")
+	local map = Workspace:FindFirstChild("Map")
+	local neighborhood = map and map:FindFirstChild("Neighborhood")
+	local props = neighborhood and neighborhood:FindFirstChild("Props")
+	local generated = props and props:FindFirstChild(config.GeneratedName)
+	local dressing = generated and generated:FindFirstChild("UpgradeArea")
+	if dressing then
+		assert(generated:GetAttribute("BuilderOwner") == config.Owner and dressing:IsA("Folder"),
+			"Refusing to move unowned upgrade dressing; nothing changed.")
+	end
+	local target = trainer.CFrame * CFrame.new(0, (station.Size.Y - trainer.Size.Y) / 2, -24)
+	local offset = target * station.CFrame:Inverse()
+	local parts = {}
+	if dressing then
+		for _, descendant in dressing:GetDescendants() do
+			if descendant:IsA("BasePart") then
+				assert(descendant.Anchored, "Upgrade dressing must be anchored; nothing changed.")
+				table.insert(parts, descendant)
+			end
+		end
+	end
+	for _, part in parts do
+		part.CFrame = offset * part.CFrame
+	end
+	station.CFrame = target
+	print("[Upgrade setup] Moved the existing station and its owned dressing to " .. tostring(target.Position)
+		.. ". No map rebuild or instance replacement. Save the place before Play.")
+	return station
+end
+
+return SetupUpgradeStation
 ]]></string>
       </Properties>
     </Item>

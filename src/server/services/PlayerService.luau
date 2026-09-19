@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config.ProgressionConfig)
 local DunkConfig = require(ReplicatedStorage.Shared.Config.DunkConfig)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
+local DataService = require(script.Parent.DataService)
 
 type PlayerState = {
 	Vertical: number,
@@ -35,7 +36,7 @@ local function applyJump(player: Player, character: Model)
 	humanoid.JumpHeight = Config.GetJumpHeight(state.Vertical)
 end
 
-local function addPlayer(player: Player)
+local function addPlayer(player: Player, profile)
 	if states[player] or player.Parent ~= Players then
 		return
 	end
@@ -45,18 +46,18 @@ local function addPlayer(player: Player)
 
 	local verticalDisplay = Instance.new("IntValue")
 	verticalDisplay.Name = "Vertical"
-	verticalDisplay.Value = Config.StartingVertical
+	verticalDisplay.Value = profile.Vertical
 	verticalDisplay.Parent = leaderstats
 
 	local cashDisplay = Instance.new("IntValue")
 	cashDisplay.Name = "Cash"
-	cashDisplay.Value = Config.StartingCash
+	cashDisplay.Value = profile.Cash
 	cashDisplay.Parent = leaderstats
 
 	local state: PlayerState = {
-		Vertical = Config.StartingVertical,
-		Cash = Config.StartingCash,
-		TrainingLevel = UpgradeConfig.StartingLevel,
+		Vertical = profile.Vertical,
+		Cash = profile.Cash,
+		TrainingLevel = profile.TrainingLevel,
 		Dunks = 0,
 		DunkState = "Idle",
 		VerticalDisplay = verticalDisplay,
@@ -66,6 +67,7 @@ local function addPlayer(player: Player)
 	states[player] = state
 	player:SetAttribute("Dunks", 0)
 	player:SetAttribute("DunkState", "Idle")
+	player:SetAttribute("TrainingLevel", state.TrainingLevel)
 	leaderstats.Parent = player
 
 	state.CharacterConnection = player.CharacterAdded:Connect(function(character)
@@ -77,7 +79,12 @@ local function addPlayer(player: Player)
 end
 
 function PlayerService.IsReady(player: Player): boolean
-	return player.Parent == Players and states[player] ~= nil
+	return player.Parent == Players and states[player] ~= nil and DataService.IsReady(player)
+end
+
+function PlayerService.GetVertical(player: Player): number?
+	local state = states[player]
+	return state and state.Vertical or nil
 end
 
 function PlayerService.GetDunkState(player: Player): string
@@ -153,6 +160,7 @@ function PlayerService.BuyNextTrainingLevel(player: Player): (boolean, string)
 	state.Cash -= snapshot.Price
 	state.TrainingLevel = snapshot.NextLevel
 	state.CashDisplay.Value = state.Cash
+	player:SetAttribute("TrainingLevel", state.TrainingLevel)
 	return true, "TRAINING LEVEL UP!\nLevel " .. tostring(state.TrainingLevel)
 end
 
@@ -174,17 +182,27 @@ function PlayerService.Init()
 	end
 	initialized = true
 
-	Players.PlayerAdded:Connect(addPlayer)
-	Players.PlayerRemoving:Connect(function(player)
-		local state = states[player]
-		if state and state.CharacterConnection then
-			state.CharacterConnection:Disconnect()
-		end
-		states[player] = nil
-	end)
-	for _, player in Players:GetPlayers() do
-		addPlayer(player)
-	end
+	DataService.Init({
+		Initialize = addPlayer,
+		Snapshot = function(player: Player)
+			local state = states[player]
+			if not state then
+				return nil
+			end
+			return {
+				Cash = state.Cash,
+				Vertical = state.Vertical,
+				TrainingLevel = state.TrainingLevel,
+			}
+		end,
+		Cleanup = function(player: Player)
+			local state = states[player]
+			if state and state.CharacterConnection then
+				state.CharacterConnection:Disconnect()
+			end
+			states[player] = nil
+		end,
+	})
 end
 
 return PlayerService

@@ -27,9 +27,26 @@ Vertical is a marquee stat. It increases a player's reachable height and broaden
 
 ## Cash and Economy Concept
 
-The first playable prototype starts players at Vertical 30 and Cash 0. Holding the trainer interaction grants +1 Vertical and +5 Cash approximately every 0.5 seconds per player after an initial 0.5-second wait. Releasing stops training. Cash is visible but cannot be spent yet; all progress is session-only. The initial jump curve is `7.2 * (Vertical / 30)^1.7` studs, giving progressively exaggerated jumps without changing the default movement controls. These values require playtesting and are not final balance.
+The prototype starts genuinely new players at Vertical 30, Cash 0, and TrainingLevel 1. Holding the trainer interaction grants Vertical based on TrainingLevel every approximately 0.5 seconds after an initial full interval. Releasing stops training. Training no longer gives Cash. Completed basic dunks give exactly $25, which can buy the next Training Level. Purchases do not directly grant Vertical or change tick timing. Cash, Vertical, and TrainingLevel now persist across sessions; gameplay waits for safe loading. The jump curve remains `7.2 * (Vertical / 30)^1.7` studs; Basic Dunk now explicitly unlocks at server Vertical 35 and uses a progression-scaled airborne engagement window plus height normalization. Higher jumps in the 35-100 prototype range no longer have to pass through a fixed tiny rim-height band; ordinary jump progression remains unchanged. See `BASIC_DUNK_ASSIST.md`.
 
-Cash is the primary progression currency. It is earned through validated gameplay performance, training activities, and future events. It funds attribute upgrades, court access, and selected cosmetic or convenience offerings. Economy values will live in configuration rather than gameplay scripts.
+Cash is the primary progression currency. Currently only server-validated completed dunks award Cash. The first spend is Training Level: TRAIN -> DUNK -> CASH -> UPGRADE -> TRAIN FASTER. Future court access, events, and cosmetic spending are deferred.
+
+### Training Level v0.1 (Prototype Balance)
+
+| Level | Vertical per tick | Cost to reach level |
+| --- | --- | --- |
+| 1 | +1 | Starting level |
+| 2 | +2 | $100 |
+| 3 | +3 | $300 |
+| 4 | +4 | $750 |
+| 5 | +5 | $1,500 |
+| 6 | +6 | $3,000 |
+| 7 | +7 | $6,000 |
+| 8 | +8 | $12,000 |
+| 9 | +9 | $25,000 |
+| 10 | +10 | $50,000 (maximum) |
+
+All prices/gains and the starting level live in UpgradeConfig. Server state owns TrainingLevel and Cash; the station panel displays confirmed current/next values and purchase feedback. TrainingLevel does not add another leaderboard column. See `TRAINING_UPGRADES.md` for setup and tests. These values require playtesting and are not final economy balance.
 
 ## Courts
 
@@ -53,6 +70,20 @@ Future dunk contests and competitive events will let players enter structured ro
 
 Leaderboards will surface durable achievements such as event wins, seasonal performance, and major progression milestones. They should reward healthy competition without becoming a source of client-trusted or manipulable game state.
 
+## Custom HUD v0.1
+
+The Neighborhood HUD presents Cash, Vertical, and Training Level in compact left-side cards with charcoal panels, white numbers, muted labels, and restrained blue/green accents. The default Roblox PlayerList is hidden locally; its server-owned leaderstats are retained as display mirrors. Training Level has a separate replicated display attribute, not a new leaderboard column.
+
+The compact Basic Dunk progress bar uses the existing configured unlock threshold (currently 35). Below it, the HUD shows NEXT GOAL and current/required Vertical; at or above it, the HUD shows UNLOCKED. This describes progression eligibility, not a guaranteed successful attempt: possession, airborne approach, and all current server validation still apply. NEXT STYLE / Coming Soon explicitly distinguishes future content; no additional usable dunk styles are claimed or implemented.
+
+Stat gains briefly rise/fade in their own cards, and confirmed Training Level increases show LEVEL UP! A contextual F keycap/DUNK hint appears only with possession and is hidden during execution. DUNK! / +$25 appears only after the existing server-confirmed completion event. The upgrade panel shares the HUD styling without changing purchases. No gameplay, high-Vertical dunk assist, economy, or map behavior changes. See `CUSTOM_HUD.md` for sync and resolution/regression tests.
+
+## Data Persistence v0.1
+
+Only Cash, Vertical, and TrainingLevel persist. The server loads, migrates/validates, then initializes the existing private player state; the HUD, actual jump height, upgrade affordability, and training gain use those restored values. Character respawn retains loaded progression. Ball possession, current dunk state, and the session dunk counter are not persisted.
+
+Native DataStoreService uses schema version 1, separate Studio/production stores, periodic autosaves, and leave/shutdown saves. A failed load never grants a writable fallback profile. Revision-checked saves reduce stale-write risk but are not a full session lock; crashes/outages or concurrent sessions can still lose unsaved progress. See `DATA_PERSISTENCE.md` for safety boundaries and tests. No new progression fields, prices, rewards, or dunk rules are introduced.
+
 ## Cosmetics
 
 Cosmetics will let players customize their athlete, clothing, accessories, effects, and dunk presentation. Cosmetics should not provide unbounded competitive advantages and must remain separate from core progression rules.
@@ -63,13 +94,13 @@ Potential monetization includes cosmetic items, optional convenience products, g
 
 ## MVP Scope
 
-The MVP will focus on one court, basic movement and jumping, one reliable dunk interaction, a small training and progression loop, server-owned cash, a simple upgrade path, and a minimal UI for player feedback. Persistence, events, advanced cosmetics, and monetization are later milestones.
+The MVP focuses on one court, basic movement and jumping, one reliable dunk interaction, a small training and progression loop, server-owned cash, a simple upgrade path, and readable UI. Persistence v0.1 now covers the three core progression fields; live persistence acceptance testing remains. Events, advanced cosmetics, and monetization remain later milestones.
 
 ## Explicitly Deferred
 
 - Multiple courts and court-specific rule sets.
 - Full dunk contest formats and seasonal events.
-- Persistent player data and cross-server leaderboard systems.
+- Additional persistent progression categories and cross-server leaderboard systems.
 - Cosmetic inventory, trading, and extensive avatar customization.
 - Game passes, developer products, and other monetization.
 - Advanced social systems, clans, matchmaking, and spectating.

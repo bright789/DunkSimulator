@@ -195,7 +195,7 @@ Player flow: entrance/spawn -> nearby pickup -> court/jump attempt -> trainer of
 ## Acceptance Checklist
 
 - Before migration: original root layout still trains, picks up, dunks, and rewards correctly.
-- After reparenting and restarting Play: both prompts work; training gives +1 Vertical/+5 Cash per 0.5 seconds and stops on release, distance, death, or departure.
+- After reparenting and restarting Play: both prompts work; training gives level-based Vertical (+1 initially), no Cash, every 0.5 seconds and stops on release, distance, death, or departure. See `TRAINING_UPGRADES.md` for the current economy.
 - Pick up one ball; repeated pickup cannot duplicate possession. F feedback and ball restoration still work.
 - Test on the flat court at Vertical 30, around 35, 40, and 50 with the same avatar: 30 should remain below normal dunk capability; around 35 first basic dunks; 40/50 increasingly comfortable. If changed, check floor/Rim heights and launch props, not configuration.
 - Completed dunk gives exactly +25 Cash, no Vertical change; F spam, grounded/distant attempts, or cancellation give no extra rewards.

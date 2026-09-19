@@ -15,7 +15,7 @@ No scripts need to be inserted into the trainer. The built-in prompt provides ke
 
 ## Progression and Tuning
 
-Edit `src/shared/Config/ProgressionConfig.luau`, save, and restart Play to reload required modules. The starting state is Vertical 30 and Cash 0. Each server tick awards +1 Vertical and +5 Cash. Set `Training.TickIntervalSeconds` to a finite positive number to tune the default 0.5-second interval. Each player has an independent session. The first tick requires a full interval, including after a release and re-press. Duplicate starts cannot add sessions or award ticks. Lag does not produce catch-up rewards. Death, character replacement/removal, leaving range, obstruction, disabled prompt, or invalid trainer ends the session; release and press again after conditions are valid.
+Edit `src/shared/Config/ProgressionConfig.luau`, save, and restart Play to reload required modules. Starting state is Vertical 30, Cash 0, TrainingLevel 1. Each server tick grants the level's configured Vertical gain (+1 initially) and no Cash. Gains and prices are in UpgradeConfig; see `TRAINING_UPGRADES.md`. `Training.TickIntervalSeconds` remains 0.5 seconds and is not changed by purchases. Each player has an independent session. The first tick requires a full interval, including after a release and re-press. Duplicate starts cannot add sessions or award ticks. Lag does not produce catch-up rewards. Death, character replacement/removal, leaving range, obstruction, disabled prompt, or invalid trainer ends the session; release and press again after conditions are valid.
 
 `GetJumpHeight` computes `BaseHeight * (Vertical / ReferenceVertical)^Exponent`. Its starting parameters are 7.2 studs, Vertical 30, and exponent 1.7. The curve keeps increasing beyond Vertical 100; later balancing may introduce a cap. Keep tuning inputs positive.
 
@@ -30,13 +30,13 @@ Edit `src/shared/Config/ProgressionConfig.luau`, save, and restart Play to reloa
 
 These are configured Humanoid heights, not measured avatar clearance. Test on level ground with normal gravity and sufficient headroom. `UseJumpPower` is false; `JumpHeight` drives jumping. The next jump uses the new height; an already airborne character is not boosted mid-flight. See [Roblox Humanoid documentation](https://create.roblox.com/docs/reference/engine/classes/Humanoid).
 
-View `Players > your player > leaderstats > Vertical/Cash` in Explorer or the built-in player list. These IntValues are display mirrors of private server state; editing them is not a supported way to grant progression. Cash has no spending path. Resetting the character retains stats; leaving/rejoining or restarting the server resets them.
+View `Players > your player > leaderstats > Vertical/Cash` in Explorer or the custom HUD (PlayerList is now hidden). These IntValues are display mirrors of private server state; editing them is not a supported way to grant progression. Cash buys Training Level upgrades. Resetting the character retains stats; Data Persistence v0.1 restores saved Cash/Vertical/TrainingLevel on rejoin. Complete `DATA_PERSISTENCE.md` setup before testing.
 
 ## Manual Acceptance Checklist
 
 - [ ] Fresh Play: Vertical = 30, Cash = 0. In the server view inspect the character Humanoid: `UseJumpPower = false`, `JumpHeight = 7.2`. Output has no script errors.
 - [ ] Hold E for one tick then release: Vertical = 31, Cash = 5, JumpHeight approximately 7.613. Wait two seconds after release and verify no further awards (allow for release-message network latency).
-- [ ] Hold continuously for roughly five seconds: about ten ticks, approximately Vertical = 40 and Cash = 50, without re-pressing E. Every tick changes stats by exactly +1/+5 and updates JumpHeight. Continue to 20/45/70 total ticks for Vertical 50/75/100 and Cash 100/225/350.
+- [ ] At TrainingLevel 1, hold for about ten ticks: Vertical = 40, Cash = 0, without re-pressing E. Each tick adds +1 Vertical and updates JumpHeight. At Level 2 each tick adds +2, without changing timing or awarding Cash. At Level 1, 20/45/70 ticks still produce Vertical 50/75/100; Cash stays unchanged.
 - [ ] Release before 0.5 seconds: no reward. Rapidly tap/re-press E: no instant rewards or accelerated ticks. Start a new sustained hold: first reward again waits a full interval, and only one stream of rewards runs.
 - [ ] Reset or remove the character while holding: training stops. The respawn retains session stats and current jump height, but cannot resume rewards without a fresh press.
 - [ ] Walk farther than 10 studs while holding: training stops. Return and verify a new press is needed. Repeat with a wall between the character and trainer while server-side `RequiresLineOfSight` is true.
@@ -49,4 +49,4 @@ View `Players > your player > leaderstats > Vertical/Cash` in Explorer or the bu
 
 ## Validation Limits
 
-Rojo build validates project mappings and packaging; it does not execute or typecheck Luau. Use Studio Script Analysis and complete the checklist to validate engine behavior and tune feel. Movement anti-cheat, persistence, spending, and competition remain deferred. Dunking is covered separately in `DUNK_PROTOTYPE.md`.
+Rojo build validates project mappings and packaging; it does not execute or typecheck Luau. Use Studio Script Analysis and complete the checklist to validate engine behavior and tune feel. Full movement anti-cheat and competition remain deferred. Spending and persistence are now covered in `TRAINING_UPGRADES.md` and `DATA_PERSISTENCE.md`; dunking is covered separately in `DUNK_PROTOTYPE.md`.

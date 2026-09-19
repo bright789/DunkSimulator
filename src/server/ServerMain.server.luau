@@ -10,4 +10,4 @@ BasketballService.Init()
 DunkService.Init()
 UpgradeService.Init()
 
-print("[DunkSimulator] Vertical progression initialized (session-only data).")
+print("[DunkSimulator] Gameplay initialized; progression unlocks after safe player-data loading.")

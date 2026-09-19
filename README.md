@@ -2,7 +2,7 @@
 
 Dunk Simulator is a Roblox basketball simulator built around athletic progression, high-impact dunks, unlockable courts, and competitive events.
 
-The playable prototypes provide session-only Vertical training, a configurable jump curve, basketball possession, and server-validated dunks.
+The playable prototypes provide persistent Cash, Vertical, and Training Level, a configurable jump curve, basketball possession, and server-validated dunks.
 
 ## Project Layout
 
@@ -25,7 +25,13 @@ The playable prototypes provide session-only Vertical training, a configurable j
 
 ## Current Status
 
-Players start at Vertical 30 and Cash 0. Hold E at VerticalTrainer to earn +1 Vertical and +5 Cash approximately every 0.5 seconds, starting after the first interval. Release E to stop. The server owns session validation and tick timing. Jump height updates after each reward and is reapplied on respawn. Data resets when leaving the server; no persistence is implemented.
+Genuinely new players start at Vertical 30, Cash 0, and TrainingLevel 1; returning players load their saved values before progression is enabled. Hold E at VerticalTrainer to gain Vertical based on TrainingLevel approximately every 0.5 seconds, starting after the first interval. Training gives no Cash. Release E to stop. The server owns session validation and tick timing. Jump height updates after each reward and is applied after loading and on respawn.
+
+[Data Persistence v0.1](docs/DATA_PERSISTENCE.md) saves those three fields through native server-side DataStoreService on leave, shutdown, and roughly every 90-100 seconds. Studio automatically uses `DunkSimulator_PlayerData_DEV_v1`, separate from `DunkSimulator_PlayerData_v1`. **Before testing, publish a separate private test experience and enable File > Experience Settings (Game Settings) > Security > Enable Studio Access to API Services.** Failed loads block progression and safely kick instead of using writable defaults. No Studio settings are changed by code. The guide covers safe DEV resets, schema/limits, cross-server concurrency limitations, and tests A-H.
+
+[Training Level upgrades](docs/TRAINING_UPGRADES.md) spend dunk-earned Cash to increase Vertical per tick from +1 to +10. E at UpgradeStation opens a server-confirmed panel; only clicking UPGRADE requests a purchase. See the guide for the one-time station setup, builder refresh, full price table, and security/regression checklist.
+
+[Custom HUD v0.1](docs/CUSTOM_HUD.md) displays replicated Cash, Vertical, Training Level, and Basic Dunk progress in compact Neighborhood-styled cards. It hides PlayerList without deleting leaderstats, styles the existing dunk/upgrade feedback, and makes no gameplay or tuning changes. Stop Play, sync Rojo, and restart Play; no map rebuild or manual UI assets are needed.
 
 Pick up a basketball at BasketballPickup, jump near DunkHoop.Rim, and press F. A valid attempt starts a short server-owned alignment and scripted ball-through-rim sequence. Completion awards +25 Cash without changing Vertical and displays `DUNK!` / `+$25`. Controls and held possession are restored afterward; death/respawn clears possession. No dribbling, shooting, or uploaded dunk animations are implemented.
 
@@ -83,9 +89,9 @@ The mappings are:
 | `src/server/` | `ServerScriptService` |
 | `src/client/` | `StarterPlayer/StarterPlayerScripts` |
 | `src/shared/` | `ReplicatedStorage/Shared` |
-| Declared in `default.project.json` | `ReplicatedStorage/Remotes` (`RequestDunk`, `DunkResult`) |
+| Declared in `default.project.json` | `ReplicatedStorage/Remotes` (`RequestDunk`, `DunkResult`, `TrainingUpgradeRequest`, `TrainingUpgradeState`) |
 
-The source README files remain as directory documentation and are explicitly excluded from synchronization. `ServerMain` starts the player, training, basketball, and dunk services when the server runs.
+The source README files remain as directory documentation and are explicitly excluded from synchronization. `ServerMain` starts the player/data lifecycle, training, basketball, dunk, and upgrade services when the server runs.
 
 ### Stop the Server
 

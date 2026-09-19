@@ -2,7 +2,7 @@
 
 ## Prototype Balance and State
 
-Players start at Vertical 30, Cash 0, TrainingLevel 1. TrainingLevel is private server state, not a leaderstats column or a client-authoritative attribute. It survives character resets but resets when leaving the server; there is no DataStore.
+New players start at Vertical 30, Cash 0, TrainingLevel 1. TrainingLevel is private server state, not a leaderstats column or a client-authoritative attribute. Cash, Vertical, and TrainingLevel now survive rejoining through [Data Persistence v0.1](DATA_PERSISTENCE.md); gameplay waits for successful loading. Use the isolated DEV store for these tests.
 
 | Training Level | Vertical per valid tick | Cost to buy this level |
 | --- | --- | --- |
@@ -50,6 +50,30 @@ rojo build tools/neighborhood.project.json --output tools/NeighborhoodBuilder.rb
 
 Use the existing direct Rojo executable fallback in README if the Rokit shim fails. A freshly built artifact is supplied for this update.
 
+## Troubleshooting a Missing Station During Play
+
+A read-only inspection of the saved Studio place during the disappearance investigation found the existing anchored, opaque UpgradeStation at approximately **(-5951, 3492.63, -5910)**. The trainer was near **(43, 1.04, 24.5)** and spawn near **(0, 1, 54.5)**. The UpgradeArea decoration was also thousands of studs away. Setup previously reported an existing valid instance and preserved this authored position; the decoration builder placed its stand around that position. A startup "ready" log confirms discovery, not proximity to the playable park.
+
+This establishes a placement defect in that saved place, not proof that the live server deleted anything. The saved place has StreamingEnabled enabled: distant parts can be absent on clients, but streaming does not explain removal on the server. Repository inspection found no runtime station deletion/reparenting/movement/hiding, no Gameplay clearing, and no automatic builder invocation. The saved Workspace contained no scripts. If the live server still loses the instance after placement repair, capture the diagnostics below rather than assuming streaming is responsible.
+
+### One-Time Placement Repair (No Neighborhood Rebuild)
+
+1. Stop Play and save a backup. Sync the normal gameplay Rojo project.
+2. Replace only the imported **ServerStorage.NeighborhoodBuilder** tool folder with the updated `tools/NeighborhoodBuilder.rbxmx`. Reimport even if the folder already exists, to avoid cached ModuleScripts. Leave Workspace and its objects intact.
+3. Run in the **edit-mode Command Bar**:
+
+   ```luau
+   require(game:GetService("ServerStorage").NeighborhoodBuilder.SetupUpgradeStation).PlaceExistingNearTrainer()
+   workspace:SetAttribute("DiagnoseUpgradeStation", true)
+   ```
+
+4. Inspect the new placement and save the place. The action moves the **existing** station 24 studs behind the trainer in the trainer's local frame, matching their bottom heights. Its Size, Parent, prompt, visibility and physics properties are preserved. Only Parts inside `Map.Neighborhood.Props.NeighborhoodV01.UpgradeArea`, under the expected BuilderOwner marker, receive the same rigid transform. It does not recreate anything, move the trainer/hoop/spawn, or rebuild the map. Repeating the action at the same trainer position leaves the result unchanged. Missing/invalid station or unowned dressing is rejected before movement.
+5. Press Play. In **server Output**, compare the startup and after-3-seconds `[UpgradeStation diagnostic]` records. Expect: Destroyed=false, In Workspace=true, Same resolved station=true, Same Gameplay=true, Parent is original Gameplay=true, Same CFrame=true, Transparency=0, Anchored=true, Same prompt=true, and Prompt enabled=true. Both records describe the same captured Instance. The temporary destruction listener disconnects after three seconds; no polling loop or runtime repair runs.
+6. Approach within eight studs with a living character and an unobstructed view; press E. The Training Upgrades panel should open without spending Cash. Walk away and verify it closes. Confirm trainer, pickup, dunk, +$25 and ball return still work.
+7. Stop Play and disable diagnostics in edit mode with `workspace:SetAttribute("DiagnoseUpgradeStation", nil)`, then save. Diagnostics are opt-in and Studio-only; they never run in published servers.
+
+The agent cannot run the live Studio session: Edit-to-Play survival and E/UI interaction require these tests. If removal persists, include both diagnostic records and inspect the **server** Explorer explicitly. Do not rerun Build.Run or clone stations as a workaround.
+
 ## Server Flow and Purchase Security
 
 1. UpgradeService binds the direct station prompt once at startup. Triggered is treated as input intent: the server verifies initialized player state, living original character/root, current anchored station identity, enabled direct prompt, server-observed distance, optional line of sight, and that a dunk is not Executing.
@@ -75,7 +99,7 @@ This follows Roblox's guidance to validate distance/context and rate-limit both 
 - While open, reset/die; remove the character, station or prompt; disable prompt; unanchor station. Purchases stop and UI closes. Restore edit-mode assets by stopping Play, then restart. Leave during interaction: no stuck state or errors for other players.
 - Studio local server with two clients: open/buy simultaneously; only the requesting player's Cash and TrainingLevel change. One player's close/death/spam must not throttle or affect the other player.
 - Send no token, a table token, stale/another player's token, invented level/price/Cash, or extra arguments in a disposable local test: no state change; eligible open sessions receive Invalid request where not rate-limited. Requests without a session and flood requests are silently dropped.
-- Check X close, live Cash refresh, max-level display, return after respawn, and readable panel on smaller windows. Rejoin the server: session-only level resets to 1 and Cash to 0.
+- Check X close, live Cash refresh, max-level display, return after respawn, and readable panel on smaller windows. Leave after a confirmed save and rejoin: level, Cash, and Vertical should restore, not reset.
 - Rebuild the map twice: one station (same instance), one decorated stand, unchanged logical Rim. Existing entrance, trainer, pickup, ball motion, +$25 dunk feedback, and ball return remain functional.
 
 ### Faster Late-Level Testing (Studio Only)
@@ -94,4 +118,4 @@ end
 service.SetDunkState(player, "Idle")
 ```
 
-This intentionally simulates $100,000 of server rewards for test setup (and also increments the debug dunk count). It does not validate dunk execution; use real dunks for that regression check. Use 4 iterations for exactly $100 on a fresh player, 3 for $75, or 13 for $325 to check duplicate-offer behavior. Select the intended test player explicitly when using multiple clients. Stop Play to discard test balances. No test grant remote, persistent cheat, or new gameplay currency source is added.
+This intentionally simulates $100,000 of server rewards for test setup (and also increments the debug dunk count). It does not validate dunk execution; use real dunks for that regression check. Use 4 iterations for exactly $100 on a fresh player, 3 for $75, or 13 for $325 to check duplicate-offer behavior. Select the intended test player explicitly when using multiple clients. **These balances now persist: stopping Play does not discard them.** Use only your private test experience/DEV store, wait for Ready, and use the guarded DEV reset in `DATA_PERSISTENCE.md` afterward if you want a fresh profile. Never run test grants in production. No test grant remote or new gameplay currency source is added.

@@ -7,11 +7,11 @@ local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local request = remotes:WaitForChild("TrainingUpgradeRequest")
 local stateRemote = remotes:WaitForChild("TrainingUpgradeState")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("UpgradeConfig"))
+local HUDConfig = require(ReplicatedStorage.Shared.Config:WaitForChild("HUDConfig"))
+local UI = require(script.Parent:WaitForChild("ui"):WaitForChild("UIComponents"))
+local colors = HUDConfig.Colors
 
-local screen = Instance.new("ScreenGui")
-screen.Name = "TrainingUpgrades"
-screen.ResetOnSpawn = false
-screen.DisplayOrder = 10
+local screen = UI.Screen("TrainingUpgrades", 10)
 screen.Enabled = false
 
 local panel = Instance.new("Frame")
@@ -19,15 +19,12 @@ panel.Name = "Panel"
 panel.AnchorPoint = Vector2.new(0.5, 0.5)
 panel.Position = UDim2.fromScale(0.5, 0.5)
 panel.Size = UDim2.new(0.9, 0, 0.85, 0)
-panel.BackgroundColor3 = Color3.fromRGB(29, 42, 47)
-panel.BorderSizePixel = 0
+UI.StylePanel(panel)
+panel.BackgroundTransparency = 0.03
 panel.Parent = screen
 local limits = Instance.new("UISizeConstraint")
 limits.MaxSize = Vector2.new(440, 480)
 limits.Parent = panel
-local corners = Instance.new("UICorner")
-corners.CornerRadius = UDim.new(0, 12)
-corners.Parent = panel
 
 local function label(name, position, height, textSize)
 	local text = Instance.new("TextLabel")
@@ -35,9 +32,9 @@ local function label(name, position, height, textSize)
 	text.Position = UDim2.fromScale(0.06, position)
 	text.Size = UDim2.fromScale(0.88, height)
 	text.BackgroundTransparency = 1
-	text.TextColor3 = Color3.fromRGB(238, 233, 218)
-	text.Font = Enum.Font.Gotham
-	text.TextSize = textSize
+	text.TextColor3 = colors.Text
+	text.Font = HUDConfig.Font
+	UI.FitText(text, textSize)
 	text.TextWrapped = true
 	text.Text = ""
 	text.Parent = panel
@@ -46,13 +43,16 @@ end
 
 local title = label("Title", 0.04, 0.08, 22)
 title.Text = "TRAINING UPGRADES"
-title.Font = Enum.Font.GothamBold
+title.Font = HUDConfig.BoldFont
+title.TextColor3 = colors.Accent
 title.Size = UDim2.fromScale(0.78, 0.08)
 local cash = label("Cash", 0.14, 0.06, 18)
+cash.TextColor3 = colors.Gain
 local current = label("CurrentLevel", 0.23, 0.15, 24)
-current.Font = Enum.Font.GothamBold
+current.Font = HUDConfig.BoldFont
 local gain = label("CurrentTraining", 0.38, 0.07, 20)
 local nextLevel = label("NextLevel", 0.48, 0.13, 20)
+nextLevel.TextColor3 = colors.Muted
 local cost = label("Cost", 0.62, 0.07, 22)
 local feedback = label("Feedback", 0.84, 0.13, 18)
 
@@ -60,10 +60,11 @@ local buy = Instance.new("TextButton")
 buy.Name = "Upgrade"
 buy.Position = UDim2.fromScale(0.1, 0.73)
 buy.Size = UDim2.fromScale(0.8, 0.1)
-buy.Font = Enum.Font.GothamBold
-buy.TextSize = 20
-buy.TextColor3 = Color3.fromRGB(255, 255, 255)
+buy.Font = HUDConfig.BoldFont
+UI.FitText(buy, 20)
+buy.TextColor3 = colors.Text
 buy.BorderSizePixel = 0
+UI.Round(buy)
 buy.Parent = panel
 
 local closeButton = Instance.new("TextButton")
@@ -71,9 +72,12 @@ closeButton.Name = "Close"
 closeButton.AnchorPoint = Vector2.new(1, 0)
 closeButton.Position = UDim2.new(1, -6, 0, 6)
 closeButton.Size = UDim2.fromOffset(36, 36)
-closeButton.BackgroundTransparency = 1
-closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeButton.TextSize = 26
+closeButton.BackgroundColor3 = colors.Inset
+closeButton.BorderSizePixel = 0
+closeButton.TextColor3 = colors.Muted
+closeButton.Font = HUDConfig.BoldFont
+closeButton.TextSize = 18
+UI.Round(closeButton, 8)
 closeButton.Text = "X"
 closeButton.Parent = panel
 screen.Parent = player:WaitForChild("PlayerGui")
@@ -81,10 +85,10 @@ screen.Parent = player:WaitForChild("PlayerGui")
 local snapshot = nil
 local pending = false
 local feedbackVersion = 0
+local connections = {}
 
 local function money(amount)
-	local formatted = tostring(amount):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
-	return "$" .. formatted
+	return "$" .. UI.Number(amount)
 end
 
 local function render()
@@ -107,7 +111,7 @@ local function render()
 	buy.Active = available
 	buy.Selectable = available
 	buy.AutoButtonColor = available
-	buy.BackgroundColor3 = available and Color3.fromRGB(57, 125, 99) or Color3.fromRGB(77, 83, 85)
+	buy.BackgroundColor3 = available and colors.Button or colors.Inset
 	buy.Text = pending and "UPGRADING..." or (not snapshot.CanAfford and "NOT ENOUGH CASH" or (not snapshot.CanPurchase and "PLEASE WAIT" or "UPGRADE"))
 end
 
@@ -126,15 +130,15 @@ local function requestClose()
 	close()
 end
 
-closeButton.Activated:Connect(requestClose)
-UserInputService.InputBegan:Connect(function(input, processed)
+table.insert(connections, closeButton.Activated:Connect(requestClose))
+table.insert(connections, UserInputService.InputBegan:Connect(function(input, processed)
 	if not processed and input.KeyCode == Enum.KeyCode.Escape then
 		requestClose()
 	end
-end)
-player.CharacterRemoving:Connect(requestClose)
+end))
+table.insert(connections, player.CharacterRemoving:Connect(requestClose))
 
-buy.Activated:Connect(function()
+table.insert(connections, buy.Activated:Connect(function()
 	if not screen.Enabled or not snapshot or not snapshot.NextLevel or pending
 		or not snapshot.CanAfford or not snapshot.CanPurchase then
 		return
@@ -142,9 +146,9 @@ buy.Activated:Connect(function()
 	pending = true
 	render()
 	request:FireServer("Buy", snapshot.OfferId)
-end)
+end))
 
-stateRemote.OnClientEvent:Connect(function(kind, updated, message, purchased)
+table.insert(connections, stateRemote.OnClientEvent:Connect(function(kind, updated, message, purchased)
 	if kind == "Close" then
 		close()
 		return
@@ -165,11 +169,19 @@ stateRemote.OnClientEvent:Connect(function(kind, updated, message, purchased)
 		feedbackVersion += 1
 		local version = feedbackVersion
 		feedback.Text = message or "Invalid request."
-		feedback.TextColor3 = purchased and Color3.fromRGB(147, 229, 171) or Color3.fromRGB(255, 191, 153)
+		feedback.TextColor3 = purchased and colors.Gain or colors.Warning
 		task.delay(Config.FeedbackSeconds, function()
 			if feedbackVersion == version then
 				feedback.Text = ""
 			end
 		end)
 	end
+end))
+
+script.Destroying:Connect(function()
+	feedbackVersion += 1
+	for _, connection in connections do
+		connection:Disconnect()
+	end
+	screen:Destroy()
 end)

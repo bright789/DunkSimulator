@@ -15,6 +15,37 @@ local nextRequest = {}
 local nextPurchase = {}
 local initialized = false
 
+local function diagnoseStation(station: BasePart, prompt: ProximityPrompt)
+	if not RunService:IsStudio() or Workspace:GetAttribute("DiagnoseUpgradeStation") ~= true then
+		return
+	end
+	local originalFrame = station.CFrame
+	local originalGameplay = Workspace:FindFirstChild("Gameplay")
+	local destroyed = false
+	local connection = station.Destroying:Connect(function()
+		destroyed = true
+		warn("[UpgradeStation diagnostic] Original station is being destroyed.")
+	end)
+	local function report(phase: string)
+		print("[UpgradeStation diagnostic] " .. phase,
+			"Instance:", station:GetFullName(), "Parent:", station.Parent and station.Parent:GetFullName() or "nil",
+			"Position:", station.Position, "CFrame:", station.CFrame,
+			"Transparency:", station.Transparency, "Anchored:", station.Anchored, "CanCollide:", station.CanCollide,
+			"Prompt exists:", station:FindFirstChildOfClass("ProximityPrompt") ~= nil,
+			"Same prompt:", prompt.Parent == station, "Prompt enabled:", prompt.Enabled,
+			"Destroyed:", destroyed, "In Workspace:", station:IsDescendantOf(Workspace),
+			"Same resolved station:", GameplayObjects.Find(Config.StationName) == station,
+			"Same Gameplay:", originalGameplay ~= nil and Workspace:FindFirstChild("Gameplay") == originalGameplay,
+			"Parent is original Gameplay:", originalGameplay ~= nil and station.Parent == originalGameplay,
+			"Same CFrame:", station.CFrame == originalFrame)
+	end
+	report("startup")
+	task.delay(3, function()
+		connection:Disconnect()
+		report("after 3 seconds")
+	end)
+end
+
 local function close(player: Player)
 	sessions[player] = nil
 	if player.Parent == Players then
@@ -79,6 +110,7 @@ function UpgradeService.Init()
 	prompt.ObjectText = "Training Upgrades"
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = Config.MaxDistance
+	diagnoseStation(station, prompt)
 	prompt.Triggered:Connect(function(player)
 		local now = os.clock()
 		if now < (nextRequest[player] or 0) then

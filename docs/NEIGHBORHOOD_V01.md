@@ -9,7 +9,7 @@ This is a Studio **edit-mode tool**, not a live-server map generator. It uses th
 ## One-Time Setup: Import and Run
 
 1. **Stop Play and save a separate backup of your working place.** Leave Map, Gameplay, and SpawnLocation in place. Do not delete anything before syncing/importing.
-2. In Explorer, right-click **ServerStorage**, choose **Insert > Import Roblox Model** (older Studio versions call this **Insert from File**), and select the repository file `tools/NeighborhoodBuilder.rbxmx`. Confirm that `ServerStorage.NeighborhoodBuilder` contains the four ModuleScripts Build, Config, Geometry, and Scenery. Import into the working place, not a new place. Roblox documents this [model-import workflow](https://create.roblox.com/docs/parts/model-generation).
+2. In Explorer, right-click **ServerStorage**, choose **Insert > Import Roblox Model** (older Studio versions call this **Insert from File**), and select the repository file `tools/NeighborhoodBuilder.rbxmx`. Confirm that `ServerStorage.NeighborhoodBuilder` contains Build, Config, Geometry, Scenery, and SetupUpgradeStation. Import into the working place, not a new place. Roblox documents this [model-import workflow](https://create.roblox.com/docs/parts/model-generation).
 3. Open Studio's **Command Bar** (Window > Script > Command Bar, or View > Command Bar on older layouts). Run this single command **while Play is stopped**:
 
    ```luau
@@ -22,6 +22,8 @@ This is a Studio **edit-mode tool**, not a live-server map generator. It uses th
 There is no live Studio connection available to the coding agent in this session; importing/running is the remaining manual action. The generated tool model is already built for you. No changes to the Rojo plugin connection are necessary.
 
 ## Required Existing Objects
+
+Upgrade integration: see [Training Level setup](TRAINING_UPGRADES.md) for the one-time `SetupUpgradeStation.Run()` action. It creates a separate Studio-owned `Workspace.Gameplay.UpgradeStation`; normal Build.Run only reads it to create non-colliding pad/rack/sign dressing in `Props.NeighborhoodV01.UpgradeArea`. Existing station properties/position and prompts are never changed by the decoration builder. Missing station skips only upgrade dressing. Its default location is 24 studs behind the trainer, keeping their prompt radii separate.
 
 ```text
 Workspace
@@ -67,7 +69,7 @@ Workspace.Map.Neighborhood
       Houses
   Props
     NeighborhoodV01
-      TrainingArea / BallStand
+      TrainingArea / BallStand / UpgradeArea (if UpgradeStation exists)
       Benches / Trees / Lights
       Bush... / TrashCan...
       Entrance
@@ -130,7 +132,7 @@ For the entrance update, the supplied artifact is already rebuilt. Run the same 
 ## Gameplay Regression Checklist
 
 - Spawn near the open gate facing the court; walk to both stations without collision traps.
-- Hold E at VerticalTrainer: continuous +1 Vertical/+5 Cash per existing interval; release/move away/death stops training normally.
+- Hold E at VerticalTrainer: Vertical gain matches TrainingLevel (+1 initially), no Cash, and the same 0.5-second interval; release/move away/death stops training normally. Test buying TrainingLevel from the separate upgrade station.
 - Pickup works from the front of the stand; exactly one held ball and F hint appear. Decorative signs must not obstruct prompt sightlines.
 - On the flat court, test Vertical 30 (normally cannot dunk), about 35 (first dunk), 40 and 50 (more comfortable). Check floor/Rim height and any leftover baseplate if results differ; do not retune progression.
 - Jump/F near the rim: existing buffer, alignment and ball-through-rim execution remain responsive. Grounded/distant attempts and F spam produce no extra rewards.

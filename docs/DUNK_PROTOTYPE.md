@@ -1,5 +1,7 @@
 # Dunk System v0.1
 
+**Historical baseline:** the tuning table and regression distances below describe the pre-assist prototype. Current entry rules and tests are in [Basic Dunk Assist](BASIC_DUNK_ASSIST.md): an explicit Vertical-35 unlock, progression-scaled engagement, and height normalization. The jump curve and +25 completion reward are unchanged; use that guide's current values when playtesting.
+
 This document describes the preserved entry rules and Studio setup. Execution and reward timing are now extended by [Dunk v0.2](DUNK_EXECUTION.md): valid entry starts the short scripted sequence; cash and success feedback occur only after full completion and cleanup. Use its checklist for cancellation/control restoration. Keep the playtested hoop position unchanged.
 
 ## Studio Setup
@@ -53,7 +55,7 @@ Only one pending attempt exists per player. Extra requests cannot extend its exp
 
 Airborne means the server observes FloorMaterial Air and a Humanoid state of Jumping or Freefall. Standing, sitting, swimming, and climbing do not qualify. Falling into the zone may qualify. There is no animation, ball release, or actual ball-through-rim test. Possession remains after a successful dunk, and another valid request can succeed after cooldown, even in the same long jump. This is intentional for repeated testing.
 
-Ball possession is private server state. `HasBasketball` and `Dunks` Player attributes are display/debug mirrors; changing them on the client cannot grant possession or rewards. The visible ball is massless, non-colliding, non-touching, and non-queryable, and is welded to RightHand (R15) or Right Arm (R6). Death/respawn clears it; pick up another ball. Cash and dunk count persist across respawns in the current server but reset on rejoin.
+Ball possession is private server state. `HasBasketball` and `Dunks` Player attributes are display/debug mirrors; changing them on the client cannot grant possession or rewards. The visible ball is massless, non-colliding, non-touching, and non-queryable, and is welded to RightHand (R15) or Right Arm (R6). Death/respawn clears it; pick up another ball. Cash and dunk count survive respawns; Data Persistence v0.1 restores saved Cash on rejoin, while the session dunk count still resets. See `DATA_PERSISTENCE.md`.
 
 Each F press sends an empty RequestDunk message. The server validates every attempt and sends numeric success through DunkResult only after updating private cash/count state. Failed validation sends a rejection message such as "Move closer", "Jump higher", or "Jump first"; it never displays DUNK or grants cash. Eligible buffered requests delay rejection until expiry or invalidation. Distance/height messages include measured and allowed gaps. Rejections also appear in Studio Output, and the client prints a ready message at initialization. Attempts still consume the one-second cooldown; repeated inputs during cooldown are ignored. Client input throttling is only a convenience; the server also enforces it. Network latency affects arrival time; the buffer covers slightly early airborne input, not unlimited latency or a press before takeoff.
 
@@ -81,7 +83,7 @@ Keep the same regulation rim, avatar, floor, and gravity throughout these tests.
 - [ ] Reset while holding the ball: ball/hint disappear, session cash/Vertical/Dunks persist, jump height remains correct, and pickup works again. Repeated resets/disconnects produce no errors.
 - [ ] Test two clients: each can possess one ball independently. Each sees the other's held ball, only the successful player receives cash/feedback, and cooldowns are independent.
 - [ ] Stop Play and temporarily remove/rename BasketballPickup or its prompt: clear setup warning, no crash, training still works. Restore and restart. Repeat with missing/wrong-type/unanchored Rim or missing DunkHoop: no dunk rewards; restore valid objects to recover.
-- [ ] Regress Vertical Training: hold E for several ticks and release; confirm +1 Vertical/+5 Cash per tick, correct stopping, increasing jump height, and respawn behavior. Dunking adds only cash and the session dunk count.
+- [ ] Regress Vertical Training: hold E for several ticks and release; confirm level-based Vertical (+1 initially) and no Cash per tick, correct stopping, increasing jump height, and respawn behavior. Dunking adds only cash and the session dunk count.
 - [ ] Raise Rim above the starting player's reach, then train enough to physically reach it. Confirm improved real jump capability enables dunks without changing validation or adding another stat.
 - [ ] Type F in chat/text entry: no dunk request. Normal F outside text entry still works. Map assets remain intact after Rojo sync.
 
