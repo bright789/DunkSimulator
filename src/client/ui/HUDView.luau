@@ -24,7 +24,7 @@ local function makeCard(parent: Instance, name: string, prefix: string, order: n
 	local caption = UI.Label(card, "Caption", name:upper(), UDim2.new(1, 0, 0, 18), UDim2.fromOffset(0, 44), 13)
 	caption.TextColor3 = Config.Colors.Muted
 	-- Gain badge pops in at the right end of the value row (value is 34 tall at y 6).
-	return { Card = card, Value = value, Prefix = prefix, Feedback = StatFeedback.new(card, accent, pulseScale, 23) }
+	return { Card = card, Caption = caption, Value = value, Prefix = prefix, Feedback = StatFeedback.new(card, accent, pulseScale, 23) }
 end
 
 function HUDView.new(playerGui: PlayerGui)
@@ -114,7 +114,7 @@ function HUDView.new(playerGui: PlayerGui)
 	local navigation = Instance.new("Frame")
 	navigation.Name = "Navigation"
 	navigation.BackgroundTransparency = 1
-	navigation.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight * 3 + Config.Layout.Gap * 2)
+	navigation.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight * 4 + Config.Layout.Gap * 3)
 	navigation.LayoutOrder = 5
 	navigation.Parent = column
 	local dunksButton = Instance.new("TextButton")
@@ -157,6 +157,19 @@ function HUDView.new(playerGui: PlayerGui)
 	lockerButton.Size = UDim2.new(0.48, 0, 0, Config.Layout.DunksButtonHeight)
 	lockerButton.Position = UDim2.new(0.52, 0, 0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 2)
 	lockerButton.Parent = navigation
+	local inviteButton = dunksButton:Clone()
+	inviteButton.Name = "Invite"
+	inviteButton.Text = "INVITE"
+	inviteButton.TextColor3 = Config.Colors.Gain
+	inviteButton.Size = UDim2.new(0.48, 0, 0, Config.Layout.DunksButtonHeight)
+	inviteButton.Position = UDim2.fromOffset(0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 3)
+	inviteButton.Parent = navigation
+	local musicButton = dunksButton:Clone()
+	musicButton.Name = "Music"
+	musicButton.Text = "MUSIC: ON"
+	musicButton.Size = UDim2.new(0.48, 0, 0, Config.Layout.DunksButtonHeight)
+	musicButton.Position = UDim2.new(0.52, 0, 0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 3)
+	musicButton.Parent = navigation
 	-- Cash Boost countdown pill (shown only while a boost runs).
 	local boost = UI.Panel(column, "CashBoost", UDim2.new(1, 0, 0, Config.Layout.BoostHeight), UDim2.new())
 	boost.LayoutOrder = 6
@@ -165,12 +178,27 @@ function HUDView.new(playerGui: PlayerGui)
 	boostLabel.Font = Config.BoldFont
 	boostLabel.TextColor3 = Config.Colors.Gold
 	boostLabel.TextXAlignment = Enum.TextXAlignment.Center
+	-- AUTO TRAIN toggle (only shown to Auto Train pass owners).
+	local autoButton = Instance.new("TextButton")
+	autoButton.Name = "AutoTrain"
+	autoButton.Size = UDim2.new(1, 0, 0, Config.Layout.BoostHeight)
+	autoButton.LayoutOrder = 7
+	autoButton.Visible = false
+	UI.StylePanel(autoButton)
+	autoButton.Text = "AUTO TRAIN: ON"
+	autoButton.Font = Config.BoldFont
+	autoButton.TextSize = 14
+	autoButton.TextColor3 = Config.Colors.Gain
+	autoButton.Parent = column
 	UI.Interactive(dunksButton)
 	UI.Interactive(courtsButton)
 	UI.Interactive(challengesButton)
 	UI.Interactive(rebirthButton)
 	UI.Interactive(dailyButton)
 	UI.Interactive(lockerButton)
+	UI.Interactive(inviteButton)
+	UI.Interactive(musicButton)
+	UI.Interactive(autoButton)
 
 	-- Touch devices: Roblox's movement thumbstick takes touches in the lower-left of the
 	-- screen, and buttons there block it, so the menu buttons move to the top-right corner.
@@ -223,7 +251,8 @@ function HUDView.new(playerGui: PlayerGui)
 	local resizeConnection = bounds:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
 	resize()
 	local view = { DunksButton = dunksButton, CourtsButton = courtsButton, ChallengesButton = challengesButton,
-		RebirthButton = rebirthButton, DailyButton = dailyButton, LockerButton = lockerButton }
+		RebirthButton = rebirthButton, DailyButton = dailyButton, LockerButton = lockerButton,
+		InviteButton = inviteButton, MusicButton = musicButton, AutoTrainButton = autoButton }
 	local courtName, rebirths = "--", 0
 
 	local function refreshCourtLabel()
@@ -239,6 +268,37 @@ function HUDView.new(playerGui: PlayerGui)
 	function view.SetDailyBadge(count: number)
 		dailyButton.Text = count > 0 and string.format("DAILY (%d)", count) or "DAILY"
 		dailyButton.TextColor3 = count > 0 and Config.Colors.Gain or Config.Colors.Accent
+	end
+
+	-- Vertical card caption: notes when this court limits the jump ("JUMP 150 HERE").
+	function view.SetJumpLimit(limit: number?)
+		local caption = cards.Vertical.Caption
+		if limit then
+			caption.Text = string.format("VERTICAL  -  JUMP %d HERE", limit)
+			caption.TextColor3 = Config.Colors.Warning
+		else
+			caption.Text = "VERTICAL"
+			caption.TextColor3 = Config.Colors.Muted
+		end
+	end
+
+	-- INVITE shows the friends-in-server Cash bonus when there is one.
+	function view.SetFriendBonus(percent: number)
+		inviteButton.Text = percent > 0 and string.format("INVITE +%d%%", percent) or "INVITE"
+	end
+
+	function view.SetAutoTrain(visible: boolean, on: boolean)
+		autoButton.Text = on and "AUTO TRAIN: ON" or "AUTO TRAIN: OFF"
+		autoButton.TextColor3 = on and Config.Colors.Gain or Config.Colors.Muted
+		if autoButton.Visible ~= visible then
+			autoButton.Visible = visible
+			resize()
+		end
+	end
+
+	function view.SetMusic(on: boolean)
+		musicButton.Text = on and "MUSIC: ON" or "MUSIC: OFF"
+		musicButton.TextColor3 = on and Config.Colors.Accent or Config.Colors.Muted
 	end
 
 	-- Cash Boost pill: pass nil to hide it.

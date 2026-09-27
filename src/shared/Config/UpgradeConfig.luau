@@ -4,17 +4,19 @@ local UpgradeConfig = {
 	MaxDistance = 8,
 	RequestCooldownSeconds = 0.5,
 	SessionCheckSeconds = 0.2,
+	-- Vertical gained per training rep (every 0.5 s at a station, or with Auto Train) at
+	-- each Training Level, before court and Rebirth bonuses: Level n = n x 0.1.
 	Levels = {
-		{ TrainingMultiplier = 1.00, Cost = 0 },
-		{ TrainingMultiplier = 1.10, Cost = 250 },
-		{ TrainingMultiplier = 1.20, Cost = 600 },
-		{ TrainingMultiplier = 1.30, Cost = 1200 },
-		{ TrainingMultiplier = 1.40, Cost = 2000 },
-		{ TrainingMultiplier = 1.50, Cost = 3500 },
-		{ TrainingMultiplier = 1.60, Cost = 5500 },
-		{ TrainingMultiplier = 1.70, Cost = 8000 },
-		{ TrainingMultiplier = 1.80, Cost = 12000 },
-		{ TrainingMultiplier = 2.00, Cost = 18000 },
+		{ VerticalPerRep = 0.1, Cost = 0 },
+		{ VerticalPerRep = 0.2, Cost = 250 },
+		{ VerticalPerRep = 0.3, Cost = 600 },
+		{ VerticalPerRep = 0.4, Cost = 1200 },
+		{ VerticalPerRep = 0.5, Cost = 2000 },
+		{ VerticalPerRep = 0.6, Cost = 3500 },
+		{ VerticalPerRep = 0.7, Cost = 5500 },
+		{ VerticalPerRep = 0.8, Cost = 8000 },
+		{ VerticalPerRep = 0.9, Cost = 12000 },
+		{ VerticalPerRep = 1.0, Cost = 18000 },
 	},
 }
 

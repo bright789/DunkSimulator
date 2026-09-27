@@ -35,6 +35,7 @@ type PlayerState = {
 	Locker: { [string]: any },
 	-- Robux passes this player owns (checked by MonetizationService each join; not saved).
 	Passes: { [string]: boolean },
+	FriendMultiplier: number,
 	CourtTransition: boolean,
 	Dunks: number,
 	DunkState: string,
@@ -48,6 +49,24 @@ local states: { [Player]: PlayerState } = {}
 local initialized = false
 local placeCharacter = nil
 
+-- Each court limits how high you jump to its training cap (Neighborhood 75, High School 150,
+-- College 250, Rooftop 350) so big jumps never go through a gym ceiling. Only the jump is
+-- limited: the saved Vertical, dunk unlocks and payouts all keep using the real Vertical.
+local function jumpVertical(state: PlayerState): number
+	local court = Courts.Get(state.CurrentCourt)
+	local cap = court and court.TrainingVerticalCap or state.Vertical
+	return math.min(state.Vertical, cap)
+end
+
+local function setJump(player: Player, state: PlayerState, humanoid: Humanoid?)
+	local effective = jumpVertical(state)
+	player:SetAttribute("JumpVertical", effective)
+	if humanoid then
+		humanoid.UseJumpPower = false
+		humanoid.JumpHeight = Config.GetJumpHeight(effective)
+	end
+end
+
 local function applyJump(player: Player, character: Model)
 	local humanoid = character:WaitForChild("Humanoid", 10)
 	local state = states[player]
@@ -59,8 +78,7 @@ local function applyJump(player: Player, character: Model)
 		return
 	end
 
-	humanoid.UseJumpPower = false
-	humanoid.JumpHeight = Config.GetJumpHeight(state.Vertical)
+	setJump(player, state, humanoid)
 end
 
 local function addPlayer(player: Player, profile)
@@ -95,6 +113,7 @@ local function addPlayer(player: Player, profile)
 		Stats = Leaderboards.CopyStats(profile.Stats),
 		Locker = Locker.CopyState(profile.Locker),
 		Passes = {},
+		FriendMultiplier = 1,
 		CourtTransition = placeCharacter ~= nil,
 		Dunks = 0,
 		DunkState = "Idle",
@@ -162,6 +181,7 @@ function PlayerService.SetCurrentCourt(player: Player, courtId: string): boolean
 	if not Courts.Get(courtId) or not PlayerService.HasCourt(player, courtId) then return false end
 	states[player].CurrentCourt = courtId
 	player:SetAttribute("CurrentCourt", courtId)
+	setJump(player, states[player], player.Character and player.Character:FindFirstChildOfClass("Humanoid"))
 	return true
 end
 
@@ -308,7 +328,7 @@ function PlayerService.AwardTraining(player: Player): boolean
 	if state.Vertical >= trainingCap then return false end
 	local scale = Courts.TrainingProgressScale
 	local bonuses = Courts.GetBonuses(state.CurrentCourt, state.UnlockedCourts)
-	local earnedUnits = math.floor(Config.Training.BaseProgressPerTick * level.TrainingMultiplier
+	local earnedUnits = math.floor(level.VerticalPerRep
 		* bonuses.TrainingMultiplier * Rebirths.TrainingMultiplier(state.Rebirths) * scale + 0.5)
 	local remainderUnits = math.floor(state.VerticalTrainingRemainder * scale + 0.5)
 	local totalUnits = earnedUnits + remainderUnits
@@ -324,8 +344,7 @@ function PlayerService.AwardTraining(player: Player): boolean
 			state.Stats.BestVertical = state.Vertical
 			player:SetAttribute("BestVertical", state.Vertical)
 		end
-		humanoid.UseJumpPower = false
-		humanoid.JumpHeight = Config.GetJumpHeight(state.Vertical)
+		setJump(player, state, humanoid)
 	end
 	return true
 end
@@ -342,11 +361,11 @@ function PlayerService.GetTrainingUpgradeSnapshot(player: Player)
 	local nextLevel = UpgradeConfig.GetLevel(state.TrainingLevel + 1)
 	return {
 		TrainingLevel = state.TrainingLevel,
-		TrainingMultiplier = current.TrainingMultiplier,
+		VerticalPerRep = current.VerticalPerRep,
 		Cash = state.Cash,
 		MaxLevel = #UpgradeConfig.Levels,
 		NextLevel = nextLevel and state.TrainingLevel + 1 or nil,
-		NextMultiplier = nextLevel and nextLevel.TrainingMultiplier or nil,
+		NextVerticalPerRep = nextLevel and nextLevel.VerticalPerRep or nil,
 		Price = nextLevel and nextLevel.Cost or nil,
 		CanAfford = nextLevel ~= nil and state.Cash >= nextLevel.Cost,
 	}
@@ -385,7 +404,7 @@ function PlayerService.RegisterDunk(player: Player, styleId: string, rating: str
 	local bonuses = Courts.GetBonuses(state.CurrentCourt, state.UnlockedCourts)
 	local cashReward = DunkRewards.DunkCash(style.Reward, bonuses.DunkCashMultiplier * Rebirths.CashMultiplier(state.Rebirths)
 		* Daily.BoostMultiplier(state.Daily.BoostUntil, os.time())
-		* (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1), state.Vertical, rating)
+		* (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1) * state.FriendMultiplier, state.Vertical, rating)
 	state.Cash = math.min(state.Cash + cashReward, DataConfig.MaxCash)
 	state.Dunks += 1
 	state.CashDisplay.Value = state.Cash
@@ -416,7 +435,8 @@ function PlayerService.AwardDunkTrick(player: Player, trickId: string, comboInde
 	local shoe = Locker.Get("Shoes", state.Locker.Shoes.Equipped)
 	local cash = DunkRewards.TrickCash(trickId, comboIndex, bonuses.DunkCashMultiplier
 		* Rebirths.CashMultiplier(state.Rebirths) * Daily.BoostMultiplier(state.Daily.BoostUntil, os.time())
-		* (1 + (shoe and shoe.TrickBonus or 0)) * (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1))
+		* (1 + (shoe and shoe.TrickBonus or 0)) * (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1)
+		* state.FriendMultiplier)
 	if cash <= 0 or state.Cash > DataConfig.MaxCash - cash then return nil end
 	state.Cash += cash
 	state.CashDisplay.Value = state.Cash
@@ -440,6 +460,13 @@ function PlayerService.SetPasses(player: Player, owned: { [string]: boolean })
 		state.Passes[pass.Key] = owned[pass.Key] == true
 		player:SetAttribute("Pass_" .. pass.Key, state.Passes[pass.Key])
 	end
+end
+
+-- Friends-in-server Cash bonus (InviteService is its only caller). Not saved.
+function PlayerService.SetFriendMultiplier(player: Player, multiplier: number)
+	local state = states[player]
+	if not state or type(multiplier) ~= "number" or multiplier ~= multiplier or multiplier < 1 or multiplier > 2 then return end
+	state.FriendMultiplier = multiplier
 end
 
 function PlayerService.HasPass(player: Player, key: string): boolean
@@ -588,11 +615,7 @@ function PlayerService.ApplyRebirth(player: Player): (boolean, string)
 	player:SetAttribute("TrainingLevel", state.TrainingLevel)
 	player:SetAttribute("EquippedDunkStyle", state.EquippedDunkStyle)
 	player:SetAttribute("CurrentCourt", state.CurrentCourt)
-	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-	if humanoid then
-		humanoid.UseJumpPower = false
-		humanoid.JumpHeight = Config.GetJumpHeight(state.Vertical)
-	end
+	setJump(player, state, player.Character and player.Character:FindFirstChildOfClass("Humanoid"))
 	return true, string.format("REBIRTH %d!", state.Rebirths)
 end
 

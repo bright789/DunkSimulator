@@ -104,6 +104,21 @@ function LockerView.new(playerGui: PlayerGui)
 	note.TextXAlignment = Enum.TextXAlignment.Right
 	note.TextColor3 = Config.Colors.Muted
 	local pages, cards = {}, {}
+	-- Canvas height follows the grid's real content height (AutomaticCanvasSize doesn't track
+	-- UIGridLayout reliably), with a visible scrollbar so players can tell there's more.
+	local function scrollable(page: ScrollingFrame, grid: UIGridLayout)
+		page.AutomaticCanvasSize = Enum.AutomaticSize.None
+		page.ScrollingDirection = Enum.ScrollingDirection.Y
+		page.ScrollBarThickness = 8
+		page.ScrollBarImageColor3 = Config.Colors.Accent
+		page.ScrollBarImageTransparency = 0.2
+		page.VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar
+		local function fit()
+			page.CanvasSize = UDim2.fromOffset(0, grid.AbsoluteContentSize.Y + 12)
+		end
+		grid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(fit)
+		fit()
+	end
 	for _, kind in Locker.Kinds do
 		local page = Instance.new("ScrollingFrame")
 		page.Name = kind
@@ -120,6 +135,7 @@ function LockerView.new(playerGui: PlayerGui)
 		grid.CellPadding = UDim2.new(0.02, 0, 0, 10)
 		grid.SortOrder = Enum.SortOrder.LayoutOrder
 		grid.Parent = page
+		scrollable(page, grid)
 		pages[kind] = page
 		cards[kind] = {}
 		for order, item in Locker[kind] do
@@ -155,6 +171,7 @@ function LockerView.new(playerGui: PlayerGui)
 	passGrid.CellPadding = UDim2.new(0.03, 0, 0, 10)
 	passGrid.SortOrder = Enum.SortOrder.LayoutOrder
 	passGrid.Parent = passPage
+	scrollable(passPage, passGrid)
 	pages.Passes = passPage
 	local offers = {}
 	local order = 0

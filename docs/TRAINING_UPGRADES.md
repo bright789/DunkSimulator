@@ -4,22 +4,24 @@
 
 New players start at Vertical 30, Cash 0, TrainingLevel 1. TrainingLevel is private server state, not a leaderstats column or a client-authoritative attribute. Cash, Vertical, and TrainingLevel now survive rejoining through [Data Persistence v0.1](DATA_PERSISTENCE.md); gameplay waits for successful loading. Use the isolated DEV store for these tests.
 
-| Training Level | Training efficiency | Cost to buy this level |
+| Training Level | Vertical per rep | Cost to buy this level |
 | --- | --- | --- |
-| 1 | 1.00x | Starting level |
-| 2 | 1.10x | $250 |
-| 3 | 1.20x | $600 |
-| 4 | 1.30x | $1,200 |
-| 5 | 1.40x | $2,000 |
-| 6 | 1.50x | $3,500 |
-| 7 | 1.60x | $5,500 |
-| 8 | 1.70x | $8,000 |
-| 9 | 1.80x | $12,000 |
-| 10 | 2.00x | $18,000 |
+| 1 | +0.1 | Starting level |
+| 2 | +0.2 | $250 |
+| 3 | +0.3 | $600 |
+| 4 | +0.4 | $1,200 |
+| 5 | +0.5 | $2,000 |
+| 6 | +0.6 | $3,500 |
+| 7 | +0.7 | $5,500 |
+| 8 | +0.8 | $8,000 |
+| 9 | +0.9 | $12,000 |
+| 10 | +1.0 | $18,000 |
 
-These are prototype prices, not final economy balance. `src/shared/Config/UpgradeConfig.luau` owns the starting level, full price/efficiency table, interaction range (8), purchase/open throttles (0.5 seconds), and session check interval (0.2 seconds). The unchanged 2-second UI confirmation lives in `src/shared/Config/FeedbackConfig.luau`. Maximum level is the table length. `ProgressionConfig.Training.BaseProgressPerTick` is 0.25 (lowered from 1.00 in the 2026-09-27 pacing pass, so upgrades save real time); the existing tick time (0.5 seconds) and jump curve are unchanged.
+**2026-09-27 change:** training used to be 0.25 × an efficiency multiplier (1.00x–2.00x). Now each level adds a flat +0.1 Vertical per rep, from 0.1 at Level 1 to 1.0 at Level 10, so upgrades are the main way training gets faster (10× from Level 1 to Level 10, instead of 2×). The court training bonus (High School ×1.15, College ×1.3, Rooftop ×1.45) and the Rebirth training bonus still multiply it. Auto Train uses the same rate. The pacing model put the first Rebirth at about the same time as before (around 61 minutes with upgrade buying), with a slower Level 1 start and much faster late levels.
 
-**Training gives no Cash.** TrainingService's existing hold sessions/timing remain untouched; every valid tick calls PlayerService.AwardTraining, which computes 1.00 base progress × authoritative TrainingLevel efficiency × validated court training bonus and accumulates the existing persisted fractional remainder. Only whole points update Vertical, jump height and HUD feedback. Buying a level only deducts Cash and changes TrainingLevel; it grants no Vertical and does not recalculate jump height until training increases Vertical.
+These are prototype prices, not final economy balance. `src/shared/Config/UpgradeConfig.luau` owns the starting level, full price/efficiency table, interaction range (8), purchase/open throttles (0.5 seconds), and session check interval (0.2 seconds). The unchanged 2-second UI confirmation lives in `src/shared/Config/FeedbackConfig.luau`. Maximum level is the table length. Vertical per rep comes straight from the level's `VerticalPerRep`; the tick time (0.5 seconds) and jump curve are unchanged.
+
+**Training gives no Cash.** TrainingService's existing hold sessions/timing remain untouched; every valid tick calls PlayerService.AwardTraining, which computes the TrainingLevel's `VerticalPerRep` × validated court training bonus × Rebirth training bonus and accumulates the existing persisted fractional remainder. Only whole points update Vertical, jump height and HUD feedback. Buying a level only deducts Cash and changes TrainingLevel; it grants no Vertical and does not recalculate jump height until training increases Vertical.
 
 Completed Neighborhood Basic One-Hand dunks award **$20**; Two-Hand Power awards **$35**, Tomahawk **$60**, and Windmill **$100**, from DunkStyles configuration. Thirteen Basic dunks can fund the $250 Level 2 purchase from zero Cash, before any challenge claims; normal training cannot fund purchases. Court multipliers still adjust final payouts. The loop is TRAIN -> DUNK -> CASH -> UPGRADE -> TRAIN MORE EFFICIENTLY, without shorter tick intervals.
 

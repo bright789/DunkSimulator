@@ -241,10 +241,11 @@ local function poseSpectator(state, now: number, deltaTime: number, focus: Vecto
 	Workspace:BulkMoveTo(parts, cframes, Enum.BulkMoveMode.FireCFrameChanged)
 end
 
--- Stadium crowd bed while this player is in an indoor gym (High School or College).
+-- Stadium crowd bed in the indoor gyms (High School, College); city night bed on the Rooftop.
 local function updateAmbience()
 	local court = localPlayer:GetAttribute("CurrentCourt")
 	WorldAudio.SetLoop("GymAmbience", court == "HighSchool" or court == "College")
+	WorldAudio.SetLoop("CityAmbience", court == "Rooftop")
 end
 localPlayer:GetAttributeChangedSignal("CurrentCourt"):Connect(updateAmbience)
 updateAmbience()

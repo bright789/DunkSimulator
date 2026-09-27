@@ -3,11 +3,13 @@
 -- replicates (leaderstats and player attributes), so it needs no saved data of its own:
 -- players who finished the steps, or have Rebirthed, never see it. SKIP hides it for the
 -- session. Display only; the server logs the matching analytics funnel.
+local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Milestones = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("MilestoneConfig"))
+local Monetization = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local TutorialView = require(script.Parent:WaitForChild("ui"):WaitForChild("TutorialView"))
 
 local player = Players.LocalPlayer
@@ -18,6 +20,10 @@ local UPDATE_SECONDS = 0.25
 local RETARGET_SECONDS = 2
 
 local skipped = false
+local offering = false
+-- Seconds after "TUTORIAL COMPLETE!" before the one-time Starter Pack offer (if it's on sale).
+local OFFER_DELAY_SECONDS = 6
+local OFFER_SECONDS = 14
 local wasActive = false
 local shownStep = 0
 local target: BasePart? = nil
@@ -73,6 +79,22 @@ local function update()
 	if not active then
 		if wasActive and state and not skipped and Milestones.TutorialStepsDone(state) == #Milestones.Tutorial then
 			view.ShowComplete()
+			local pass = Monetization.GetPass("StarterPack")
+			if pass and pass.Id ~= 0 then
+				task.delay(OFFER_DELAY_SECONDS, function()
+					if player:GetAttribute("Pass_StarterPack") == true then return end
+					offering = true
+					local contents = pass.Contents
+					view.ShowOffer("SPECIAL OFFER", "STARTER PACK", string.format("$%d Cash, 2x Cash for %d min and Sky Risers shoes",
+						contents.Cash, contents.BoostMinutes))
+					task.delay(OFFER_SECONDS, function()
+						if offering then
+							offering = false
+							view.Hide()
+						end
+					end)
+				end)
+			end
 		elseif wasActive then
 			view.Hide()
 		end
@@ -107,9 +129,21 @@ local function update()
 end
 
 view.SkipButton.Activated:Connect(function()
+	if offering then
+		offering = false
+		view.Hide()
+		return
+	end
 	skipped = true
 	view.Hide()
 	clearGuide()
+end)
+
+view.BuyButton.Activated:Connect(function()
+	local pass = Monetization.GetPass("StarterPack")
+	offering = false
+	view.Hide()
+	if pass and pass.Id ~= 0 then MarketplaceService:PromptGamePassPurchase(player, pass.Id) end
 end)
 
 player.CharacterAdded:Connect(function()

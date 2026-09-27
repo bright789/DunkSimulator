@@ -189,4 +189,43 @@ Draw-Sparkle $g 120 118 18 (C 255 255 230 220)
 Draw-Rim $g $goldDeep
 $bmp.Save("$out\cash-boost-15min.png", [System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose()
 
+# 5) AUTO TRAIN ---------------------------------------------------------------------------
+$icon = New-Icon; $bmp = $icon[0]; $g = $icon[1]
+Fill-Background $g (C 80 220 170) (C 8 40 50)
+Draw-Rays $g (C 255 255 220 28) 16 256 200
+# Circular arrows around an up arrow: training on repeat.
+$ringPen = New-Object System.Drawing.Pen($ink, 30); $g.DrawArc($ringPen, 146, 70, 220, 220, 210, 300)
+$ringPen = New-Object System.Drawing.Pen((C 255 238 130), 16); $g.DrawArc($ringPen, 146, 70, 220, 220, 210, 300)
+$head = [System.Drawing.PointF[]]@((P 142 128), (P 196 108), (P 180 160))
+$g.FillPolygon((New-Object System.Drawing.SolidBrush((C 255 238 130))), $head)
+$arrow = [System.Drawing.PointF[]]@((P 256 112), (P 306 172), (P 278 172), (P 278 240), (P 234 240), (P 234 172), (P 206 172))
+$arrowPen = New-Object System.Drawing.Pen($ink, 10); $arrowPen.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Round
+$g.DrawPolygon($arrowPen, $arrow)
+$g.FillPolygon((Gradient-Brush (New-Object System.Drawing.RectangleF(206, 112, 100, 128)) (C 170 255 140) (C 30 190 70)), $arrow)
+Draw-Text $g 'AUTO' 96 256 350 $gold $goldDeep $ink 16
+Draw-Text $g 'TRAIN' 78 256 436 (C 255 255 255) (C 200 255 230) $ink 14
+Draw-Rim $g $goldDeep
+$bmp.Save("$out\auto-train.png", [System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose()
+
+# 6) STARTER PACK ------------------------------------------------------------------------
+$icon = New-Icon; $bmp = $icon[0]; $g = $icon[1]
+Fill-Background $g (C 255 110 160) (C 60 10 60)
+Draw-Rays $g (C 255 240 200 30) 16 256 200
+# Gift box with a basketball peeking out.
+Draw-Basketball $g 256 128 62
+$boxRect = New-Object System.Drawing.RectangleF(146, 150, 220, 140)
+$g.FillRectangle((Gradient-Brush $boxRect (C 120 90 255) (C 70 40 200)), $boxRect)
+$g.DrawRectangle((New-Object System.Drawing.Pen($ink, 9)), 146, 150, 220, 140)
+$g.FillRectangle((New-Object System.Drawing.SolidBrush((C 255 214 64))), 238, 150, 36, 140)
+$lid = New-Object System.Drawing.RectangleF(132, 128, 248, 34)
+$g.FillRectangle((Gradient-Brush $lid (C 150 120 255) (C 100 70 230)), $lid)
+$g.DrawRectangle((New-Object System.Drawing.Pen($ink, 9)), 132, 128, 248, 34)
+$g.FillRectangle((New-Object System.Drawing.SolidBrush((C 255 214 64))), 238, 128, 36, 34)
+Draw-Text $g 'STARTER' 76 256 350 $gold $goldDeep $ink 14
+Draw-Text $g 'PACK' 88 256 432 (C 255 255 255) (C 255 220 240) $ink 14
+Draw-Sparkle $g 120 120 20 (C 255 255 230 220)
+Draw-Sparkle $g 400 110 16 (C 255 255 230 220)
+Draw-Rim $g $goldDeep
+$bmp.Save("$out\starter-pack.png", [System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose()
+
 Get-ChildItem $out | Select-Object Name, Length

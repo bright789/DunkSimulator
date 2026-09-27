@@ -19,6 +19,10 @@ type TrainingSession = {
 
 local sessions: { [Player]: TrainingSession } = {}
 local nextCapNotice: { [Player]: number } = {}
+-- Auto Train pass: next tick time per owner, and the court they were last told is maxed.
+local autoNext: { [Player]: number } = {}
+local autoCapCourt: { [Player]: string } = {}
+local nextAutoToggle: { [Player]: number } = {}
 local initialized = false
 
 local function notifyCap(player: Player)
@@ -94,18 +98,48 @@ local function startTraining(player: Player, station: BasePart, prompt: Proximit
 	end
 end
 
+-- Progress hooks shared by station training and Auto Train.
+local function afterRep(player: Player)
+	local tracked, problem = pcall(ChallengeService.OnVerticalChanged, player)
+	if not tracked then warn("[TrainingService] Challenge tracking failed: " .. tostring(problem)) end
+	local dailyTracked, dailyProblem = pcall(DailyService.OnTrainingRep, player)
+	if not dailyTracked then warn("[TrainingService] Daily tracking failed: " .. tostring(dailyProblem)) end
+end
+
+-- Auto Train (game pass): the same tick as the station, anywhere on the current court, for
+-- owners who have it switched on. Skipped while station training, riding the bus or dunking
+-- (AwardTraining refuses during a dunk). At the court's cap it pauses quietly after one notice.
+local function updateAutoTraining(now: number)
+	for _, player in Players:GetPlayers() do
+		if player:GetAttribute("AutoTrain") == true and not sessions[player] and PlayerService.HasPass(player, "AutoTrain")
+			and not player:GetAttribute("TransitRide") and not player:GetAttribute("CourtTransition")
+			and now >= (autoNext[player] or 0) then
+			autoNext[player] = now + Config.Training.TickIntervalSeconds
+			local cap = PlayerService.GetTrainingCap(player)
+			local court = PlayerService.GetCurrentCourt(player)
+			if cap and (PlayerService.GetVertical(player) or 0) >= cap then
+				if autoCapCourt[player] ~= court then
+					autoCapCourt[player] = court
+					notifyCap(player)
+				end
+			elseif PlayerService.AwardTraining(player) then
+				autoCapCourt[player] = nil
+				afterRep(player)
+			end
+		end
+	end
+end
+
 local function updateSessions()
 	local now = os.clock()
+	updateAutoTraining(now)
 	for player, session in sessions do
 		local character = getValidCharacter(player, session.Station, session.Prompt)
 		if character ~= session.Character then
 			stopTraining(player)
 		elseif now >= session.NextTickAt then
 			if PlayerService.AwardTraining(player) then
-				local tracked, problem = pcall(ChallengeService.OnVerticalChanged, player)
-				if not tracked then warn("[TrainingService] Challenge tracking failed: " .. tostring(problem)) end
-				local dailyTracked, dailyProblem = pcall(DailyService.OnTrainingRep, player)
-				if not dailyTracked then warn("[TrainingService] Daily tracking failed: " .. tostring(dailyProblem)) end
+				afterRep(player)
 				local cap = PlayerService.GetTrainingCap(player)
 				if cap and PlayerService.GetVertical(player) >= cap then
 					notifyCap(player)
@@ -132,6 +166,18 @@ function TrainingService.Init()
 	Players.PlayerRemoving:Connect(function(player)
 		stopTraining(player)
 		nextCapNotice[player] = nil
+		autoNext[player] = nil
+		autoCapCourt[player] = nil
+		nextAutoToggle[player] = nil
+	end)
+	-- AUTO TRAIN on/off from the HUD. Only pass owners can switch it on.
+	ReplicatedStorage.Remotes.AutoTrainRequest.OnServerEvent:Connect(function(player, on)
+		if type(on) ~= "boolean" or os.clock() < (nextAutoToggle[player] or 0) then return end
+		nextAutoToggle[player] = os.clock() + 0.3
+		if PlayerService.HasPass(player, "AutoTrain") then
+			player:SetAttribute("AutoTrain", on)
+			autoCapCourt[player] = nil
+		end
 	end)
 	GameplayObjects.BindStations(Config.Training.StationName, function(station, prompt)
 		prompt.ActionText = "Hold to Train Vertical"

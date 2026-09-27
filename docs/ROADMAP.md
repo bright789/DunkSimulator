@@ -92,6 +92,8 @@ Game Feel & Juice v0.2 implementation adds style-specific post-validation gather
 
 **Implemented — Skyline Rooftop (Court #4) + three dunk styles:** open-air night court on a skyscraper (250 Vertical + $120,000, x2.0 Cash, x1.45 training, 350 cap), Between the Legs (150), Rock the Cradle (200) and Elbow Hang (280). Rebirth now needs 300 Vertical + $200,000 x1.6^n. Training speed lowered to 0.25 per tick. See `SKYLINE_ROOFTOP.md`.
 
+**Implemented — Growth, audio and passes:** INVITE button with referral rewards and a +10%/friend Cash bonus, per-court APM music with a MUSIC toggle and Rooftop city ambience, an Auto Train pass (HUD toggle) and a one-time Starter Pack pass with a post-tutorial offer. See `INVITES_MUSIC_PASSES.md`.
+
 ## 11. Monetization
 
 Introduce balanced, platform-compliant cosmetics and optional convenience products after core retention is validated.

@@ -10,6 +10,10 @@ return {
 	-- ProcessReceipt call never pays twice.
 	ProductionReceiptStoreName = "DunkSimulator_Receipts_v1",
 	StudioReceiptStoreName = "DunkSimulator_Receipts_DEV_v1",
+	-- Referral records ("Invitee_<id>" = who they credited, "Inviter_<id>" = daily count and
+	-- rewards waiting for an inviter who was offline). See InviteService.
+	ProductionReferralStoreName = "DunkSimulator_Referrals_v1",
+	StudioReferralStoreName = "DunkSimulator_Referrals_DEV_v1",
 	KeyPrefix = "Player_",
 	AutosaveSeconds = 90,
 	AutosaveJitterSeconds = 10,

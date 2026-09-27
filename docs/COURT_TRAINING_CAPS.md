@@ -22,3 +22,17 @@ High School's minimum Vertical changes from 80 to 75 **only** to make the Neighb
 5. Try a client-edited CurrentCourt attribute or remote spoof; neither can grant a better cap or bypass unlocks. Reset/rejoin at either court and confirm persistence. Check a high-Vertical dunk at both courts.
 
 Future College/Pro caps belong in new `CourtConfig` definitions; no speculative future court is shipped here.
+
+## Jump limit per court (2026-09-27)
+
+Each court also caps **how high you jump** at its training cap: Neighborhood 75, High School 150, College 250 and Skyline Rooftop 350. That way a high-Vertical player who travels back to an easier court never jumps through its ceiling.
+
+- **What's kept:** the saved Vertical is never reduced, and dunk unlocks, payouts, leaderboards and Rebirth all keep using the real Vertical.
+- **How it works:**
+  - `PlayerService.setJump` sets `Humanoid.JumpHeight` from `min(Vertical, court cap)` on join, respawn, training, court travel and Rebirth.
+  - It mirrors that value in the `JumpVertical` attribute.
+- **HUD:** when the jump is limited, the Vertical card says "VERTICAL - JUMP 150 HERE".
+- **Tested with a 322-Vertical profile:**
+  - Rooftop jump height: 406 studs.
+  - After traveling to the High School: jump limit 150, jump height 111 studs, and a real jump peaked 111 studs above the floor (the ceiling is 150).
+  - A Between the Legs dunk there still paid $1,911, the full-Vertical amount.

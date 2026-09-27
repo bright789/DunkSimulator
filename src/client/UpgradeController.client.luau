@@ -112,14 +112,14 @@ local function render()
 	end
 	cash.Text = "Cash: " .. money(snapshot.Cash)
 	current.Text = "Training Level\nLevel " .. snapshot.TrainingLevel
-	gain.Text = string.format("Current: %.2fx Training", snapshot.TrainingMultiplier)
+	gain.Text = string.format("Current: +%.1f Vertical / rep", snapshot.VerticalPerRep)
 	if not snapshot.NextLevel then
 		nextLevel.Text = "MAX LEVEL"
 		cost.Text = ""
 		buy.Visible = false
 		return
 	end
-	nextLevel.Text = string.format("Next: Level %d\n%.2fx Training", snapshot.NextLevel, snapshot.NextMultiplier)
+	nextLevel.Text = string.format("Next: Level %d\n+%.1f Vertical / rep", snapshot.NextLevel, snapshot.NextVerticalPerRep)
 	cost.Text = "Cost: " .. money(snapshot.Price)
 	buy.Visible = true
 	local available = snapshot.CanAfford and snapshot.CanPurchase and not pending

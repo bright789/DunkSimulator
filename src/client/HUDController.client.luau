@@ -20,6 +20,12 @@ local ContestController = require(script.Parent:WaitForChild("ContestController"
 local contest = ContestController.new(player)
 local LockerController = require(script.Parent:WaitForChild("LockerController"))
 local locker = LockerController.new(player, view)
+local InviteController = require(script.Parent:WaitForChild("InviteController"))
+local invite = InviteController.new(player, view)
+local MusicController = require(script.Parent:WaitForChild("MusicController"))
+local music = MusicController.new(player, view)
+local AutoTrainController = require(script.Parent:WaitForChild("AutoTrainController"))
+local autoTrain = AutoTrainController.new(player, view)
 local connections = {}
 local previous = {}
 local destroyed = false
@@ -30,12 +36,16 @@ table.insert(connections, ReplicatedStorage.Remotes:WaitForChild("TrainingCapNot
 	end
 end))
 
+local updateJumpLimit -- defined below (needs `previous`)
+
 local function update(name: string, value)
 	if typeof(value) ~= "number" or value ~= value or math.abs(value) == math.huge then
 		return
 	end
 	view.SetStat(name, value, previous[name])
-	if name == "Vertical" and previous[name] and value > previous[name] and player:GetAttribute("DataStatus") == "Ready" then
+	-- Station training only (Auto Train ticks quietly).
+	if name == "Vertical" and previous[name] and value > previous[name] and player:GetAttribute("DataStatus") == "Ready"
+		and player:GetAttribute("Training") == true then
 		Feedback.Training()
 	end
 	courts.SetStat(name, value)
@@ -46,7 +56,16 @@ local function update(name: string, value)
 		styles.SetVertical(value, previous[name])
 	end
 	previous[name] = value
+	if name == "Vertical" then updateJumpLimit() end
 end
+
+-- The server limits the jump to the current court's cap (JumpVertical); say so on the card.
+function updateJumpLimit()
+	local jump = player:GetAttribute("JumpVertical")
+	local vertical = previous.Vertical
+	view.SetJumpLimit(typeof(jump) == "number" and typeof(vertical) == "number" and jump < vertical and jump or nil)
+end
+table.insert(connections, player:GetAttributeChangedSignal("JumpVertical"):Connect(updateJumpLimit))
 
 local function updateTrainingLevel()
 	update("TrainingLevel", player:GetAttribute("TrainingLevel"))
@@ -108,6 +127,9 @@ script.Destroying:Connect(function()
 	courts.Destroy()
 	challenges.Destroy()
 	rebirth.Destroy()
+	invite.Destroy()
+	music.Destroy()
+	autoTrain.Destroy()
 	daily.Destroy()
 	contest.Destroy()
 	locker.Destroy()

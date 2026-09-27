@@ -76,6 +76,12 @@
         "LockerState": {
           "$className": "RemoteEvent"
         },
+        "SocialNotice": {
+          "$className": "RemoteEvent"
+        },
+        "AutoTrainRequest": {
+          "$className": "RemoteEvent"
+        },
         "DunkAnimationStatus": {
           "$className": "RemoteEvent"
         },

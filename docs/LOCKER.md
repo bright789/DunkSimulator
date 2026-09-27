@@ -90,3 +90,5 @@ Locker = {
    - No errors in either client.
 
 Still worth checking: avatars with unusual foot sizes and the menu on a phone-sized screen.
+
+**Scrolling fix (2026-09-27):** every Locker tab sizes its scroll area from the grid's real content height, and the scrollbar is now visible (accent-colored, 8 px). Before this, the PASSES tab couldn't scroll to its last row once the Starter Pack and Auto Train passes were added.

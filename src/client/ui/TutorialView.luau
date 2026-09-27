@@ -47,6 +47,22 @@ function TutorialView.new(playerGui: PlayerGui)
 	skip.TextColor3 = Config.Colors.Muted
 	skip.Parent = card
 	UI.Interactive(skip)
+	-- GET IT button, only shown for the Starter Pack offer.
+	local buy = Instance.new("TextButton")
+	buy.Name = "Buy"
+	buy.Size = UDim2.new(0.22, 0, 0.3, 0)
+	buy.AnchorPoint = Vector2.new(1, 0)
+	buy.Position = UDim2.fromScale(0.97, 0.56)
+	UI.StylePanel(buy)
+	buy.BackgroundColor3 = Config.Colors.Gold
+	buy.BackgroundTransparency = 0
+	buy.Text = "GET IT"
+	buy.Font = Config.BoldFont
+	buy.TextScaled = true
+	buy.TextColor3 = Config.Colors.Panel
+	buy.Visible = false
+	buy.Parent = card
+	UI.Interactive(buy)
 	local title = UI.Label(card, "Title", "", UDim2.new(0.92, 0, 0.3, 0), UDim2.fromScale(0.04, 0.26), 22)
 	title.Font = Config.BoldFont
 	local detail = UI.Label(card, "Detail", "", UDim2.new(0.92, 0, 0.2, 0), UDim2.fromScale(0.04, 0.56), 13)
@@ -122,7 +138,7 @@ function TutorialView.new(playerGui: PlayerGui)
 	gem.Parent = marker
 	guideFolder.Parent = Workspace
 
-	local view = { SkipButton = skip }
+	local view = { SkipButton = skip, BuyButton = buy }
 	local cardTween = nil
 	local target: BasePart? = nil
 	local root: BasePart? = nil
@@ -140,6 +156,9 @@ function TutorialView.new(playerGui: PlayerGui)
 	end
 
 	function view.ShowStep(index: number, total: number, step, current: number?, goal: number?)
+		buy.Visible = false
+		skip.Text = "SKIP"
+		detail.Size = UDim2.new(0.92, 0, 0.2, 0)
 		counter.Text = string.format("TUTORIAL  %d / %d", index, total)
 		title.Text = step.Title
 		title.TextColor3 = Config.Colors.Text
@@ -156,7 +175,24 @@ function TutorialView.new(playerGui: PlayerGui)
 		if not card.Visible or card.GroupTransparency > 0.5 then fade(true) end
 	end
 
+	-- One-off offer card (Starter Pack) with GET IT and LATER.
+	function view.ShowOffer(heading: string, titleText: string, detailText: string)
+		counter.Text = heading
+		title.Text = titleText
+		title.TextColor3 = Config.Colors.Gold
+		detail.Text = detailText
+		detail.Size = UDim2.new(0.7, 0, 0.2, 0)
+		skip.Text = "LATER"
+		skip.Visible = true
+		buy.Visible = true
+		track.Visible = false
+		amount.Visible = false
+		fade(true)
+	end
+
 	function view.ShowComplete()
+		buy.Visible = false
+		detail.Size = UDim2.new(0.92, 0, 0.2, 0)
 		counter.Text = "TUTORIAL"
 		title.Text = "TUTORIAL COMPLETE!"
 		title.TextColor3 = Config.Colors.Gold

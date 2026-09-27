@@ -4,6 +4,13 @@
 -- MonetizationService checks ownership on the server; clients only open Roblox's prompt.
 local MonetizationConfig = {
 	Passes = {
+		-- One-time bundle, granted once per account (recorded in the receipts store).
+		{ Key = "StarterPack", Id = 1999707117, Name = "Starter Pack", Icon = "STARTER\nPACK",
+			Description = "One-time bundle: $2,500 Cash, 30 minutes of 2x Cash and Sky Risers shoes.", SuggestedRobux = 49,
+			Contents = { Cash = 2500, BoostMinutes = 30, Shoe = "sky_risers" } },
+		-- Trains Vertical automatically anywhere on your court (toggle on the HUD).
+		{ Key = "AutoTrain", Id = 1999335123, Name = "Auto Train", Icon = "AUTO\nTRAIN",
+			Description = "Train your Vertical automatically anywhere on your court, even while you dunk. Toggle it on the HUD.", SuggestedRobux = 199 },
 		{ Key = "DoubleCash", Id = 1999521068, Name = "2x Cash", Icon = "2x",
 			Description = "Double Cash from every dunk and air trick, forever. Stacks with Cash Boosts.", SuggestedRobux = 249 },
 		{ Key = "VIP", Id = 1999029049, Name = "VIP", Icon = "VIP",

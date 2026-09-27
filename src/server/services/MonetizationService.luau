@@ -69,12 +69,57 @@ local function tagCharacter(player: Player)
 	tag.Parent = head
 end
 
+-- Starter Pack contents are granted once per account: the grant is claimed in the receipts
+-- store ("StarterPack_<userId>") first, and released again if paying or saving fails so the
+-- next join retries.
+local starterGranting: { [Player]: boolean } = {}
+local function grantStarterPack(player: Player)
+	local pass = Config.GetPass("StarterPack")
+	local contents = pass and pass.Contents
+	if not contents or not receipts or starterGranting[player] then return end
+	starterGranting[player] = true
+	local key = "StarterPack_" .. player.UserId
+	local fresh = false
+	local claimed = pcall(function()
+		receipts:UpdateAsync(key, function(value)
+			if value ~= nil then
+				fresh = false
+				return nil
+			end
+			fresh = true
+			return { UserId = player.UserId, At = os.time() }
+		end)
+	end)
+	if claimed and fresh then
+		local granted = PlayerService.IsDataReady(player)
+			and PlayerService.GrantCash(player, contents.Cash, "StarterPack", "IAP")
+			and DailyService.GrantBoost(player, contents.BoostMinutes)
+			and LockerService.GrantItem(player, "Shoes", contents.Shoe)
+		if granted and DataService.SaveNowAsync(player, 20) then
+			local notice = ReplicatedStorage.Remotes:FindFirstChild("SocialNotice")
+			if notice and player.Parent == Players then
+				notice:FireClient(player, "StarterPack", { Cash = contents.Cash, Minutes = contents.BoostMinutes })
+			end
+		else
+			pcall(receipts.RemoveAsync, receipts, key)
+		end
+	end
+	starterGranting[player] = nil
+end
+
 local function apply(player: Player, owned: { [string]: boolean })
 	if player.Parent ~= Players or not PlayerService.IsDataReady(player) then return end
 	PlayerService.SetPasses(player, owned)
 	LockerService.GrantPassItems(player)
 	DailyService.Refresh(player)
 	tagCharacter(player)
+	-- Auto Train starts switched on; players toggle it from the HUD.
+	if owned.AutoTrain then
+		if player:GetAttribute("AutoTrain") == nil then player:SetAttribute("AutoTrain", true) end
+	else
+		player:SetAttribute("AutoTrain", nil)
+	end
+	if owned.StarterPack then task.spawn(grantStarterPack, player) end
 end
 
 local function refresh(player: Player)

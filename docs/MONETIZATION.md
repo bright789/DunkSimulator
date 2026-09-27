@@ -17,6 +17,8 @@ Everything is built and tested, but **nothing is on sale** until you create the 
 
 | Offer | Roblox id | Status |
 | --- | --- | --- |
+| Starter Pack (game pass) | 1999707117 | Created, in config. Not on sale yet (no price; suggested 49 R$). |
+| Auto Train (game pass) | 1999335123 | Created, in config. **On sale at 199 R$.** |
 | 2x Cash (game pass) | 1999521068 | Created, in config. Not on sale yet (no price). |
 | VIP (game pass) | 1999029049 | Created, in config. Not on sale yet. |
 | 2x Daily Rewards (game pass) | 1998489062 | Created, in config. Not on sale yet. |

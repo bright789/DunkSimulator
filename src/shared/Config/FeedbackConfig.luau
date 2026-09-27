@@ -121,6 +121,9 @@ return {
 			TwoHandPower = { Approach = "", Whoosh = "rbxassetid://9126229255", Impact = "", Rim = "rbxassetid://9125434858" },
 			Tomahawk = { Approach = "", Whoosh = "rbxassetid://9126229255", Impact = "rbxassetid://9116764094", Rim = "rbxassetid://9125434858" },
 			Windmill = { Approach = "", Whoosh = "rbxassetid://9126229255", Impact = "rbxassetid://9116764094", Rim = "rbxassetid://9125434858" },
+			BetweenTheLegs = { Approach = "", Whoosh = "rbxassetid://9126229255", Impact = "rbxassetid://9116764094", Rim = "rbxassetid://9125434858" },
+			CradleRock = { Approach = "", Whoosh = "rbxassetid://9126229255", Impact = "rbxassetid://9116764094", Rim = "rbxassetid://9125434858" },
+			ElbowHang = { Approach = "", Whoosh = "rbxassetid://9126229255", Impact = "rbxassetid://9116764094", Rim = "rbxassetid://9125434858" },
 		},
 		StyleVolumes = {
 			Approach = 0.14,
@@ -145,6 +148,35 @@ return {
 			Rebirth = 0.4,
 		},
 		TrainingMinIntervalSeconds = 1.5,
+		-- Background music (MusicController): a shuffled playlist per court that crossfades when
+		-- you travel. Tracks are from Roblox's licensed APM Music library (creator APMOfficial),
+		-- free to use in any experience. The MUSIC button on the HUD turns it off for the session.
+		Music = {
+			Volume = 0.2,
+			FadeSeconds = 2,
+			Playlists = {
+				Neighborhood = {
+					"rbxassetid://9047099424", -- All It Takes (a), Markus Gleissner (lo-fi hip hop)
+					"rbxassetid://9048520486", -- Just Chilling, Afro Musique
+					"rbxassetid://9048516023", -- Slow Rush, Luke Pieters
+				},
+				HighSchool = {
+					"rbxassetid://9047101900", -- Game Day Warrior (b), Markus Gleissner
+					"rbxassetid://9047099474", -- Believe The Hype (a), Markus Gleissner
+					"rbxassetid://9047099176", -- American Way (a), Markus Gleissner
+				},
+				College = {
+					"rbxassetid://9047099239", -- Bring The Heat (a), Markus Gleissner
+					"rbxassetid://9047098950", -- Wildcat (a), Markus Gleissner
+					"rbxassetid://9047103733", -- Gimme Sauce (b), Markus Gleissner
+				},
+				Rooftop = {
+					"rbxassetid://9048510043", -- Neon Sky, Lundi Tsotso
+					"rbxassetid://9044977848", -- Real Worlds (a), Score Production Music
+					"rbxassetid://9048424561", -- Don't Play With Me (c), Score Production Music
+				},
+			},
+		},
 		-- 3D sounds in the world that every nearby player hears (WorldAudio).
 		World = {
 			AssetIds = {
@@ -154,13 +186,14 @@ return {
 				RimRattle = "rbxassetid://9125434858", -- Chain-link metal rattle
 				CrowdCheer = "rbxassetid://9120974911", -- Wrestling crowd roar
 				CrowdClap = "rbxassetid://9114762281", -- Hand claps
-				GymAmbience = "rbxassetid://9119562817", -- Stadium crowd bed (High School loop)
+				GymAmbience = "rbxassetid://9119562817", -- Stadium crowd bed (High School and College loop)
+				CityAmbience = "rbxassetid://9112759731", -- City Night Ambience 3 (Skyline Rooftop loop)
 				BusDoor = "rbxassetid://9114660506", -- Bus door open/close
 				BusBrake = "rbxassetid://9113052763", -- Bus air brakes
 			},
 			Volumes = {
 				Dribble = 0.35, BallBounce = 0.3, RimClang = 0.5, RimRattle = 0.35,
-				CrowdCheer = 0.55, CrowdClap = 0.5, GymAmbience = 0.1, BusDoor = 0.5, BusBrake = 0.45,
+				CrowdCheer = 0.55, CrowdClap = 0.5, GymAmbience = 0.1, CityAmbience = 0.16, BusDoor = 0.5, BusBrake = 0.45,
 			},
 			RollOffMinDistance = 10,
 			RollOffMaxDistance = 150,

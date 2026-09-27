@@ -135,6 +135,19 @@ function LockerService.GrantPassItems(player: Player)
 	end
 end
 
+-- Adds one item to the player's Locker for free (Starter Pack). Returns true if it's owned
+-- afterwards (including when it already was).
+function LockerService.GrantItem(player: Player, kind: string, itemId: string): boolean
+	local locker = PlayerService.GetLocker(player)
+	if not locker or not locker[kind] or not Config.Get(kind, itemId) then return false end
+	if not locker[kind].Owned[itemId] then
+		locker[kind].Owned[itemId] = true
+		DataService.RequestSave(player)
+		publish(player)
+	end
+	return true
+end
+
 -- Called once a player's data is ready: dress them now and on every respawn.
 function LockerService.OnPlayerReady(player: Player)
 	if connections[player] then return end
