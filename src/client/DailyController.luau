@@ -109,7 +109,9 @@ function DailyController.new(player: Player, hud)
 		end
 		if snapshot and snapshot.CanClaim and not autoOpened then
 			autoOpened = true
-			view.Panel.Visible = true
+			-- Brand-new players are busy with the tutorial; the DAILY (1) button still shows
+			-- the waiting reward.
+			if (player:GetAttribute("TotalDunks") or 0) > 0 then view.Panel.Visible = true end
 		end
 		render()
 	end))

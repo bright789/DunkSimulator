@@ -37,20 +37,27 @@ function DunkStylesView.new(playerGui: PlayerGui)
 	title.Font = Config.BoldFont
 	title.TextColor3 = Config.Colors.Accent
 	local close = button(panel, "Close", "X", UDim2.fromScale(0.08, 0.08), UDim2.fromScale(0.88, 0.04))
-	local list = Instance.new("Frame")
+	-- Scrolls once there are more styles than fit (rows have a fixed pixel height).
+	local list = Instance.new("ScrollingFrame")
 	list.Name = "Styles"
 	list.BackgroundTransparency = 1
+	list.BorderSizePixel = 0
 	list.Size = UDim2.fromScale(0.88, 0.72)
 	list.Position = UDim2.fromScale(0.06, 0.15)
+	list.CanvasSize = UDim2.new()
+	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	list.ScrollingDirection = Enum.ScrollingDirection.Y
+	list.ScrollBarThickness = 6
+	list.ScrollBarImageColor3 = Config.Colors.Accent
 	list.Parent = panel
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0.025, 0)
+	layout.Padding = UDim.new(0, 8)
 	layout.Parent = list
 	local rows = {}
 	for _, styleId in Styles.OrderedIds() do
 		local definition = Styles.Get(styleId)
-		local row = UI.Panel(list, styleId, UDim2.fromScale(1, 0.23), UDim2.new())
+		local row = UI.Panel(list, styleId, UDim2.new(1, -10, 0, 66), UDim2.new())
 		row.LayoutOrder = definition.Order
 		row.BackgroundColor3 = Config.Colors.Inset
 		local name = UI.Label(row, "Name", definition.DisplayName,

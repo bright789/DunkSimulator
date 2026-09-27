@@ -17,7 +17,7 @@ New players start at Vertical 30, Cash 0, TrainingLevel 1. TrainingLevel is priv
 | 9 | 1.80x | $12,000 |
 | 10 | 2.00x | $18,000 |
 
-These are prototype prices, not final economy balance. `src/shared/Config/UpgradeConfig.luau` owns the starting level, full price/efficiency table, interaction range (8), purchase/open throttles (0.5 seconds), and session check interval (0.2 seconds). The unchanged 2-second UI confirmation lives in `src/shared/Config/FeedbackConfig.luau`. Maximum level is the table length. `ProgressionConfig.Training.BaseProgressPerTick` is 1.00; the existing tick time (0.5 seconds) and jump curve are unchanged.
+These are prototype prices, not final economy balance. `src/shared/Config/UpgradeConfig.luau` owns the starting level, full price/efficiency table, interaction range (8), purchase/open throttles (0.5 seconds), and session check interval (0.2 seconds). The unchanged 2-second UI confirmation lives in `src/shared/Config/FeedbackConfig.luau`. Maximum level is the table length. `ProgressionConfig.Training.BaseProgressPerTick` is 0.25 (lowered from 1.00 in the 2026-09-27 pacing pass, so upgrades save real time); the existing tick time (0.5 seconds) and jump curve are unchanged.
 
 **Training gives no Cash.** TrainingService's existing hold sessions/timing remain untouched; every valid tick calls PlayerService.AwardTraining, which computes 1.00 base progress × authoritative TrainingLevel efficiency × validated court training bonus and accumulates the existing persisted fractional remainder. Only whole points update Vertical, jump height and HUD feedback. Buying a level only deducts Cash and changes TrainingLevel; it grants no Vertical and does not recalculate jump height until training increases Vertical.
 

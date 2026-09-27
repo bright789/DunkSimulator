@@ -100,6 +100,93 @@ local Styles = {
 			},
 			Presentation = { WindupCueFraction = 0.62, WhooshCue = "Windup" },
 		},
+		-- College-and-up styles. No published animation yet: they use the procedural ball
+		-- path and body pose below (see DUNK_ANIMATIONS.md to add real clips later).
+		BetweenTheLegs = {
+			DisplayName = "Between the Legs", RequiredVertical = 150,
+			Reward = 130, Order = 5,
+			GatherSeconds = 0.78, FinishSeconds = 0.12, HangSeconds = 0.42, ReturnSeconds = 0.16,
+			-- Ball dips in front, passes under the legs to the other hand, then rises overhead.
+			Path = {
+				Kind = "Waypoints",
+				Points = {
+					{ Time = 0.18, Offset = Vector3.new(0.7, -1.4, -0.9) },
+					{ Time = 0.4, Offset = Vector3.new(0, -2.3, 0.3) },
+					{ Time = 0.58, Offset = Vector3.new(-0.9, -1.1, 0.1) },
+					{ Time = 0.8, Offset = Vector3.new(0, 3.1, -0.7) },
+					{ Time = 0.88, Offset = Vector3.new(0, 3.1, -0.7) },
+				},
+			},
+			Motion = { HeightLift = 2, LiftByFraction = 0.75, SlamReach = 0.65, FinishExponent = 2.4 },
+			DescentTrick = "BackFlip",
+			Pose = {
+				Hands = { "Right", "Left" }, GripOffset = 0.5, Weight = 0.9, SmoothSeconds = 0.03, BlendFraction = 0.18,
+				Body = {
+					Weight = 0.7, SmoothSeconds = 0.03, BlendFraction = 0.16,
+					Gather = { { Time = 0 }, { Time = 0.3, Pitch = 20, Sink = 0.22 },
+						{ Time = 0.55, Pitch = 16, Roll = -6, Sink = 0.18 },
+						{ Time = 0.8, Pitch = -8, Roll = 2 },
+						{ Time = 1, Pitch = -6 } },
+					Slam = { Pitch = 18 },
+				},
+			},
+			Presentation = { WindupCueFraction = 0.58, WhooshCue = "Windup" },
+		},
+		CradleRock = {
+			DisplayName = "Rock the Cradle", RequiredVertical = 200,
+			Reward = 165, Order = 6,
+			GatherSeconds = 0.8, FinishSeconds = 0.12, HangSeconds = 0.45, ReturnSeconds = 0.16,
+			-- Ball cradled on the forearm: swung down past the hip, back, then way up and over.
+			Path = {
+				Kind = "Waypoints",
+				Points = {
+					{ Time = 0.22, Offset = Vector3.new(1.3, -0.9, -0.5) },
+					{ Time = 0.45, Offset = Vector3.new(1.8, 0.4, 1.4) },
+					{ Time = 0.68, Offset = Vector3.new(1.1, 3.6, 1) },
+					{ Time = 0.8, Offset = Vector3.new(0.9, 3.9, 0.2) },
+					{ Time = 0.88, Offset = Vector3.new(0.9, 3.9, 0.2) },
+				},
+			},
+			Motion = { HeightLift = 2.1, LiftByFraction = 0.75, SlamReach = 0.7, FinishExponent = 2.8 },
+			DescentTrick = "Cartwheel",
+			Pose = {
+				Hands = { "Right" }, GripOffset = 0.6, Weight = 1, SmoothSeconds = 0.03, BlendFraction = 0.18,
+				Body = {
+					Weight = 0.7, SmoothSeconds = 0.03, BlendFraction = 0.16,
+					Gather = { { Time = 0 }, { Time = 0.25, Pitch = 10, Yaw = -10, Roll = -6 },
+						{ Time = 0.5, Pitch = -6, Yaw = 14, Roll = 8 },
+						{ Time = 0.75, Pitch = -16, Yaw = 10, Roll = 5 },
+						{ Time = 1, Pitch = -10, Yaw = 4 } },
+					Slam = { Pitch = 21, Yaw = -6 },
+				},
+			},
+			Presentation = { WindupCueFraction = 0.66, WhooshCue = "Windup" },
+		},
+		ElbowHang = {
+			DisplayName = "Elbow Hang", RequiredVertical = 280,
+			Reward = 210, Order = 7, SuccessHeading = "HONEY DIP!",
+			-- Arm goes through the rim up to the elbow, then a long hang on the rim.
+			GatherSeconds = 0.55, FinishSeconds = 0.14, HangSeconds = 1.1, ReturnSeconds = 0.2,
+			Path = {
+				Kind = "Waypoints",
+				Points = {
+					{ Time = 0.3, Offset = Vector3.new(0.9, 2.2, -0.6) },
+					{ Time = 0.7, Offset = Vector3.new(0.7, 3.4, -1.2) },
+					{ Time = 0.82, Offset = Vector3.new(0.7, 3.4, -1.2) },
+				},
+			},
+			Motion = { HeightLift = 2.3, LiftByFraction = 0.7, SlamReach = 1.25, FinishExponent = 2 },
+			DescentTrick = "Spin720",
+			Pose = {
+				Hands = { "Right" }, GripOffset = 0.5, Weight = 1, SmoothSeconds = 0.03, BlendFraction = 0.2,
+				Body = {
+					Weight = 0.65, SmoothSeconds = 0.03, BlendFraction = 0.16,
+					Gather = { { Time = 0 }, { Time = 0.5, Pitch = -8, Roll = 6 }, { Time = 1, Pitch = -12, Roll = 8 } },
+					Slam = { Pitch = 24, Roll = 4 },
+				},
+			},
+			Presentation = { WhooshCue = "Slam" },
+		},
 	},
 }
 

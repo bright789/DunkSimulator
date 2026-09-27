@@ -88,5 +88,34 @@ return {
 					NearIntensity = 0 },
 			},
 		},
+		-- Night on a skyscraper roof: cool moonlight, city glow in the haze, strong neon bloom.
+		-- The court itself is lit by the builder's flood lights.
+		Rooftop = {
+			Lighting = {
+				ClockTime = 21.5,
+				GeographicLatitude = 28,
+				Brightness = 1.5,
+				ExposureCompensation = 0,
+				Ambient = Color3.fromRGB(96, 98, 136),
+				OutdoorAmbient = Color3.fromRGB(110, 114, 156),
+				ColorShift_Top = Color3.fromRGB(170, 180, 255),
+				ColorShift_Bottom = Color3.fromRGB(70, 44, 120),
+				EnvironmentDiffuseScale = 0.6,
+				EnvironmentSpecularScale = 1,
+				ShadowSoftness = 0.3,
+				GlobalShadows = true,
+			},
+			Effects = {
+				ColorCorrection = { Enabled = true, Saturation = 0.25, Contrast = 0.16, Brightness = 0.02,
+					TintColor = Color3.fromRGB(242, 242, 255) },
+				Bloom = { Enabled = true, Intensity = 0.5, Size = 30, Threshold = 1.3 },
+				SunRays = { Enabled = true, Intensity = 0, Spread = 0.6 },
+				-- Light haze so the lit skyline still shows through.
+				Atmosphere = { Density = 0.12, Offset = 0.1, Color = Color3.fromRGB(70, 80, 130),
+					Decay = Color3.fromRGB(40, 32, 90), Glare = 0, Haze = 0.4 },
+				DepthOfField = { Enabled = true, FarIntensity = 0.05, FocusDistance = 50, InFocusRadius = 90,
+					NearIntensity = 0 },
+			},
+		},
 	},
 }

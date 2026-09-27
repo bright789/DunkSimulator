@@ -15,7 +15,7 @@ local ContestConfig = {
 	-- Judging: each judge starts from the style's base, adds the bonuses, then their own
 	-- opinion (+/- Variance) and rounds to a whole card from 1 to 10.
 	Judges = 5,
-	StyleBase = { BasicOneHand = 4, TwoHandPower = 5, Tomahawk = 6, Windmill = 7 },
+	StyleBase = { BasicOneHand = 4, TwoHandPower = 5, Tomahawk = 6, Windmill = 7, BetweenTheLegs = 7.3, CradleRock = 7.6, ElbowHang = 8 },
 	TrickPoints = 0.25, -- per air trick landed (6 max)
 	VarietyTricks = 3, -- this many different tricks in one dunk earns the variety bonus
 	VarietyBonus = 0.5,

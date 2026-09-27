@@ -148,7 +148,7 @@ CourtConfig is the canonical source of each court's `DunkCashMultiplier` and `Tr
 
 After a completed, eligible dunk, PlayerService computes `math.floor(style.Reward * DunkCashMultiplier + 0.5)` for nonnegative Cash and returns the credited amount to DunkService's confirmed result event. The DUNKS menu and equipped HUD explicitly label the style's **base** reward; success feedback uses the actual awarded amount. The existing Completed-to-Idle guard still prevents duplicate rewards.
 
-For every valid training tick, PlayerService multiplies `ProgressionConfig.Training.BaseProgressPerTick` (1.00) by the private TrainingLevel efficiency (1.00x–2.00x) and validated court `TrainingMultiplier` and private `VerticalTrainingRemainder`. Progress is quantized to millionths of a Vertical point, accumulated in integer units, and only whole points update Vertical, jump height and HUD feedback. The remainder remains in `[0, 1)` and follows the player across courts. Neighborhood with a zero remainder has its exact prior gain. Thresholds and jump physics continue to use whole Vertical. See `COURT_BONUSES.md`.
+For every valid training tick, PlayerService multiplies `ProgressionConfig.Training.BaseProgressPerTick` (0.25) by the private TrainingLevel efficiency (1.00x–2.00x) and validated court `TrainingMultiplier` and private `VerticalTrainingRemainder`. Progress is quantized to millionths of a Vertical point, accumulated in integer units, and only whole points update Vertical, jump height and HUD feedback. The remainder remains in `[0, 1)` and follows the player across courts. Neighborhood with a zero remainder has its exact prior gain. Thresholds and jump physics continue to use whole Vertical. See `COURT_BONUSES.md`.
 
 ## Training Level Upgrades
 

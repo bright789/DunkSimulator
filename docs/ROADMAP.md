@@ -88,6 +88,10 @@ Game Feel & Juice v0.2 implementation adds style-specific post-validation gather
 
 **Implemented — Robux passes and products (off sale until ids are set):** 2x Cash, VIP (Diamond Kicks, Diamond ball, VIP tag) and 2x Daily Rewards passes, plus a repeatable 15-minute Cash Boost product with an idempotent ProcessReceipt. Effects were verified in Studio with `StudioOwnedPasses`. See `MONETIZATION.md`.
 
+**Implemented — Tutorial, badges and analytics:** a 4-step new-player tutorial (train to 35 → grab a ball → dunk → first upgrade) with a guide line, nine badges awarded as milestones happen (and retroactively on join), and AnalyticsService economy, onboarding-funnel, progression-funnel and custom events. No schema change: everything is worked out from saved progress. Badge ids still need creating. See `TUTORIAL_BADGES_ANALYTICS.md`.
+
+**Implemented — Skyline Rooftop (Court #4) + three dunk styles:** open-air night court on a skyscraper (250 Vertical + $120,000, x2.0 Cash, x1.45 training, 350 cap), Between the Legs (150), Rock the Cradle (200) and Elbow Hang (280). Rebirth now needs 300 Vertical + $200,000 x1.6^n. Training speed lowered to 0.25 per tick. See `SKYLINE_ROOFTOP.md`.
+
 ## 11. Monetization
 
 Introduce balanced, platform-compliant cosmetics and optional convenience products after core retention is validated.

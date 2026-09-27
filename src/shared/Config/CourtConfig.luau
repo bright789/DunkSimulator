@@ -36,7 +36,20 @@ local Courts = {
 			Bonuses = { DunkCashMultiplier = 1.6, TrainingMultiplier = 1.3 },
 			GameplayPath = { "Gameplay", "Courts", "College" },
 			SpawnPath = { "Gameplay", "Courts", "College", "Spawn" },
-			Portals = { HighSchool = "HighSchoolPortal" },
+			Portals = { HighSchool = "HighSchoolPortal", Rooftop = "RooftopPortal" },
+		},
+		-- Open-sky court on top of a skyscraper at night: no ceiling, so 350-Vertical jumps
+		-- (about 470 studs) fit. Rebirth needs 300 Vertical, so every run climbs up here.
+		Rooftop = {
+			Id = "Rooftop", DisplayName = "Skyline Rooftop", Order = 4, StartingCourt = false,
+			TrainingVerticalCap = 350,
+			Requirements = { Vertical = 250, Cash = 120000 },
+			Bonuses = { DunkCashMultiplier = 2.0, TrainingMultiplier = 1.45 },
+			GameplayPath = { "Gameplay", "Courts", "Rooftop" },
+			SpawnPath = { "Gameplay", "Courts", "Rooftop", "Spawn" },
+			Portals = { College = "CollegePortal" },
+			-- Word used on this court's portal prompts (the others default to "Bus to").
+			PortalVerb = "Elevator to",
 		},
 	},
 }

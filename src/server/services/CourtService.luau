@@ -87,7 +87,7 @@ function CourtService.Init()
 			local station = GameplayObjects.FindPortal(sourceId, targetId)
 			local prompt = station and station:FindFirstChildOfClass("ProximityPrompt")
 			if station and station:IsA("BasePart") and station.Anchored and prompt and Config.Get(targetId) then
-				prompt.ObjectText = "Bus to " .. Config.Get(targetId).DisplayName
+				prompt.ObjectText = (Config.Get(sourceId).PortalVerb or "Bus to") .. " " .. Config.Get(targetId).DisplayName
 				prompt.ActionText = "Ride / Unlock"
 				prompt.MaxActivationDistance = Config.PortalDistance
 				prompt.HoldDuration = 0

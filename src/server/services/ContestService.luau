@@ -16,6 +16,7 @@ local Config = require(ReplicatedStorage.Shared.Config.ContestConfig)
 local Daily = require(ReplicatedStorage.Shared.Config.DailyConfig)
 local PlayerService = require(script.Parent.PlayerService)
 local DataService = require(script.Parent.DataService)
+local Analytics = require(script.Parent.AnalyticsReporter)
 
 local ContestService = {}
 local initialized = false
@@ -87,9 +88,11 @@ local function finishRound()
 			local tier = Config.Tier(entry.Best)
 			local dunks = (tier and tier.Dunks or 0) + (contested and Config.PlacementDunks[rank] or 0)
 			local cash = math.floor(dunks * Daily.DunkValue(PlayerService.GetVertical(player) or 0) + 0.5)
-			local paid = cash > 0 and PlayerService.GrantCash(player, cash)
+			local paid = cash > 0 and PlayerService.GrantCash(player, cash, "ContestPrize", "Gameplay")
 			local won = contested and rank == 1
 			PlayerService.RecordContest(player, entry.Best, won)
+			Analytics.Custom(player, "ContestPlace", rank)
+			Analytics.Custom(player, "ContestScore", entry.Best)
 			DataService.RequestSave(player)
 			if resultRemote then
 				resultRemote:FireClient(player, {

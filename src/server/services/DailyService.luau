@@ -145,7 +145,7 @@ local function claimReward(player: Player)
 	local streak = daily.LastClaimDay == day - 1 and math.min(daily.Streak + 1, Config.MaxStreak) or 1
 	local cycleDay = Config.CycleDay(streak)
 	local cash = Config.LadderCash(cycleDay, PlayerService.GetVertical(player) or 0) * dailyMultiplier(player)
-	if not PlayerService.GrantCash(player, cash) then return nil, "Reward unavailable." end
+	if not PlayerService.GrantCash(player, cash, "DailyLogin", "TimedReward") then return nil, "Reward unavailable." end
 	daily.LastClaimDay = day
 	daily.Streak = streak
 	local boost = Config.Ladder[cycleDay].BoostMinutes or 0
@@ -160,7 +160,7 @@ local function claimChallenge(player: Player, slot: number)
 	if entry.Claimed then return nil, "Already claimed." end
 	if entry.Progress < entry.Target then return nil, "Not finished yet." end
 	local reward = entry.Reward * dailyMultiplier(player)
-	if not PlayerService.GrantCash(player, reward) then return nil, "Reward unavailable." end
+	if not PlayerService.GrantCash(player, reward, "DailyChallenge", "TimedReward") then return nil, "Reward unavailable." end
 	entry.Claimed = true
 	local sweep = true
 	for _, other in daily.Challenges do

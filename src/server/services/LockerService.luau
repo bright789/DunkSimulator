@@ -93,7 +93,7 @@ local function buy(player: Player, kind: string, itemId: string)
 	if not locker or not item then return nil, "Item unavailable." end
 	if locker[kind].Owned[itemId] then return nil, "You already own this." end
 	if item.Pass then return nil, "Unlocked with the " .. item.Pass .. " pass." end
-	if not PlayerService.SpendCash(player, item.Price) then return nil, "Not enough Cash." end
+	if not PlayerService.SpendCash(player, item.Price, kind .. "_" .. itemId) then return nil, "Not enough Cash." end
 	locker[kind].Owned[itemId] = true
 	locker[kind].Equipped = itemId
 	return { Kind = "Bought", Category = kind, Id = itemId, Price = item.Price }

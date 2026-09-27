@@ -1,0 +1,16 @@
+{
+  "name": "RooftopBuilder",
+  "tree": {
+    "$className": "Folder",
+    "$path": "rooftop",
+    "Geometry": {
+      "$path": "neighborhood/Geometry.luau"
+    },
+    "Props": {
+      "$path": "neighborhood/Props.luau"
+    },
+    "Crowd": {
+      "$path": "neighborhood/Crowd.luau"
+    }
+  }
+}

@@ -15,10 +15,14 @@ local LeaderboardService = require(script.Parent.services.LeaderboardService)
 local ContestService = require(script.Parent.services.ContestService)
 local LockerService = require(script.Parent.services.LockerService)
 local MonetizationService = require(script.Parent.services.MonetizationService)
+local AnalyticsReporter = require(script.Parent.services.AnalyticsReporter)
+local MilestoneService = require(script.Parent.services.MilestoneService)
 local ProgressionConfig = require(game:GetService("ReplicatedStorage").Shared.Config.ProgressionConfig)
 
 workspace.Gravity = ProgressionConfig.Jump.Gravity
 
+AnalyticsReporter.Init()
+MilestoneService.Init()
 CourtService.Init()
 ChallengeService.Init()
 DunkAnimationController.Init()
@@ -29,6 +33,8 @@ PlayerService.Init(CourtTravel.PlacePlayer, function(player)
 	local dressed, lockerProblem = pcall(LockerService.OnPlayerReady, player)
 	if not dressed then warn("[ServerMain] Locker setup failed: " .. tostring(lockerProblem)) end
 	task.spawn(MonetizationService.OnPlayerReady, player)
+	local tracked, milestoneProblem = pcall(MilestoneService.OnPlayerReady, player)
+	if not tracked then warn("[ServerMain] Milestone setup failed: " .. tostring(milestoneProblem)) end
 end)
 TrainingService.Init()
 BasketballService.Init()

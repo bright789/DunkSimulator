@@ -5,7 +5,9 @@ local ProgressionConfig = {
 		StationName = "VerticalTrainer",
 		TickIntervalSeconds = 0.5,
 		MaxDistance = 10,
-		BaseProgressPerTick = 1,
+		-- Vertical per tick at Training Level 1 (before court and Rebirth bonuses). 0.25 makes
+		-- training a real part of the loop (~1-2.5 min per court) so upgrades matter.
+		BaseProgressPerTick = 0.25,
 		CapFeedbackCooldownSeconds = 2,
 	},
 	Jump = {

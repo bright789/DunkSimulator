@@ -7,6 +7,7 @@ local DunkStyles = require(ReplicatedStorage.Shared.Config.DunkStyles)
 local DunkRewards = require(ReplicatedStorage.Shared.Config.DunkRewards)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local DataService = require(script.Parent.DataService)
+local Analytics = require(script.Parent.AnalyticsReporter)
 local Courts = require(ReplicatedStorage.Shared.Config.CourtConfig)
 local Challenges = require(ReplicatedStorage.Shared.Config.ChallengeConfig)
 local Rebirths = require(ReplicatedStorage.Shared.Config.RebirthConfig)
@@ -185,6 +186,7 @@ function PlayerService.BuyCourt(player: Player, courtId: string): (boolean, stri
 	state.Cash -= court.Requirements.Cash
 	state.UnlockedCourts[courtId] = true
 	state.CashDisplay.Value = state.Cash
+	Analytics.CashSpent(player, court.Requirements.Cash, state.Cash, "Shop", "Court_" .. courtId)
 	return true, court.DisplayName .. " UNLOCKED!", true
 end
 
@@ -244,6 +246,7 @@ function PlayerService.ClaimChallenge(player: Player, challengeId: string): (boo
 	entry.Completed = true
 	state.Cash += reward
 	state.CashDisplay.Value = state.Cash
+	Analytics.CashEarned(player, reward, state.Cash, "Gameplay", "Challenge_" .. challengeId)
 	return true, reward, nil
 end
 
@@ -364,6 +367,7 @@ function PlayerService.BuyNextTrainingLevel(player: Player): (boolean, string)
 	state.Cash -= snapshot.Price
 	state.TrainingLevel = snapshot.NextLevel
 	state.CashDisplay.Value = state.Cash
+	Analytics.CashSpent(player, snapshot.Price, state.Cash, "Shop", "TrainingLevel_" .. state.TrainingLevel)
 	player:SetAttribute("TrainingLevel", state.TrainingLevel)
 	return true, "TRAINING LEVEL UP!\nLevel " .. tostring(state.TrainingLevel)
 end
@@ -385,6 +389,7 @@ function PlayerService.RegisterDunk(player: Player, styleId: string, rating: str
 	state.Cash = math.min(state.Cash + cashReward, DataConfig.MaxCash)
 	state.Dunks += 1
 	state.CashDisplay.Value = state.Cash
+	Analytics.CashEarned(player, cashReward, state.Cash, "Gameplay", "Dunk", true)
 	player:SetAttribute("Dunks", state.Dunks)
 	local stats = state.Stats
 	stats.TotalDunks = math.min(stats.TotalDunks + 1, Leaderboards.MaxStat)
@@ -415,6 +420,7 @@ function PlayerService.AwardDunkTrick(player: Player, trickId: string, comboInde
 	if cash <= 0 or state.Cash > DataConfig.MaxCash - cash then return nil end
 	state.Cash += cash
 	state.CashDisplay.Value = state.Cash
+	Analytics.CashEarned(player, cash, state.Cash, "Gameplay", "AirTrick", true)
 	return cash
 end
 
@@ -448,14 +454,32 @@ function PlayerService.GetLocker(player: Player)
 	return state.Locker
 end
 
+-- Plain copy of the progress that milestones are worked out from (see MilestoneConfig).
+function PlayerService.GetMilestoneSnapshot(player: Player)
+	local state = states[player]
+	if not PlayerService.IsDataReady(player) or not state then return nil end
+	return {
+		Vertical = state.Vertical,
+		BestVertical = state.Stats.BestVertical,
+		TotalDunks = state.Stats.TotalDunks,
+		TrainingLevel = state.TrainingLevel,
+		Rebirths = state.Rebirths,
+		ContestWins = state.Stats.ContestWins,
+		Cash = state.Cash,
+		HasBall = player:GetAttribute("HasBasketball") == true,
+		UnlockedCourts = table.clone(state.UnlockedCourts),
+	}
+end
+
 function PlayerService.GetCash(player: Player): number?
 	local state = states[player]
 	return state and state.Cash or nil
 end
 
 -- Takes a price the server already decided (Locker purchases). Returns false and changes
--- nothing when the amount is invalid or the player can't afford it.
-function PlayerService.SpendCash(player: Player, amount: number): boolean
+-- nothing when the amount is invalid or the player can't afford it. `sku` names what was
+-- bought, for the analytics economy dashboards.
+function PlayerService.SpendCash(player: Player, amount: number, sku: string?): boolean
 	local state = states[player]
 	if not PlayerService.IsReady(player) or not state or type(amount) ~= "number" or amount ~= amount
 		or amount % 1 ~= 0 or amount < 0 or state.Cash < amount then
@@ -463,6 +487,7 @@ function PlayerService.SpendCash(player: Player, amount: number): boolean
 	end
 	state.Cash -= amount
 	state.CashDisplay.Value = state.Cash
+	Analytics.CashSpent(player, amount, state.Cash, "Shop", sku or "Shop")
 	return true
 end
 
@@ -496,9 +521,10 @@ function PlayerService.GetDailyContext(player: Player)
 	return { Vertical = state.Vertical, UnlockedCourts = table.clone(state.UnlockedCourts), HighestTrainingCap = highestCap }
 end
 
--- Adds a reward amount the server already decided (daily rewards). Refuses anything that
--- is not a whole non-negative number or would pass the Cash limit.
-function PlayerService.GrantCash(player: Player, amount: number): boolean
+-- Adds a reward amount the server already decided (daily rewards, contest prizes). Refuses
+-- anything that is not a whole non-negative number or would pass the Cash limit. `sku` and
+-- `transactionType` (an Enum.AnalyticsEconomyTransactionType name) label it for analytics.
+function PlayerService.GrantCash(player: Player, amount: number, sku: string?, transactionType: string?): boolean
 	local state = states[player]
 	if not PlayerService.IsDataReady(player) or not state or type(amount) ~= "number" or amount ~= amount
 		or amount % 1 ~= 0 or amount < 0 or state.Cash > DataConfig.MaxCash - amount then
@@ -506,6 +532,7 @@ function PlayerService.GrantCash(player: Player, amount: number): boolean
 	end
 	state.Cash += amount
 	state.CashDisplay.Value = state.Cash
+	Analytics.CashEarned(player, amount, state.Cash, transactionType or "Gameplay", sku or "Reward")
 	return true
 end
 
@@ -544,6 +571,7 @@ function PlayerService.ApplyRebirth(player: Player): (boolean, string)
 		return false, string.format("Requires %d Vertical.", requirement.Vertical)
 	end
 	if state.Cash < requirement.Cash then return false, "Not enough Cash." end
+	local cashGivenUp = state.Cash - Config.StartingCash
 	state.Rebirths += 1
 	state.Cash = Config.StartingCash
 	state.Vertical = Config.StartingVertical
@@ -554,6 +582,8 @@ function PlayerService.ApplyRebirth(player: Player): (boolean, string)
 	state.EquippedDunkStyle = DunkStyles.ResolveEquipped(state.EquippedDunkStyle, state.Vertical)
 	state.CashDisplay.Value = state.Cash
 	state.VerticalDisplay.Value = state.Vertical
+	Analytics.CashSpent(player, cashGivenUp, state.Cash, "Gameplay", "Rebirth")
+	Analytics.Custom(player, "Rebirth", state.Rebirths)
 	player:SetAttribute("Rebirths", state.Rebirths)
 	player:SetAttribute("TrainingLevel", state.TrainingLevel)
 	player:SetAttribute("EquippedDunkStyle", state.EquippedDunkStyle)

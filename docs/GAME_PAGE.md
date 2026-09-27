@@ -16,15 +16,15 @@ Roblox only allows a genre change **once every three months**, so pick once.
 
 ## Description
 
-The text below is 831 characters, under Roblox's 1000-character limit. Every claim matches the current build: Vertical runs 30 → 250, there are 4 styles and 3 courts, the contest runs every 8 minutes with prizes for the top 3, and the three leaderboard names are the real ones.
+The text below is under Roblox's 1000-character limit. Every claim matches the current build: Vertical runs 30 → 350, there are 7 styles and 4 courts, the contest runs every 8 minutes with prizes for the top 3, and the three leaderboard names are the real ones.
 
 ```
 🏀 Train your Vertical, jump to the roof and throw down monster slams! 🏀
 
-⬆️ TRAIN – Work out to grow your Vertical from 30 all the way to 250.
+⬆️ TRAIN – Work out to grow your Vertical from 30 all the way to 350.
 💥 DUNK – Jump at the rim and slam it! Nail the timing for a PERFECT dunk and land air tricks for bonus Cash.
-🔥 4 DUNK STYLES – One-Hand, Two-Hand Power, Tomahawk and Windmill.
-🏟️ 3 COURTS – Rise from the Neighborhood to the High School gym to the packed College Arena. Bigger courts, bigger Cash!
+🔥 7 DUNK STYLES – From One-Hand and Windmill to Between the Legs and the Elbow Hang.
+🏟️ 4 COURTS – Rise from the Neighborhood to the High School gym, the packed College Arena and a skyscraper rooftop. Bigger courts, bigger Cash!
 🏆 DUNK CONTESTS – Every 8 minutes the judges score the best dunk in the server. Place top 3 for big prizes!
 📅 DAILY REWARDS – Login streaks, 3 daily challenges and 2x Cash boosts.
 👟 LOCKER – Collect rare shoes and ball skins.

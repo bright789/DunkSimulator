@@ -6,13 +6,13 @@ Rebirth lets a strong player start over from the Neighborhood in exchange for pe
 
 | Setting | Value |
 | --- | --- |
-| Requirement | 200 Vertical **and** Cash of `100,000 x 1.6^n` (n = rebirths already done) |
+| Requirement | 300 Vertical (Skyline Rooftop only) **and** Cash of `200,000 x 1.6^n` (n = rebirths already done). Was 200 Vertical / $100,000 until Court #4; see `SKYLINE_ROOFTOP.md`. |
 | Cash bonus | dunk and air-trick Cash x(1 + 0.5 n) |
 | Training bonus | Vertical training x(1 + 0.25 n) |
 | Max rebirths | 99 |
 | Request cooldown | 1.5 s (reads: 0.5 s) |
 
-Cost ladder: 1st $100,000, 2nd $160,000, 3rd $256,000, 4th $409,600, 5th $655,360.
+Cost ladder: 1st $200,000, 2nd $320,000, 3rd $512,000, 4th $819,200, 5th $1,310,720.
 
 Rebirth multipliers stack with court bonuses and timing. Example after 1 rebirth: a College PERFECT Windmill at 250 Vertical pays $100 x1.6 court x1.5 **rebirth** x1.5 timing x3.2 Vertical = $1,152.
 

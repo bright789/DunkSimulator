@@ -1,0 +1,1277 @@
+<roblox version="4">
+  <Item class="Folder" referent="0">
+    <Properties>
+      <string name="Name">RooftopBuilder</string>
+    </Properties>
+    <Item class="ModuleScript" referent="1">
+      <Properties>
+        <string name="Name">Build</string>
+        <string name="Source"><![CDATA[-- Skyline Rooftop builder (Studio EDIT MODE only). Creates the Rooftop gameplay objects once
+-- (hoop Rim, spawn, trainer, ball pickup, upgrade station, elevator back to the College)
+-- plus the College's bus stop to the Rooftop, then (re)builds the owned scenery: the roof,
+-- court, skyline, station props, crowd, hoop visuals and the Rooftop stop at the College.
+-- Existing gameplay objects are never moved; only builder-owned roots are replaced.
+-- Requires the College Arena to be built first.
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Config = require(script.Parent.Config)
+local Geometry = require(script.Parent.Geometry)
+local Scenery = require(script.Parent.Scenery)
+
+local Build = {}
+
+local function existing(parent, name, className)
+	local found = nil
+	for _, child in parent:GetChildren() do
+		if child.Name == name then
+			assert(not found, "Duplicate " .. parent:GetFullName() .. "." .. name)
+			found = child
+		end
+	end
+	assert(not found or found:IsA(className), "Wrong type at " .. parent:GetFullName() .. "." .. name)
+	return found
+end
+
+local function facing(position: Vector3, direction: Vector3): CFrame
+	return CFrame.lookAt(position, position + direction)
+end
+
+function Build.Run()
+	assert(RunService:IsStudio() and not RunService:IsRunning(), "RooftopBuilder is Studio EDIT MODE only; stop Play first.")
+	local shared = assert(ReplicatedStorage:FindFirstChild("Shared"), "Sync the main Rojo project first.")
+	local courts = require(shared.Config.CourtConfig)
+	local rooftop = assert(courts.Get("Rooftop"), "Sync the main Rojo project (CourtConfig needs the Rooftop court).")
+	local college = assert(courts.Get("College"), "CourtConfig needs the College court.")
+	local progression = require(shared.Config.ProgressionConfig)
+	-- The invisible edge walls must be taller than the highest jump anyone can train to here.
+	local capJump = progression.GetJumpHeight(rooftop.TrainingVerticalCap)
+	assert(capJump + Config.JumpHeadroom <= Config.BarrierHeight, string.format(
+		"BarrierHeight %d is too low for the Rooftop cap jump (%.0f studs + %d headroom); raise it in Config.",
+		Config.BarrierHeight, capJump, Config.JumpHeadroom))
+	local marks = {}
+	for _, vertical in Config.VerticalMarks do
+		table.insert(marks, { Vertical = vertical, Height = progression.GetJumpHeight(vertical) })
+	end
+	local map = assert(existing(Workspace, "Map", "Folder"), "Expected existing Workspace.Map.")
+	local neighborhood = assert(existing(map, "Neighborhood", "Folder"), "Expected existing Neighborhood.")
+	local courtFolder = assert(existing(neighborhood, "Court", "Folder"), "Expected existing Neighborhood.Court.")
+	local surface = assert(existing(courtFolder, "CourtSurface", "BasePart"), "Expected existing CourtSurface.")
+	local gameplay = assert(existing(Workspace, "Gameplay", "Folder"), "Expected existing Workspace.Gameplay.")
+	local neighborhoodHoop = assert(existing(gameplay, "DunkHoop", "Model"), "Expected Neighborhood DunkHoop.")
+	local neighborhoodRim = assert(existing(neighborhoodHoop, "Rim", "BasePart"), "Expected Neighborhood Rim.")
+	local courtsFolder = assert(existing(gameplay, "Courts", "Folder"), "Build the High School and College first.")
+	local collegeGameplay = assert(existing(courtsFolder, "College", "Folder"), "Build the College first.")
+	local collegeHoop = assert(existing(collegeGameplay, "DunkHoop", "Model"), "Missing College hoop.")
+	local collegeRim = assert(existing(collegeHoop, "Rim", "BasePart"), "Missing College rim.")
+	local collegeMap = assert(existing(map, "College", "Folder"), "Build the College first (Map.College missing).")
+	local floorY = surface.Position.Y + surface.Size.Y / 2
+	local rimHeight = neighborhoodRim.Position.Y - floorY
+	assert(rimHeight > 6 and rimHeight < 30, "Unexpected Neighborhood floor-to-rim height; nothing changed.")
+	local frame = CFrame.new(Vector3.new(surface.Position.X, floorY, surface.Position.Z) + Config.Offset)
+	local collegeFrame = CFrame.new(collegeRim.Position - Vector3.new(0, rimHeight, Config.CollegeRimDepth))
+
+	local created = {}
+	local installations = {}
+	local stage = Instance.new("Folder")
+	local function folder(parent, name)
+		local found = existing(parent, name, "Folder")
+		if found then return found end
+		local result = Geometry.Folder(parent, name)
+		table.insert(created, result)
+		return result
+	end
+	local function once(parent, name, className, create)
+		local found = existing(parent, name, className)
+		if found then
+			if found:IsA("BasePart") then assert(found.Anchored, name .. " must stay anchored") end
+			return found
+		end
+		local result = create()
+		result.Name = name
+		result.Parent = parent
+		table.insert(created, result)
+		return result
+	end
+	local function station(parent, name, target, color)
+		local result = once(parent, name, "BasePart", function()
+			local part = Geometry.Part(nil, name, Vector3.new(4, 2, 3), target, color, Enum.Material.SmoothPlastic)
+			local prompt = Instance.new("ProximityPrompt")
+			prompt.KeyboardKeyCode = Enum.KeyCode.E
+			prompt.HoldDuration = 0
+			prompt.RequiresLineOfSight = true
+			prompt.MaxActivationDistance = 10
+			prompt.Parent = part
+			return part
+		end)
+		assert(result:FindFirstChildOfClass("ProximityPrompt"), result:GetFullName() .. " needs a ProximityPrompt; existing station preserved.")
+		return result
+	end
+	local function output(parent, name)
+		local previous = existing(parent, name, "Folder")
+		if previous then
+			assert(previous:GetAttribute("BuilderOwner") == Config.Owner, "Refusing to replace unowned " .. previous:GetFullName())
+			for _, child in previous:GetDescendants() do
+				assert(child:GetAttribute("BuilderOwner") == Config.Owner, "Move manually added content out of " .. previous:GetFullName() .. " before rebuilding.")
+			end
+		end
+		local root = Geometry.Folder(stage, name)
+		table.insert(installations, { Root = root, Parent = parent, Previous = previous })
+		return root
+	end
+
+	local count = 0
+	local success, problem = pcall(function()
+		local rooftopMap = folder(map, "Rooftop")
+		local rooftopGameplay = folder(courtsFolder, "Rooftop")
+		local hoop = once(rooftopGameplay, "DunkHoop", "Model", function() return Instance.new("Model") end)
+		local rim = once(hoop, "Rim", "BasePart", function()
+			local part = Geometry.Part(nil, "Rim", neighborhoodRim.Size, frame * CFrame.new(0, rimHeight, Config.RimDepth), Config.Colors.Orange)
+			part.Transparency = 1
+			return part
+		end)
+		frame = CFrame.new(rim.Position - Vector3.new(0, rimHeight, Config.RimDepth))
+		local spawn = once(rooftopGameplay, "Spawn", "SpawnLocation", function()
+			local result = Instance.new("SpawnLocation")
+			result.Size = Vector3.new(6, 0.2, 6)
+			result.CFrame = frame * CFrame.new(0, 0.1, Config.SpawnZ)
+			result.Anchored = true
+			result.Neutral = true
+			result.Enabled = true
+			result.Duration = 0
+			result.CanCollide = false
+			result.CanTouch = false
+			result.Transparency = 1
+			return result
+		end)
+		assert(spawn.Enabled and spawn.Neutral, "Rooftop Spawn must be enabled and neutral; existing properties preserved.")
+		local stations = Config.Stations
+		local trainer = station(rooftopGameplay, "VerticalTrainer", frame * CFrame.new(stations.Trainer), Config.Colors.Magenta)
+		local pickup = station(rooftopGameplay, "BasketballPickup", frame * CFrame.new(stations.Pickup), Config.Colors.Orange)
+		local upgrade = station(rooftopGameplay, "UpgradeStation", frame * CFrame.new(stations.Upgrade), Config.Colors.Magenta)
+		-- The elevator faces the court (-Z); the College bus stop faces its road (+Z).
+		local elevator = station(rooftopGameplay, rooftop.Portals.College,
+			facing((frame * CFrame.new(stations.Elevator)).Position, -Vector3.zAxis), Config.Colors.Dark)
+		local outgoing = station(collegeGameplay, college.Portals.Rooftop,
+			facing((collegeFrame * CFrame.new(Config.CollegeStop)).Position, Vector3.zAxis), Config.Colors.Dark)
+
+		local environment = output(folder(rooftopMap, "Environment"), Config.GeneratedName)
+		Scenery.Roof(environment, { Frame = frame, Marks = marks })
+		local props = Geometry.Folder(environment, "Stations")
+		Scenery.Stations(props, trainer, pickup, upgrade)
+		Scenery.Elevator(Geometry.Folder(props, "Elevator"), elevator, "TO THE COLLEGE")
+		Scenery.Hoop(output(hoop, Config.GeneratedName), rim, rimHeight)
+		local requirement = rooftop.Requirements
+		Scenery.TransitStop(output(folder(collegeMap, "Environment"), Config.GateName), outgoing,
+			string.format("SKYLINE ROOFTOP\n%d VERTICAL  /  $%s", requirement.Vertical, tostring(requirement.Cash)))
+
+		for _, root in stage:GetChildren() do
+			root:SetAttribute("BuilderOwner", Config.Owner)
+			for _, child in root:GetDescendants() do
+				assert(not child:IsA("LuaSourceContainer"), "No scripts allowed in generated environment")
+				child:SetAttribute("BuilderOwner", Config.Owner)
+				if child:IsA("BasePart") then count += 1; assert(child.Anchored, "Scenery must be anchored") end
+			end
+		end
+		assert(count <= Config.MaxParts, string.format("Rooftop Part budget exceeded (%d > %d)", count, Config.MaxParts))
+		for _, entry in installations do
+			if entry.Previous then entry.Previous.Parent = nil end
+			entry.Root.Parent = entry.Parent
+		end
+	end)
+	if not success then
+		for _, entry in installations do
+			entry.Root:Destroy()
+			if entry.Previous then entry.Previous.Parent = entry.Parent end
+		end
+		for index = #created, 1, -1 do created[index]:Destroy() end
+		stage:Destroy()
+		error("Rooftop build rolled back: " .. tostring(problem), 0)
+	end
+	for _, entry in installations do if entry.Previous then entry.Previous:Destroy() end end
+	stage:Destroy()
+	print(string.format("[RooftopBuilder] Built %d decorative Parts; missing Rooftop gameplay objects and the College Rooftop stop created once. Rim height %.3f studs. Save the place and restart Play.", count, rimHeight))
+	return count
+end
+
+return Build
+]]></string>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript" referent="2">
+      <Properties>
+        <string name="Name">Config</string>
+        <string name="Source"><![CDATA[return {
+	Owner = "DunkSimulator.Rooftop.v1",
+	GeneratedName = "RooftopV01",
+	-- Rooftop bus stop dressing built outside the College Arena (owned by this builder).
+	GateName = "RooftopGateV01",
+	-- Court frame relative to the Neighborhood court (College is at +4800).
+	Offset = Vector3.new(7200, 0, 0),
+	-- The skyscraper roof the court sits on (roof frame, floor at y = 0).
+	RoofWidth = 150,
+	RoofDepth = 196,
+	-- Invisible walls around the roof edge, taller than a max jump here, so nobody drifts
+	-- off the building. Build.Run checks this against the jump formula.
+	BarrierHeight = 520,
+	JumpHeadroom = 25,
+	-- The tower keeps going below the roof; the night haze hides its base.
+	TowerDepth = 420,
+	-- Neon "height gates" floating over the back of the court at the height your feet reach
+	-- with this much Vertical.
+	VerticalMarks = { 250, 300, 350 },
+	CourtWidth = 60,
+	CourtDepth = 104,
+	RimDepth = -45,
+	SpawnZ = 76,
+	MaxParts = 2000,
+	-- The College arena frame sits RimDepth studs toward the court from its rim.
+	CollegeRimDepth = -45,
+	-- Short bleachers on both sidelines (roof frame) with a few fans.
+	Stands = { Rows = 3, FirstX = 38, RowStep = 4, RowRise = 1.8, Length = 70 },
+	Crowd = { PerSide = 10, FirstZ = -30, LastZ = 30, Spacing = 4.4, Seed = 4700, FoamFingerChance = 0.3 },
+	-- Flood-light poles at the four court corners.
+	FloodLights = { Height = 34, Brightness = 1.4, Range = 90 },
+	-- Leaderboard stand (roof frame): behind the hoop, left of it, facing the court.
+	Leaderboard = Vector3.new(-50, 0, -86),
+	-- Stations near the elevator (roof frame, floor level).
+	Stations = {
+		Trainer = Vector3.new(-46, 1, 72),
+		Pickup = Vector3.new(-24, 1, 72),
+		Upgrade = Vector3.new(46, 1, 68),
+		Elevator = Vector3.new(24, 1, 88),
+	},
+	-- New bus stop on the College sidewalk (arena frame), left of the High School stop.
+	CollegeStop = Vector3.new(-44, 1, 110),
+	Transit = { BusDistance = 7.3, RoadDrop = 0.2 },
+	-- Surrounding skyline: Buildings towers in a ring, deterministic from Seed.
+	City = { Buildings = 46, InnerRadius = 190, OuterRadius = 720, Seed = 9100, BaseY = -420 },
+	Colors = {
+		-- Night palette: teal sport court, magenta and cyan neon, dark glass towers.
+		Court = Color3.fromRGB(26, 110, 130), CourtLight = Color3.fromRGB(34, 132, 152),
+		Paint = Color3.fromRGB(210, 40, 140), Lines = Color3.fromRGB(245, 250, 255),
+		Roof = Color3.fromRGB(60, 62, 76), RoofDark = Color3.fromRGB(38, 40, 52),
+		Parapet = Color3.fromRGB(84, 88, 104), Glass = Color3.fromRGB(150, 214, 255),
+		Tower = Color3.fromRGB(24, 26, 40), TowerLight = Color3.fromRGB(36, 40, 60),
+		Magenta = Color3.fromRGB(255, 60, 200), Cyan = Color3.fromRGB(60, 230, 255),
+		Gold = Color3.fromRGB(255, 200, 60), Warm = Color3.fromRGB(255, 214, 140),
+		Red = Color3.fromRGB(255, 50, 50), Metal = Color3.fromRGB(70, 76, 96),
+		Dark = Color3.fromRGB(16, 16, 30), Light = Color3.fromRGB(255, 246, 222),
+		Rubber = Color3.fromRGB(40, 44, 58), Orange = Color3.fromRGB(255, 128, 28),
+		Wood = Color3.fromRGB(226, 160, 88), Yellow = Color3.fromRGB(255, 196, 24),
+		Backboard = Color3.fromRGB(176, 200, 222), BackboardTransparency = 0.35,
+		Lab = Color3.fromRGB(150, 80, 255),
+	},
+}
+]]></string>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript" referent="3">
+      <Properties>
+        <string name="Name">Scenery</string>
+        <string name="Source"><![CDATA[-- Skyline Rooftop scenery (edit-mode builder). Everything here is anchored decoration; only
+-- the roof deck, parapet, glass rail, bleachers and the invisible edge walls collide. The sky
+-- is open, so a max-Vertical jump never hits anything; the edge walls are taller than that
+-- jump (Build.Run checks it) so nobody drifts off the building.
+local Geometry = require(script.Parent.Geometry)
+local Props = require(script.Parent.Props)
+local Crowd = require(script.Parent.Crowd)
+local Config = require(script.Parent.Config)
+local Colors = Config.Colors
+local Scenery = {}
+
+-- Palettes handed to the shared props.
+local SHOP = { Wood = Colors.Wood, Accent = Colors.Orange, Light = Colors.Light, Metal = Colors.Metal, Dark = Colors.Dark,
+	Rubber = Colors.Rubber, Glass = Colors.Glass, Yellow = Colors.Yellow }
+local GYM = table.clone(SHOP)
+GYM.Accent = Colors.Magenta
+local LAB = table.clone(SHOP)
+LAB.Accent = Colors.Lab
+local TRANSIT = table.clone(SHOP)
+TRANSIT.Accent = Colors.Cyan
+local BOARD = table.clone(SHOP)
+BOARD.Accent = Colors.Cyan
+
+-- Night crowd looks.
+local SKINS = {
+	Color3.fromRGB(255, 219, 172), Color3.fromRGB(241, 194, 125), Color3.fromRGB(224, 172, 105),
+	Color3.fromRGB(198, 134, 66), Color3.fromRGB(141, 85, 36), Color3.fromRGB(94, 56, 30),
+}
+local SHIRTS = { Colors.Magenta, Colors.Cyan, Color3.fromRGB(30, 30, 36), Color3.fromRGB(245, 247, 252), Colors.Gold }
+local PANTS = { Color3.fromRGB(46, 62, 110), Color3.fromRGB(34, 36, 44), Color3.fromRGB(90, 94, 104) }
+local SHOES = { Color3.fromRGB(245, 245, 245), Color3.fromRGB(26, 26, 30), Colors.Cyan, Colors.Magenta }
+local HAIR = { Color3.fromRGB(30, 22, 16), Color3.fromRGB(88, 56, 30), Color3.fromRGB(196, 150, 80), Color3.fromRGB(140, 60, 30) }
+local HATS = { "Cap", "BackwardsCap", "Beanie", "Headband", "ShortHair", "ShortHair", "Puff" }
+local SEATED_POSES = { "Sit", "SitLean", "SitClap", "Sit" }
+
+function Scenery.Roof(parent, context)
+	local frame = context.Frame
+	local function part(folder, name, size, offset, color, material, collide)
+		return Geometry.Part(folder, name, size, frame * CFrame.new(offset), color, material, collide)
+	end
+	local halfW, halfD = Config.RoofWidth / 2, Config.RoofDepth / 2
+
+	-- Roof deck and a teal sport court with magenta paint.
+	local court = Geometry.Folder(parent, "Court")
+	part(court, "RoofDeck", Vector3.new(Config.RoofWidth, 1, Config.RoofDepth), Vector3.new(0, -0.5, 0), Colors.Roof, Enum.Material.Concrete, true)
+	part(court, "Apron", Vector3.new(Config.CourtWidth + 10, 0.05, Config.CourtDepth + 10), Vector3.new(0, 0.02, 0), Colors.CourtLight, Enum.Material.SmoothPlastic)
+	part(court, "CourtSurface", Vector3.new(Config.CourtWidth, 0.05, Config.CourtDepth), Vector3.new(0, 0.04, 0), Colors.Court, Enum.Material.SmoothPlastic)
+	local lines = Geometry.Folder(court, "Lines")
+	local function line(name, first, last)
+		Geometry.Line(lines, name, frame:PointToWorldSpace(first), frame:PointToWorldSpace(last), 0.24, 0.04, Colors.Lines)
+	end
+	local baseline = Config.CourtDepth / 2
+	line("Baseline", Vector3.new(-30, 0.085, -baseline), Vector3.new(30, 0.085, -baseline))
+	line("Endline", Vector3.new(-30, 0.085, baseline), Vector3.new(30, 0.085, baseline))
+	line("CenterLine", Vector3.new(-30, 0.085, 0), Vector3.new(30, 0.085, 0))
+	for _, side in { -1, 1 } do
+		line("Sideline" .. side, Vector3.new(30 * side, 0.085, -baseline), Vector3.new(30 * side, 0.085, baseline))
+	end
+	for _, endSign in { -1, 1 } do
+		local tag = endSign < 0 and "Home" or "Away"
+		part(court, "Paint" .. tag, Vector3.new(16, 0.03, 20), Vector3.new(0, 0.06, endSign * (baseline - 10)), Colors.Paint)
+		for _, side in { -1, 1 } do
+			line("Lane" .. tag .. side, Vector3.new(8 * side, 0.085, endSign * baseline), Vector3.new(8 * side, 0.085, endSign * (baseline - 20)))
+			line("CornerThree" .. tag .. side, Vector3.new(25 * side, 0.085, endSign * baseline), Vector3.new(25 * side, 0.085, endSign * (baseline - 7)))
+		end
+		line("FreeThrow" .. tag, Vector3.new(-8, 0.085, endSign * (baseline - 20)), Vector3.new(8, 0.085, endSign * (baseline - 20)))
+		local start = endSign < 0 and math.pi or 0
+		Geometry.Arc(lines, "ThreePointArc" .. tag, frame * CFrame.new(0, 0.085, endSign * (baseline - 7)), 25, start, start + math.pi, 28, 0.24, 0.04, Colors.Lines)
+		Geometry.Arc(lines, "FreeThrowCircle" .. tag, frame * CFrame.new(0, 0.085, endSign * (baseline - 20)), 8, 0, math.pi * 2, 20, 0.24, 0.04, Colors.Lines)
+	end
+	Geometry.Arc(lines, "CenterCircle", frame * CFrame.new(0, 0.085, 0), 8, 0, math.pi * 2, 22, 0.24, 0.04, Colors.Lines)
+	local logoText = part(court, "CenterLogoText", Vector3.new(14, 0.02, 4), Vector3.new(0, 0.09, 0), Colors.Magenta)
+	logoText.Transparency = 1
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Top
+	gui.CanvasSize = Vector2.new(700, 200)
+	gui.LightInfluence = 0.2
+	gui.Parent = logoText
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundTransparency = 1
+	text.Font = Enum.Font.FredokaOne
+	text.Text = "SKYLINE"
+	text.TextScaled = true
+	text.TextColor3 = Colors.Magenta
+	text.Rotation = 180
+	text.Parent = gui
+
+	-- Parapet with a neon cap and a glass rail on top; invisible walls reach far above any
+	-- jump so nobody can drift off the building.
+	local edge = Geometry.Folder(parent, "Edge")
+	local walls = {
+		{ "North", Vector3.new(Config.RoofWidth + 3, 0, 1.5), Vector3.new(0, 0, -halfD - 0.75) },
+		{ "South", Vector3.new(Config.RoofWidth + 3, 0, 1.5), Vector3.new(0, 0, halfD + 0.75) },
+		{ "West", Vector3.new(1.5, 0, Config.RoofDepth), Vector3.new(-halfW - 0.75, 0, 0) },
+		{ "East", Vector3.new(1.5, 0, Config.RoofDepth), Vector3.new(halfW + 0.75, 0, 0) },
+	}
+	for _, wall in walls do
+		local name, size, offset = wall[1], wall[2], wall[3]
+		part(edge, "Parapet" .. name, size + Vector3.new(0, 3.5, 0), offset + Vector3.new(0, 1.75, 0), Colors.Parapet, Enum.Material.Concrete, true)
+		part(edge, "ParapetGlow" .. name, size + Vector3.new(0.1, 0.35, 0.1), offset + Vector3.new(0, 3.6, 0), Colors.Cyan, Enum.Material.Neon)
+		local rail = part(edge, "GlassRail" .. name, size + Vector3.new(0, 3, 0) - Vector3.new(size.X > 2 and 0 or 1.2, 0, size.Z > 2 and 0 or 1.2),
+			offset + Vector3.new(0, 5.3, 0), Colors.Glass, Enum.Material.Glass, true)
+		rail.Transparency = 0.6
+		local barrier = part(edge, "Barrier" .. name, size + Vector3.new(0, Config.BarrierHeight, 0), offset + Vector3.new(0, Config.BarrierHeight / 2, 0),
+			Colors.Glass, Enum.Material.SmoothPlastic, true)
+		barrier.Transparency = 1
+		barrier.CanQuery = false
+		barrier.CastShadow = false
+	end
+
+	-- The skyscraper under the roof, with lit window bands fading into the night haze.
+	local tower = Geometry.Folder(parent, "Skyscraper")
+	part(tower, "Body", Vector3.new(Config.RoofWidth + 4, Config.TowerDepth, Config.RoofDepth + 4), Vector3.new(0, -Config.TowerDepth / 2 - 1, 0), Colors.Tower, Enum.Material.Glass)
+	for index = 1, math.floor(Config.TowerDepth / 16) - 1 do
+		local y = -6 - index * 16
+		part(tower, "WindowBand" .. index, Vector3.new(Config.RoofWidth + 4.4, 1.4, Config.RoofDepth + 4.4), Vector3.new(0, y, 0),
+			index % 5 == 0 and Colors.Cyan or Colors.Warm, Enum.Material.Neon)
+	end
+	part(tower, "Crown", Vector3.new(Config.RoofWidth + 5, 0.6, Config.RoofDepth + 5), Vector3.new(0, -1.4, 0), Colors.Magenta, Enum.Material.Neon)
+
+	-- Height gates: a neon bar over the back of the court at the height your feet reach at the
+	-- jump's peak with that much Vertical, strung between two antenna masts.
+	local gates = Geometry.Folder(parent, "VerticalGates")
+	local top = context.Marks[#context.Marks].Height + 30
+	for _, side in { -1, 1 } do
+		local x = side * 60
+		part(gates, "Mast" .. side, Vector3.new(1.6, top, 1.6), Vector3.new(x, top / 2, -halfD + 6), Colors.Metal, Enum.Material.Metal)
+		for index = 1, math.floor(top / 100) do
+			part(gates, "MastLight" .. side .. "_" .. index, Vector3.new(2.2, 1.2, 2.2), Vector3.new(x, index * 100, -halfD + 6), Colors.Red, Enum.Material.Neon)
+		end
+		part(gates, "MastTop" .. side, Vector3.new(2.6, 2.6, 2.6), Vector3.new(x, top + 1.3, -halfD + 6), Colors.Red, Enum.Material.Neon)
+	end
+	for index, mark in context.Marks do
+		local color = index == #context.Marks and Colors.Gold or (index % 2 == 0 and Colors.Magenta or Colors.Cyan)
+		part(gates, "Gate" .. mark.Vertical, Vector3.new(118, 1, 1), Vector3.new(0, mark.Height, -halfD + 6), color, Enum.Material.Neon)
+		for _, side in { -1, 1 } do
+			Geometry.Panel(gates, "Label" .. mark.Vertical .. "_" .. side, Vector3.new(26, 7, 0.3), frame * CFrame.new(side * 44, mark.Height + 4.5, -halfD + 6),
+				Colors.Dark, string.format("%d VERTICAL", mark.Vertical), color, Enum.NormalId.Back)
+		end
+	end
+
+	-- Big sign on a frame behind the hoop, facing the court.
+	local sign = Geometry.Folder(parent, "SkylineSign")
+	Geometry.Panel(sign, "Sign", Vector3.new(84, 16, 0.5), frame * CFrame.new(0, 44, -halfD + 3), Colors.Dark, "SKYLINE ROOFTOP", Colors.Magenta, Enum.NormalId.Back)
+	part(sign, "SignGlowTop", Vector3.new(86, 0.6, 0.6), Vector3.new(0, 52.3, -halfD + 3.2), Colors.Cyan, Enum.Material.Neon)
+	part(sign, "SignGlowBottom", Vector3.new(86, 0.6, 0.6), Vector3.new(0, 35.7, -halfD + 3.2), Colors.Cyan, Enum.Material.Neon)
+	for _, x in { -30, 30 } do
+		part(sign, "SignLeg" .. x, Vector3.new(1.2, 36, 1.2), Vector3.new(x, 18, -halfD + 3.8), Colors.Metal, Enum.Material.Metal)
+	end
+
+	-- Flood lights at the court corners aimed at center court.
+	local lights = Geometry.Folder(parent, "FloodLights")
+	local flood = Config.FloodLights
+	for _, corner in { Vector3.new(-40, 0, -58), Vector3.new(40, 0, -58), Vector3.new(-40, 0, 58), Vector3.new(40, 0, 58) } do
+		local tag = string.format("%d_%d", corner.X, corner.Z)
+		part(lights, "Pole" .. tag, Vector3.new(0.9, flood.Height, 0.9), corner + Vector3.new(0, flood.Height / 2, 0), Colors.Metal, Enum.Material.Metal)
+		local headPosition = frame * (corner + Vector3.new(0, flood.Height, 0))
+		local head = Geometry.Part(lights, "Lamp" .. tag, Vector3.new(7, 3, 1), CFrame.lookAt(headPosition, frame * Vector3.new(0, 0, 0)), Colors.Light, Enum.Material.Neon)
+		local light = Instance.new("SpotLight")
+		light.Face = Enum.NormalId.Front
+		light.Angle = 75
+		light.Brightness = flood.Brightness
+		light.Range = flood.Range
+		light.Color = Colors.Light
+		light.Shadows = true
+		light.Parent = head
+	end
+
+	-- Short bleachers on both sidelines with a neon ribbon, and a small night crowd.
+	local stands = Geometry.Folder(parent, "Stands")
+	local cfg = Config.Stands
+	for _, side in { -1, 1 } do
+		for row = 1, cfg.Rows do
+			local x = side * (cfg.FirstX + (row - 1) * cfg.RowStep)
+			part(stands, "Bench" .. side .. "Row" .. row, Vector3.new(cfg.RowStep - 0.4, 0.7, cfg.Length), Vector3.new(x, row * cfg.RowRise, 0),
+				row % 2 == 0 and Colors.Magenta or Colors.Metal, Enum.Material.Metal, true)
+			part(stands, "Riser" .. side .. "Row" .. row, Vector3.new(cfg.RowStep - 0.4, row * cfg.RowRise, cfg.Length),
+				Vector3.new(x, row * cfg.RowRise / 2 - 0.35, 0), Colors.RoofDark, Enum.Material.Concrete, true)
+		end
+		part(stands, "Ribbon" .. side, Vector3.new(0.3, 0.8, cfg.Length), Vector3.new(side * (cfg.FirstX - cfg.RowStep / 2 - 0.1), 0.9, 0), Colors.Cyan, Enum.Material.Neon)
+	end
+	local crowd = Geometry.Folder(parent, "Crowd")
+	local random = Random.new(Config.Crowd.Seed)
+	for _, side in { -1, 1 } do
+		local free = {}
+		for z = Config.Crowd.FirstZ, Config.Crowd.LastZ, Config.Crowd.Spacing do table.insert(free, z) end
+		for count = 1, Config.Crowd.PerSide do
+			if #free == 0 then break end
+			local z = table.remove(free, random:NextInteger(1, #free)) + random:NextNumber(-0.8, 0.8)
+			local row = random:NextInteger(1, cfg.Rows)
+			local benchX = side * (cfg.FirstX + (row - 1) * cfg.RowStep)
+			local seat = Vector3.new(benchX - side * 0.55, row * cfg.RowRise + 0.35, z)
+			local look = {
+				Skin = SKINS[random:NextInteger(1, #SKINS)], Shirt = SHIRTS[random:NextInteger(1, #SHIRTS)],
+				Pants = PANTS[random:NextInteger(1, #PANTS)], Shoes = SHOES[random:NextInteger(1, #SHOES)],
+				LongSleeves = random:NextNumber() < 0.5, Hat = HATS[random:NextInteger(1, #HATS)],
+				HatColor = SHIRTS[random:NextInteger(1, #SHIRTS)], HairColor = HAIR[random:NextInteger(1, #HAIR)],
+			}
+			if random:NextNumber() < Config.Crowd.FoamFingerChance then
+				look.Prop, look.PropColor = "FoamFinger", Colors.Magenta
+			end
+			Crowd.Spectator(crowd, string.format("Fan%s%02d", side < 0 and "West" or "East", count),
+				CFrame.lookAt(frame * seat, frame * (seat - Vector3.new(side, 0, 0))), SEATED_POSES[random:NextInteger(1, #SEATED_POSES)], look)
+		end
+	end
+
+	-- Rooftop clutter: a water tower and AC units near the back corners.
+	local clutter = Geometry.Folder(parent, "RoofProps")
+	local tank = part(clutter, "WaterTank", Vector3.new(14, 12, 12), Vector3.new(58, 17, -62), Colors.Wood, Enum.Material.WoodPlanks)
+	tank.Shape = Enum.PartType.Cylinder
+	tank.CFrame = frame * CFrame.new(58, 17, -62) * CFrame.Angles(0, 0, math.rad(90))
+	part(clutter, "WaterTankRoof", Vector3.new(13, 1, 13), Vector3.new(58, 23.5, -62), Colors.RoofDark, Enum.Material.Metal)
+	for _, leg in { Vector3.new(-4, 0, -4), Vector3.new(4, 0, -4), Vector3.new(-4, 0, 4), Vector3.new(4, 0, 4) } do
+		part(clutter, "WaterTankLeg" .. leg.X .. leg.Z, Vector3.new(0.8, 11, 0.8), Vector3.new(58, 5.5, -62) + leg, Colors.Metal, Enum.Material.Metal)
+	end
+	for index, spot in { Vector3.new(62, 2, -30), Vector3.new(62, 2, -12), Vector3.new(-62, 2, -30) } do
+		part(clutter, "ACUnit" .. index, Vector3.new(10, 4, 8), spot, Colors.Metal, Enum.Material.DiamondPlate, true)
+		part(clutter, "ACFan" .. index, Vector3.new(5, 0.3, 5), spot + Vector3.new(0, 2.1, 0), Colors.RoofDark, Enum.Material.Metal)
+	end
+
+	-- Global leaderboards behind the hoop (left of it), facing the court.
+	local boardSpot = Config.Leaderboard
+	Props.Leaderboards(Geometry.Folder(parent, "LeaderboardArea"),
+		CFrame.lookAt(frame * boardSpot, frame * (boardSpot + Vector3.zAxis)), BOARD)
+
+	-- The skyline: a ring of towers below and around the roof. Most sit lower so the roof
+	-- feels high; a few rise above it. Deterministic from City.Seed.
+	local city = Geometry.Folder(parent, "Skyline")
+	local cityRandom = Random.new(Config.City.Seed)
+	local bandColors = { Colors.Warm, Colors.Warm, Colors.Warm, Colors.Warm, Colors.Cyan, Colors.Cyan, Colors.Magenta }
+	local bodyColors = { Colors.Tower, Colors.TowerLight, Color3.fromRGB(30, 36, 64), Color3.fromRGB(44, 40, 70) }
+	for index = 1, Config.City.Buildings do
+		local angle = (index / Config.City.Buildings) * math.pi * 2 + cityRandom:NextNumber(-0.06, 0.06)
+		local radius = cityRandom:NextNumber(Config.City.InnerRadius, Config.City.OuterRadius)
+		local width, depth = cityRandom:NextNumber(40, 90), cityRandom:NextNumber(40, 90)
+		local tall = cityRandom:NextNumber() < 0.22
+		local topY = tall and cityRandom:NextNumber(40, 220) or cityRandom:NextNumber(-260, -30)
+		local height = topY - Config.City.BaseY
+		local base = frame * CFrame.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+		local yaw = CFrame.Angles(0, cityRandom:NextNumber(0, math.pi), 0)
+		local center = base * CFrame.new(0, Config.City.BaseY + height / 2, 0) * yaw
+		Geometry.Part(city, "Tower" .. index, Vector3.new(width, height, depth), center, bodyColors[cityRandom:NextInteger(1, #bodyColors)], Enum.Material.Glass)
+		local bands = math.min(4, math.floor(height / 60))
+		for band = 1, bands do
+			local y = topY - 8 - (band - 1) * (height * 0.5 / bands)
+			Geometry.Part(city, "Tower" .. index .. "Band" .. band, Vector3.new(width + 0.4, 1.2, depth + 0.4),
+				base * CFrame.new(0, y, 0) * yaw, bandColors[cityRandom:NextInteger(1, #bandColors)], Enum.Material.Neon)
+		end
+		if tall then
+			Geometry.Part(city, "Tower" .. index .. "Beacon", Vector3.new(2.5, 2.5, 2.5), base * CFrame.new(0, topY + 1.25, 0), Colors.Red, Enum.Material.Neon)
+		end
+	end
+end
+
+function Scenery.Hoop(parent, rim, height)
+	Props.Hoop(parent, CFrame.lookAt(rim.Position, rim.Position + Vector3.zAxis), height, {
+		Rim = Colors.Orange, Target = Colors.Magenta, Metal = Colors.Metal, Net = Colors.Lines, Pad = Colors.Magenta,
+		Backboard = Colors.Backboard, BackboardTransparency = Colors.BackboardTransparency,
+	})
+end
+
+local function floorFrame(station)
+	return station.CFrame * CFrame.new(0, -station.Size.Y / 2, 0)
+end
+
+function Scenery.Stations(parent, trainer, pickup, upgrade)
+	Props.LegGym(Geometry.Folder(parent, "TrainerGym"), floorFrame(trainer), GYM)
+	Props.BallShop(Geometry.Folder(parent, "PickupShop"), floorFrame(pickup), SHOP)
+	Props.UpgradeLab(Geometry.Folder(parent, "UpgradeStationDressing"), floorFrame(upgrade), "TRAINING UPGRADES", LAB)
+end
+
+-- Elevator lobby behind the return station (the station faces the court).
+function Scenery.Elevator(parent, station, text)
+	local frame = floorFrame(station)
+	local function part(name, size, offset, color, material, collide)
+		return Geometry.Part(parent, name, size, frame * CFrame.new(offset), color, material, collide)
+	end
+	part("Shaft", Vector3.new(12, 16, 7), Vector3.new(0, 8, 5.5), Colors.RoofDark, Enum.Material.Concrete, true)
+	part("ShaftCap", Vector3.new(12.6, 0.6, 7.6), Vector3.new(0, 16.3, 5.5), Colors.Cyan, Enum.Material.Neon)
+	for _, side in { -1, 1 } do
+		part("Door" .. side, Vector3.new(2.7, 9, 0.3), Vector3.new(side * 1.4, 4.5, 1.9), Colors.Metal, Enum.Material.Metal)
+		part("DoorFrame" .. side, Vector3.new(0.4, 9.6, 0.4), Vector3.new(side * 3, 4.8, 1.85), Colors.Cyan, Enum.Material.Neon)
+	end
+	part("DoorFrameTop", Vector3.new(6.4, 0.4, 0.4), Vector3.new(0, 9.6, 1.85), Colors.Cyan, Enum.Material.Neon)
+	Geometry.Panel(parent, "ElevatorSign", Vector3.new(10, 2.6, 0.3), frame * CFrame.new(0, 12.2, 1.85), Colors.Dark, "ELEVATOR", Colors.Cyan, Enum.NormalId.Front)
+	Geometry.Panel(parent, "Destination", Vector3.new(8, 1.6, 0.3), frame * CFrame.new(0, 14.4, 1.85), Colors.Dark, text, Colors.Gold, Enum.NormalId.Front)
+end
+
+function Scenery.TransitStop(parent, station, text)
+	Props.TransitStop(parent, station, text, Config.Transit.BusDistance, Config.Transit.RoadDrop, TRANSIT)
+end
+
+return Scenery
+]]></string>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript" referent="4">
+      <Properties>
+        <string name="Name">Crowd</string>
+        <string name="Source"><![CDATA[-- Builder-made spectators shared by the Neighborhood and High School builders (edit mode
+-- only). Each one is a real R15 avatar from a HumanoidDescription, recolored into
+-- clothes, dressed with part-built hats/props, posed by forward kinematics and fully
+-- anchored. The Humanoid, scripts and physics constraints are stripped; the joint
+-- AnimationConstraints stay so CrowdPresentation (client) can animate the pose.
+local Players = game:GetService("Players")
+local Geometry = require(script.Parent.Geometry)
+
+local Crowd = {}
+
+-- Joint angles in degrees {pitch, yaw, roll}. Signs (measured): hip/shoulder + swings
+-- forward, knee - bends, ankle - points toes, waist/neck + leans back,
+-- shoulder roll: right - / left + moves the arm inward.
+local POSES = {
+	Stand = {
+		RightShoulder = { 0, 0, 5 }, LeftShoulder = { 0, 0, -5 }, RightElbow = { 12 }, LeftElbow = { 12 },
+	},
+	-- Arms folded: upper arms twisted inward (yaw) so the bent forearms cross the chest.
+	StandCrossed = {
+		RightShoulder = { 18, 72, -8 }, LeftShoulder = { 22, -72, 8 }, RightElbow = { 98 }, LeftElbow = { 92 },
+		Neck = { -4 },
+	},
+	Sit = {
+		RightHip = { 90, 0, 3 }, LeftHip = { 90, 0, -3 }, RightKnee = { -82 }, LeftKnee = { -82 },
+		RightShoulder = { 28, 0, -6 }, LeftShoulder = { 28, 0, 6 }, RightElbow = { 55 }, LeftElbow = { 55 },
+		Waist = { -4 },
+	},
+	SitLean = {
+		RightHip = { 92, 0, 5 }, LeftHip = { 92, 0, -5 }, RightKnee = { -88 }, LeftKnee = { -88 },
+		Waist = { -20 }, Neck = { 14 },
+		RightShoulder = { 48, 0, -8 }, LeftShoulder = { 48, 0, 8 }, RightElbow = { 88 }, LeftElbow = { 88 },
+	},
+	SitClap = {
+		RightHip = { 90, 0, 3 }, LeftHip = { 90, 0, -3 }, RightKnee = { -80 }, LeftKnee = { -80 },
+		RightShoulder = { 62, 0, -26 }, LeftShoulder = { 62, 0, 26 }, RightElbow = { 72 }, LeftElbow = { 72 },
+	},
+}
+
+local SEATED = { Sit = true, SitLean = true, SitClap = true }
+
+local function angles(values)
+	if not values then return CFrame.identity end
+	return CFrame.Angles(math.rad(values[1] or 0), math.rad(values[2] or 0), math.rad(values[3] or 0))
+end
+
+local function jointParts(joint: Instance)
+	if joint:IsA("Motor6D") then
+		return joint.Part0, joint.Part1, joint.C0, joint.C1
+	elseif joint:IsA("AnimationConstraint") and joint.Attachment0 and joint.Attachment1 then
+		return joint.Attachment0.Parent, joint.Attachment1.Parent, joint.Attachment0.CFrame, joint.Attachment1.CFrame
+	end
+	return nil
+end
+
+-- Places every limb from the root outward: child = parent * C0 * pose * C1^-1.
+local function applyPose(model: Model, root: BasePart, pose)
+	local joints = {}
+	for _, joint in model:GetDescendants() do
+		if jointParts(joint) then table.insert(joints, joint) end
+	end
+	local placed = { [root] = true }
+	local progress = true
+	while progress do
+		progress = false
+		for _, joint in joints do
+			local parent, child, c0, c1 = jointParts(joint)
+			if placed[parent] and child and not placed[child] then
+				child.CFrame = parent.CFrame * c0 * angles(pose[joint.Name]) * c1:Inverse()
+				placed[child] = true
+				progress = true
+			end
+		end
+	end
+end
+
+local function lowestY(part: BasePart): number
+	local cf, half = part.CFrame, part.Size / 2
+	local reach = math.abs(cf.RightVector.Y) * half.X + math.abs(cf.UpVector.Y) * half.Y + math.abs(cf.LookVector.Y) * half.Z
+	return cf.Position.Y - reach
+end
+
+local function translate(model: Model, offset: Vector3)
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") then part.CFrame += offset end
+	end
+end
+
+-- Part-built headwear and hand props, parented to the part they ride on.
+local function dress(model: Model, look)
+	local head = model:FindFirstChild("Head")
+	if head and look.Hat then
+		local w, h, d = head.Size.X, head.Size.Y, head.Size.Z
+		local top = head.CFrame * CFrame.new(0, h / 2, 0)
+		local color = look.HatColor or look.Shirt
+		if look.Hat == "Cap" or look.Hat == "BackwardsCap" then
+			local brimZ = look.Hat == "Cap" and -1 or 1
+			Geometry.Part(head, "CapCrown", Vector3.new(w * 1.04, h * 0.32, d * 1.04), top * CFrame.new(0, -h * 0.08, 0), color)
+			Geometry.Part(head, "CapBrim", Vector3.new(w * 0.86, 0.08, d * 0.5), top * CFrame.new(0, -h * 0.2, brimZ * d * 0.7), color)
+		elseif look.Hat == "Beanie" then
+			Geometry.Part(head, "Beanie", Vector3.new(w * 1.08, h * 0.5, d * 1.08), top * CFrame.new(0, -h * 0.14, 0), color, Enum.Material.Fabric)
+			Geometry.Part(head, "BeanieCuff", Vector3.new(w * 1.12, h * 0.14, d * 1.12), top * CFrame.new(0, -h * 0.38, 0), look.HatTrim or color:Lerp(Color3.new(1, 1, 1), 0.4), Enum.Material.Fabric)
+		elseif look.Hat == "Headband" then
+			Geometry.Part(head, "Hair", Vector3.new(w * 1.04, h * 0.22, d * 1.04), top * CFrame.new(0, -h * 0.05, 0), look.HairColor)
+			Geometry.Part(head, "Headband", Vector3.new(w * 1.07, h * 0.16, d * 1.07), top * CFrame.new(0, -h * 0.24, 0), color)
+		elseif look.Hat == "ShortHair" then
+			Geometry.Part(head, "Hair", Vector3.new(w * 1.05, h * 0.26, d * 1.05), top * CFrame.new(0, -h * 0.06, 0), look.HairColor)
+			Geometry.Part(head, "HairBack", Vector3.new(w * 1.05, h * 0.5, d * 0.22), head.CFrame * CFrame.new(0, h * 0.12, d * 0.46), look.HairColor)
+		elseif look.Hat == "Puff" then
+			local puff = Geometry.Part(head, "Hair", Vector3.new(w * 1.5, w * 1.5, w * 1.5), top * CFrame.new(0, h * 0.02, d * 0.08), look.HairColor, Enum.Material.Fabric)
+			puff.Shape = Enum.PartType.Ball
+		end
+	end
+	local hand = model:FindFirstChild("RightHand")
+	if hand and look.Prop == "FoamFinger" then
+		local color = look.PropColor or Color3.fromRGB(255, 132, 34)
+		local palm = Geometry.Part(hand, "FoamHand", Vector3.new(0.7, 0.8, 0.35), hand.CFrame * CFrame.new(0, -0.55, 0), color, Enum.Material.Foil)
+		Geometry.Part(hand, "FoamFinger", Vector3.new(0.24, 0.9, 0.3), palm.CFrame * CFrame.new(0.12, -0.8, 0), color, Enum.Material.Foil)
+	end
+end
+
+-- look = { Skin, Shirt, Pants, Shoes, LongSleeves?, Hat?, HatColor?, HairColor?, Prop?, PropColor? }
+-- Stand poses: `frame` is the floor point under the feet, facing LookVector.
+-- Seated poses: `frame` is the seat-top point under the hips, facing LookVector.
+function Crowd.Spectator(parent: Instance, name: string, frame: CFrame, poseName: string, look)
+	local model = Players:CreateHumanoidModelFromDescription(Instance.new("HumanoidDescription"), Enum.HumanoidRigType.R15)
+	model.Name = name
+	local root = model:FindFirstChild("HumanoidRootPart")
+	assert(root and root:IsA("BasePart"), "Spectator rig has no HumanoidRootPart")
+	model.PrimaryPart = root
+	for _, item in model:GetDescendants() do
+		if item:IsA("LuaSourceContainer") or item:IsA("Humanoid") or item:IsA("BodyColors")
+			or item:IsA("BallSocketConstraint") or item:IsA("NoCollisionConstraint") or item:IsA("WrapTarget") then
+			item:Destroy()
+		end
+	end
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") then
+			part.Anchored = true
+			part.CanCollide = false
+			part.CanQuery = false
+			part.CanTouch = false
+			part.Massless = true
+		end
+	end
+	local colors = {
+		Head = look.Skin, UpperTorso = look.Shirt, LowerTorso = look.Pants,
+		LeftUpperArm = look.Shirt, RightUpperArm = look.Shirt,
+		LeftLowerArm = look.LongSleeves and look.Shirt or look.Skin, RightLowerArm = look.LongSleeves and look.Shirt or look.Skin,
+		LeftHand = look.Skin, RightHand = look.Skin,
+		LeftUpperLeg = look.Pants, RightUpperLeg = look.Pants, LeftLowerLeg = look.Pants, RightLowerLeg = look.Pants,
+		LeftFoot = look.Shoes, RightFoot = look.Shoes,
+	}
+	for partName, color in colors do
+		local part = model:FindFirstChild(partName)
+		if part and part:IsA("BasePart") then part.Color = color end
+	end
+
+	root.CFrame = CFrame.lookAt(Vector3.zero, frame.LookVector * Vector3.new(1, 0, 1))
+	applyPose(model, root, POSES[poseName] or POSES.Stand)
+	dress(model, look)
+
+	-- Settle the posed body onto the floor or seat.
+	local floorY = frame.Position.Y
+	if SEATED[poseName] then
+		local contact = math.huge
+		for _, partName in { "LowerTorso", "LeftUpperLeg", "RightUpperLeg" } do
+			local part = model:FindFirstChild(partName)
+			if part then contact = math.min(contact, lowestY(part)) end
+		end
+		local hips = model:FindFirstChild("LowerTorso")
+		local horizontal = hips and (frame.Position - hips.Position) * Vector3.new(1, 0, 1) or Vector3.zero
+		translate(model, horizontal + Vector3.new(0, floorY - contact, 0))
+	else
+		local contact = math.huge
+		for _, partName in { "LeftFoot", "RightFoot" } do
+			local part = model:FindFirstChild(partName)
+			if part then contact = math.min(contact, lowestY(part)) end
+		end
+		translate(model, (frame.Position - root.Position) * Vector3.new(1, 0, 1) + Vector3.new(0, floorY - contact, 0))
+	end
+	-- CrowdPresentation (client) finds spectators by this tag; atomic streaming delivers
+	-- each rig whole so its joints can be read in one go.
+	model:AddTag("Spectator")
+	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	model:SetAttribute("Seated", SEATED[poseName] == true)
+	model.Parent = parent
+	return model
+end
+
+return Crowd
+]]></string>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript" referent="5">
+      <Properties>
+        <string name="Name">Geometry</string>
+        <string name="Source"><![CDATA[local Geometry = {}
+
+function Geometry.Folder(parent, name)
+	local folder = Instance.new("Folder")
+	folder.Name = name
+	folder.Parent = parent
+	return folder
+end
+
+function Geometry.Part(parent, name, size, frame, color, material, collision)
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Size = size
+	part.CFrame = frame
+	part.Color = color
+	part.Material = material or Enum.Material.SmoothPlastic
+	part.Anchored = true
+	part.CanCollide = collision == true
+	part.CanTouch = false
+	part.CanQuery = collision == true
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.Parent = parent
+	return part
+end
+
+function Geometry.Line(parent, name, first, last, width, thickness, color)
+	local length = (last - first).Magnitude
+	assert(length > 0, "Line endpoints must differ")
+	return Geometry.Part(parent, name, Vector3.new(width, thickness, length),
+		CFrame.lookAt((first + last) / 2, last), color)
+end
+
+function Geometry.Arc(parent, name, frame, radius, startAngle, endAngle, segments, width, thickness, color)
+	local folder = Geometry.Folder(parent, name)
+	for index = 1, segments do
+		local firstAngle = startAngle + (endAngle - startAngle) * (index - 1) / segments
+		local lastAngle = startAngle + (endAngle - startAngle) * index / segments
+		local first = frame:PointToWorldSpace(Vector3.new(radius * math.cos(firstAngle), 0, -radius * math.sin(firstAngle)))
+		local last = frame:PointToWorldSpace(Vector3.new(radius * math.cos(lastAngle), 0, -radius * math.sin(lastAngle)))
+		Geometry.Line(folder, string.format("Segment%02d", index), first, last, width, thickness, color)
+	end
+	return folder
+end
+
+-- Signs share the HUD look (mirrors src/shared/Config/HUDConfig.luau): a deep-navy
+-- rounded panel with a sign-colored rim, white FredokaOne text with a dark cartoon
+-- outline, unaffected by scene lighting. Very dark sign colors use the HUD's light-blue
+-- panel stroke for the rim instead.
+local SIGN_PANEL = Color3.fromRGB(18, 24, 52)
+local SIGN_STROKE = Color3.fromRGB(110, 190, 255)
+local SIGN_TEXT = Color3.fromRGB(255, 255, 255)
+local SIGN_OUTLINE = Color3.fromRGB(6, 10, 30)
+local PIXELS_PER_STUD = 64
+
+function Geometry.Sign(parent, name, frame, text, color, width)
+	local _, _, brightness = color:ToHSV()
+	local rim = brightness < 0.35 and SIGN_STROKE or color
+	local board = Geometry.Part(parent, name, Vector3.new(width, 2.5, 0.2), frame, rim)
+	local canvas = Vector2.new(math.floor(width * PIXELS_PER_STUD + 0.5), math.floor(2.5 * PIXELS_PER_STUD + 0.5))
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		local gui = Instance.new("SurfaceGui")
+		gui.Name = face.Name .. "Label"
+		gui.Face = face
+		gui.CanvasSize = canvas
+		gui.LightInfluence = 0
+		gui.MaxDistance = 220
+		gui.Parent = board
+		local panel = Instance.new("Frame")
+		panel.Name = "Panel"
+		panel.Size = UDim2.new(1, -20, 1, -20)
+		panel.Position = UDim2.fromOffset(10, 10)
+		panel.BackgroundColor3 = SIGN_PANEL
+		panel.BorderSizePixel = 0
+		panel.Parent = gui
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 18)
+		corner.Parent = panel
+		local shade = Instance.new("UIGradient")
+		shade.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.new(0.72, 0.72, 0.72))
+		shade.Rotation = 90
+		shade.Parent = panel
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, -40, 1, -26)
+		label.Position = UDim2.fromOffset(20, 13)
+		label.BackgroundTransparency = 1
+		label.Text = text
+		label.TextColor3 = SIGN_TEXT
+		label.TextScaled = true
+		label.Font = Enum.Font.FredokaOne
+		label.Parent = panel
+		local outline = Instance.new("UIStroke")
+		outline.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+		outline.Color = SIGN_OUTLINE
+		outline.Thickness = 5
+		outline.Transparency = 0.15
+		outline.Parent = label
+	end
+	return board
+end
+
+-- Big text panel for banners and wall markings: one face carries FredokaOne text with a
+-- dark outline, unaffected by scene lighting and readable from far across an arena.
+-- `face` must point into the room (parts here are axis-aligned with the court frame).
+function Geometry.Panel(parent, name, size, frame, color, text, textColor, face)
+	local board = Geometry.Part(parent, name, size, frame, color)
+	local sideways = face == Enum.NormalId.Left or face == Enum.NormalId.Right
+	local width = sideways and size.Z or size.X
+	-- Scaled text tops out at 100 px, so big panels get a coarser canvas (about 110 px per
+	-- line of text) and the words still fill them.
+	local _, breaks = string.gsub(text, "\n", "")
+	local pixelsPerStud = math.min(24, 110 * (breaks + 1) / size.Y)
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "Label"
+	gui.Face = face
+	gui.CanvasSize = Vector2.new(math.floor(width * pixelsPerStud + 0.5), math.floor(size.Y * pixelsPerStud + 0.5))
+	gui.LightInfluence = 0
+	gui.MaxDistance = 900
+	gui.Parent = board
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(0.9, 0.84)
+	label.Position = UDim2.fromScale(0.05, 0.08)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.FredokaOne
+	label.Text = text
+	label.TextScaled = true
+	label.TextColor3 = textColor
+	label.Parent = gui
+	local outline = Instance.new("UIStroke")
+	outline.Color = SIGN_OUTLINE
+	outline.Thickness = 4
+	outline.Parent = label
+	return board
+end
+
+return Geometry
+]]></string>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript" referent="6">
+      <Properties>
+        <string name="Name">Props</string>
+        <string name="Source"><![CDATA[-- Detailed decorative props shared by the Neighborhood, High School and College builders:
+-- seamed basketballs, a ball shop, a leg-day gym corner, a bus stop, a school bus, the
+-- Training Upgrades lab and the leaderboard stand.
+-- Every part is anchored scenery; gameplay stations are never created or moved here.
+--
+-- Frames: every function takes the station's floor frame. Its LookVector points toward
+-- the player (the side you walk up to); local +Z is "behind" the station.
+local Geometry = require(script.Parent.Geometry)
+
+local Props = {}
+
+local SEAM = Color3.fromRGB(26, 18, 14)
+local BALL = Color3.fromRGB(226, 104, 34)
+
+local function cylinder(parent, name, length, diameter, frame, color, material)
+	local part = Geometry.Part(parent, name, Vector3.new(length, diameter, diameter), frame, color, material)
+	part.Shape = Enum.PartType.Cylinder
+	return part
+end
+
+local function sphere(parent, name, frame, diameter, color, material)
+	local part = Geometry.Part(parent, name, Vector3.new(diameter, diameter, diameter), frame, color, material)
+	part.Shape = Enum.PartType.Ball
+	return part
+end
+
+local function glass(part, transparency)
+	part.Material = Enum.Material.Glass
+	part.Transparency = transparency
+	return part
+end
+
+-- Orange pebbled ball with black seams. Each seam is a thin disc a little wider than the
+-- ball, so only its edge shows as a line on the surface.
+function Props.Basketball(parent, name, frame, diameter)
+	local folder = Geometry.Folder(parent, name)
+	local radius = diameter / 2
+	local seam = math.max(diameter * 0.045, 0.05)
+	sphere(folder, "Ball", frame, diameter, BALL, Enum.Material.Leather)
+	cylinder(folder, "SeamA", seam, diameter * 1.02, frame, SEAM)
+	cylinder(folder, "SeamB", seam, diameter * 1.02, frame * CFrame.Angles(0, math.rad(90), 0), SEAM)
+	for _, side in { -1, 1 } do
+		local height = radius * 0.62
+		local ring = 2 * math.sqrt(radius * radius - height * height) + diameter * 0.02
+		cylinder(folder, "Curve" .. (side > 0 and "Top" or "Bottom"), seam, ring,
+			frame * CFrame.new(0, side * height, 0) * CFrame.Angles(0, 0, math.rad(90)), SEAM)
+	end
+	return folder
+end
+
+-- "Hoop Shop" stall built behind the pickup station.
+function Props.BallShop(parent, frame, colors)
+	local shop = Geometry.Folder(parent, "HoopShop")
+	Geometry.Part(shop, "Floor", Vector3.new(12, 0.3, 7), frame * CFrame.new(0, 0.15, 3.9), colors.Wood, Enum.Material.WoodPlanks)
+	Geometry.Part(shop, "BackWall", Vector3.new(12, 7.5, 0.4), frame * CFrame.new(0, 3.75, 7.3), colors.Accent)
+	for _, side in { -1, 1 } do
+		Geometry.Part(shop, "SideWall" .. side, Vector3.new(0.4, 7.5, 7), frame * CFrame.new(side * 6, 3.75, 3.9), colors.Light)
+		Geometry.Part(shop, "FrontPost" .. side, Vector3.new(0.45, 7.5, 0.45), frame * CFrame.new(side * 5.8, 3.75, 0.9), colors.Metal, Enum.Material.Metal)
+	end
+	Geometry.Part(shop, "Counter", Vector3.new(10, 3, 1.6), frame * CFrame.new(0, 1.5, 2.3), colors.Wood, Enum.Material.Wood)
+	Geometry.Part(shop, "CounterTop", Vector3.new(10.4, 0.25, 2), frame * CFrame.new(0, 3.1, 2.3), colors.Light)
+	Geometry.Part(shop, "CounterStripe", Vector3.new(10, 0.6, 0.08), frame * CFrame.new(0, 2.2, 1.46), colors.Accent)
+	-- Striped awning, tilted down toward the customer.
+	for index = 0, 5 do
+		local x = -5 + index * 2
+		Geometry.Part(shop, "Awning" .. index, Vector3.new(2, 0.2, 4), frame * CFrame.new(x, 7.6, 1.2) * CFrame.Angles(math.rad(18), 0, 0),
+			index % 2 == 0 and colors.Accent or colors.Light)
+	end
+	Geometry.Sign(shop, "ShopSign", frame * CFrame.new(0, 9.4, 0.9), "HOOP SHOP", colors.Dark, 10)
+	-- Ball racks on the back wall and two balls on the counter.
+	for row, height in { 2.3, 4.2 } do
+		Geometry.Part(shop, "Shelf" .. row, Vector3.new(10, 0.25, 1.4), frame * CFrame.new(0, height, 6.4), colors.Metal, Enum.Material.Metal)
+		for column = -1, 1 do
+			Props.Basketball(shop, string.format("RackBall%d_%d", row, column + 2),
+				frame * CFrame.new(column * 3, height + 0.95, 6.4) * CFrame.Angles(0, math.rad(column * 25), 0), 1.6)
+		end
+	end
+	for _, side in { -1, 1 } do
+		Props.Basketball(shop, "CounterBall" .. side, frame * CFrame.new(side * 3.2, 4.0, 2.3) * CFrame.Angles(0, math.rad(side * 40), 0), 1.6)
+	end
+	return shop
+end
+
+-- Leg-day corner around the trainer: squat rack, bench, plyo boxes and dumbbells.
+function Props.LegGym(parent, frame, colors)
+	local gym = Geometry.Folder(parent, "LegDayGym")
+	Geometry.Part(gym, "RubberFloor", Vector3.new(16, 0.06, 13), frame * CFrame.new(0, 0.03, 2), colors.Rubber, Enum.Material.Rubber)
+	Geometry.Part(gym, "BackPanel", Vector3.new(16, 7, 0.3), frame * CFrame.new(0, 3.5, 8.5), colors.Accent)
+	Geometry.Sign(gym, "GymSign", frame * CFrame.new(0, 6, 8.3), "LEG DAY", colors.Dark, 9)
+	-- Squat rack with a loaded barbell.
+	local rack = frame * CFrame.new(5.5, 0, 5)
+	for _, side in { -1, 1 } do
+		Geometry.Part(gym, "RackUpright" .. side, Vector3.new(0.4, 7, 0.4), rack * CFrame.new(side * 1.8, 3.5, 0), colors.Metal, Enum.Material.Metal)
+		Geometry.Part(gym, "RackHook" .. side, Vector3.new(0.3, 0.3, 0.6), rack * CFrame.new(side * 1.8, 4.6, -0.4), colors.Metal, Enum.Material.Metal)
+		for plate = 1, 2 do
+			cylinder(gym, "Plate" .. side .. "_" .. plate, 0.3, plate == 1 and 2.6 or 1.9,
+				rack * CFrame.new(side * (2.35 + plate * 0.35), 4.85, -0.4), plate == 1 and colors.Accent or colors.Dark)
+		end
+	end
+	Geometry.Part(gym, "RackTop", Vector3.new(4, 0.4, 0.4), rack * CFrame.new(0, 7, 0), colors.Metal, Enum.Material.Metal)
+	cylinder(gym, "Barbell", 7, 0.22, rack * CFrame.new(0, 4.85, -0.4), colors.Metal, Enum.Material.Metal)
+	-- Flat bench.
+	local bench = frame * CFrame.new(-5.5, 0, 4.5)
+	Geometry.Part(gym, "BenchPad", Vector3.new(1.4, 0.45, 4.2), bench * CFrame.new(0, 1.6, 0), colors.Dark, Enum.Material.Leather)
+	for _, side in { -1, 1 } do
+		Geometry.Part(gym, "BenchLeg" .. side, Vector3.new(1.2, 1.4, 0.3), bench * CFrame.new(0, 0.7, side * 1.7), colors.Metal, Enum.Material.Metal)
+	end
+	-- Stacked plyo boxes.
+	Geometry.Part(gym, "PlyoBoxLarge", Vector3.new(2.6, 2, 2.6), frame * CFrame.new(-6.5, 1, -1), colors.Wood, Enum.Material.Wood)
+	Geometry.Part(gym, "PlyoBoxSmall", Vector3.new(2, 1.2, 2), frame * CFrame.new(-6.5, 2.6, -1) * CFrame.Angles(0, math.rad(20), 0), colors.Wood, Enum.Material.Wood)
+	-- Dumbbell rack along the back.
+	Geometry.Part(gym, "DumbbellRack", Vector3.new(6, 1.2, 1.2), frame * CFrame.new(0, 0.6, 7.3), colors.Metal, Enum.Material.Metal)
+	for index = 0, 3 do
+		local x = -2.25 + index * 1.5
+		cylinder(gym, "DumbbellHandle" .. index, 1.2, 0.18, frame * CFrame.new(x, 1.45, 7.3) * CFrame.Angles(0, math.rad(90), 0), colors.Metal, Enum.Material.Metal)
+		for _, side in { -1, 1 } do
+			cylinder(gym, "DumbbellHead" .. index .. side, 0.35, 0.7, frame * CFrame.new(x, 1.45, 7.3 + side * 0.55) * CFrame.Angles(0, math.rad(90), 0), colors.Dark)
+		end
+	end
+	return gym
+end
+
+-- Bus shelter around the travel station (the station block acts as the bench seat).
+function Props.BusStop(parent, frame, destination, colors)
+	local stop = Geometry.Folder(parent, "BusStop")
+	glass(Geometry.Part(stop, "BackGlass", Vector3.new(9, 6, 0.15), frame * CFrame.new(0, 3.5, 2.4), colors.Glass), 0.45)
+	Geometry.Part(stop, "Roof", Vector3.new(9.6, 0.35, 4.2), frame * CFrame.new(0, 7.1, 0.9), colors.Accent)
+	for _, side in { -1, 1 } do
+		Geometry.Part(stop, "Post" .. side, Vector3.new(0.3, 7, 0.3), frame * CFrame.new(side * 4.5, 3.5, 2.4), colors.Metal, Enum.Material.Metal)
+	end
+	Geometry.Sign(stop, "RouteBoard", frame * CFrame.new(0, 8.6, 0.9), destination, colors.Dark, 9)
+	Geometry.Part(stop, "SignPole", Vector3.new(0.25, 8, 0.25), frame * CFrame.new(-6, 4, -1.5), colors.Metal, Enum.Material.Metal)
+	Geometry.Sign(stop, "BusSign", frame * CFrame.new(-6, 7.4, -1.5), "BUS STOP", colors.Accent, 3.5)
+	Geometry.Part(stop, "CurbPaint", Vector3.new(12, 0.04, 2), frame * CFrame.new(0, 0.03, -2.5), colors.Yellow)
+	return stop
+end
+
+-- Yellow school bus. busFrame sits on the road surface, facing forward; the door is on
+-- the bus's right side. The model is named TransitBus so clients can animate it.
+function Props.SchoolBus(parent, busFrame, colors)
+	local bus = Instance.new("Model")
+	bus.Name = "TransitBus"
+	bus.Parent = parent
+	local yellow, black = colors.Yellow, Color3.fromRGB(24, 24, 28)
+	local tint = Color3.fromRGB(40, 60, 80)
+	local body = Geometry.Part(bus, "Body", Vector3.new(7.6, 6.2, 22), busFrame * CFrame.new(0, 4.4, 1), yellow)
+	bus.PrimaryPart = body
+	Geometry.Part(bus, "Hood", Vector3.new(7.4, 3.2, 2.6), busFrame * CFrame.new(0, 2.9, -11.3), yellow)
+	Geometry.Part(bus, "Roof", Vector3.new(7.3, 0.4, 21.6), busFrame * CFrame.new(0, 7.7, 1), yellow:Lerp(Color3.new(1, 1, 1), 0.25))
+	for index, height in { 3.2, 5.0 } do
+		Geometry.Part(bus, "Stripe" .. index, Vector3.new(7.7, 0.18, 22.1), busFrame * CFrame.new(0, height, 1), black)
+	end
+	for _, side in { -1, 1 } do
+		glass(Geometry.Part(bus, "SideWindows" .. side, Vector3.new(0.12, 1.9, 16), busFrame * CFrame.new(side * 3.82, 6.1, 3), tint), 0.2)
+		for pillar = 0, 5 do
+			Geometry.Part(bus, "Pillar" .. side .. "_" .. pillar, Vector3.new(0.14, 1.9, 0.3), busFrame * CFrame.new(side * 3.86, 6.1, -4.5 + pillar * 3), yellow)
+		end
+	end
+	glass(Geometry.Part(bus, "Windshield", Vector3.new(7, 2.4, 0.15), busFrame * CFrame.new(0, 6, -10.05), tint), 0.2)
+	glass(Geometry.Part(bus, "RearWindow", Vector3.new(6, 1.9, 0.15), busFrame * CFrame.new(0, 6.1, 12.05), tint), 0.2)
+	-- Folding door on the right side near the front.
+	for index, offset in { -8.6, -7.4 } do
+		glass(Geometry.Part(bus, index == 1 and "DoorFront" or "DoorRear", Vector3.new(0.14, 4.8, 1.15),
+			busFrame * CFrame.new(3.85, 3.9, offset), tint), 0.15)
+	end
+	Geometry.Part(bus, "DoorFrame", Vector3.new(0.1, 5.2, 2.6), busFrame * CFrame.new(3.81, 3.9, -8), black)
+	for _, side in { -1, 1 } do
+		for _, depth in { -7.5, 7.5 } do
+			cylinder(bus, "Wheel" .. side .. depth, 1, 2.8, busFrame * CFrame.new(side * 3.4, 1.4, depth), black, Enum.Material.Rubber)
+			cylinder(bus, "Hub" .. side .. depth, 1.05, 1.1, busFrame * CFrame.new(side * 3.4, 1.4, depth), Color3.fromRGB(190, 194, 200), Enum.Material.Metal)
+		end
+		Geometry.Part(bus, "Headlight" .. side, Vector3.new(0.9, 0.7, 0.1), busFrame * CFrame.new(side * 2.6, 2.7, -12.62), Color3.fromRGB(255, 250, 220), Enum.Material.Neon)
+		Geometry.Part(bus, "Taillight" .. side, Vector3.new(0.7, 0.9, 0.1), busFrame * CFrame.new(side * 3, 2.8, 12.05), Color3.fromRGB(230, 40, 40), Enum.Material.Neon)
+	end
+	for _, depth in { -12.7, 12.15 } do
+		Geometry.Part(bus, "Bumper" .. depth, Vector3.new(7.9, 0.6, 0.35), busFrame * CFrame.new(0, 1.6, depth), black)
+	end
+	Geometry.Sign(bus, "BusName", busFrame * CFrame.new(0, 8.5, -10.2), "SCHOOL BUS", black, 5)
+	return bus
+end
+
+-- Bus stop around a travel station (which faces the road) plus a school bus parked at the
+-- curb with its door beside the stop. The bus faces along the road.
+function Props.TransitStop(parent, station, text, busDistance, roadDrop, colors)
+	local frame = station.CFrame * CFrame.new(0, -station.Size.Y / 2, 0)
+	Props.BusStop(parent, frame, text, colors)
+	local roadward = Vector3.new(frame.LookVector.X, 0, frame.LookVector.Z).Unit
+	local along = Vector3.new(frame.RightVector.X, 0, frame.RightVector.Z).Unit
+	local center = frame.Position + roadward * busDistance - along * 8 - Vector3.new(0, roadDrop, 0)
+	Props.SchoolBus(parent, CFrame.lookAt(center, center + along), colors)
+end
+
+-- Regulation-style hoop shared by every court: glass backboard with a target square,
+-- orange ring (Segment parts, which the dunk code measures), net, bracket, arm and a pole
+-- down to the floor. `rimFrame` sits at the logical rim, LookVector toward the court
+-- (backboard behind at local +Z); `height` is floor-to-rim. Colors: Rim, Target, Metal,
+-- Net, Pad, Backboard, BackboardTransparency.
+function Props.Hoop(parent, rimFrame, height, colors)
+	Geometry.Arc(parent, "VisibleRim", rimFrame, 1.35, 0, 2 * math.pi, 18, 0.18, 0.18, colors.Rim)
+	local backboard = Geometry.Part(parent, "Backboard", Vector3.new(8, 4.5, 0.35), rimFrame * CFrame.new(0, 1.5, 1.9), colors.Backboard, Enum.Material.Glass)
+	backboard.Transparency = colors.BackboardTransparency
+	Geometry.Part(parent, "RimBracket", Vector3.new(0.5, 0.18, 1), rimFrame * CFrame.new(0, 0, 1.5), colors.Rim, Enum.Material.Metal)
+	for _, side in { -1, 1 } do
+		Geometry.Part(parent, "TargetSide" .. side, Vector3.new(0.1, 1.6, 0.06), rimFrame * CFrame.new(side * 1.3, 1, 1.69), colors.Target)
+	end
+	for _, edge in { 0.2, 1.8 } do
+		Geometry.Part(parent, "TargetEdge" .. edge, Vector3.new(2.7, 0.1, 0.06), rimFrame * CFrame.new(0, edge, 1.69), colors.Target)
+	end
+	for index = 1, 8 do
+		local angle = math.pi * 2 * index / 8
+		Geometry.Line(parent, "NetStrand" .. index,
+			rimFrame:PointToWorldSpace(Vector3.new(math.cos(angle) * 1.25, -0.1, math.sin(angle) * 1.25)),
+			rimFrame:PointToWorldSpace(Vector3.new(math.cos(angle) * 0.75, -1.8, math.sin(angle) * 0.75)), 0.04, 0.04, colors.Net)
+	end
+	-- Arm from the pole to the board, and the pole down to a floor plate with a pad.
+	Geometry.Part(parent, "Support", Vector3.new(0.6, 0.6, 3.5), rimFrame * CFrame.new(0, 2, 3.2), colors.Metal, Enum.Material.Metal)
+	Geometry.Part(parent, "Pole", Vector3.new(0.8, height + 2.5, 0.8), rimFrame * CFrame.new(0, (2.5 - height) / 2, 4.9), colors.Metal, Enum.Material.Metal)
+	Geometry.Part(parent, "Base", Vector3.new(3, 0.3, 3), rimFrame * CFrame.new(0, -height + 0.15, 4.9), colors.Metal, Enum.Material.Metal)
+	Geometry.Part(parent, "PolePad", Vector3.new(1.3, 4, 1.3), rimFrame * CFrame.new(0, -height + 2.3, 4.9), colors.Pad)
+end
+
+-- Small high-top sneaker; `frame` is the sole's center on the display surface, toe at -Z.
+local function sneaker(parent, frame, color, colors)
+	local shoe = Geometry.Folder(parent, "Sneaker")
+	Geometry.Part(shoe, "Sole", Vector3.new(0.42, 0.12, 1), frame * CFrame.new(0, 0.06, 0), colors.Light)
+	Geometry.Part(shoe, "Upper", Vector3.new(0.38, 0.3, 0.8), frame * CFrame.new(0, 0.27, 0.06), color)
+	Geometry.Part(shoe, "Toe", Vector3.new(0.38, 0.18, 0.3), frame * CFrame.new(0, 0.21, -0.36), colors.Light)
+	Geometry.Part(shoe, "Collar", Vector3.new(0.4, 0.34, 0.36), frame * CFrame.new(0, 0.55, 0.26), color)
+	Geometry.Part(shoe, "Stripe", Vector3.new(0.4, 0.08, 0.5), frame * CFrame.new(0, 0.32, 0.02) * CFrame.Angles(math.rad(-18), 0, 0), colors.Yellow)
+end
+
+-- Neon "^" made of two bars in the station's wall plane.
+local function chevron(parent, name, center: CFrame, color)
+	for _, side in { -1, 1 } do
+		Geometry.Part(parent, name .. (side < 0 and "L" or "R"), Vector3.new(0.3, 1.3, 0.12),
+			center * CFrame.new(side * 0.42, 0, 0) * CFrame.Angles(0, 0, math.rad(side * 50)), color, Enum.Material.Neon)
+	end
+end
+
+-- "Upgrade Lab" around the Training Upgrades station: glowing platform, back wall with a
+-- level-up screen, stacked neon chevrons, a vertical-jump tester pole with colored vanes,
+-- and two lit sneaker display cases.
+function Props.UpgradeLab(parent, frame, title, colors)
+	local lab = Geometry.Folder(parent, "UpgradeLab")
+	Geometry.Part(lab, "Platform", Vector3.new(12.4, 0.3, 9.4), frame * CFrame.new(0, 0.15, 2.5), colors.Dark)
+	Geometry.Part(lab, "TrimFront", Vector3.new(12.4, 0.08, 0.2), frame * CFrame.new(0, 0.32, -2.1), colors.Accent, Enum.Material.Neon)
+	for _, side in { -1, 1 } do
+		Geometry.Part(lab, "TrimSide" .. side, Vector3.new(0.2, 0.08, 9.4), frame * CFrame.new(side * 6.1, 0.32, 2.5), colors.Accent, Enum.Material.Neon)
+	end
+
+	-- Back wall, stripes and title.
+	Geometry.Part(lab, "BackWall", Vector3.new(12.4, 8.4, 0.4), frame * CFrame.new(0, 4.2, 7.1), colors.Dark)
+	for index, height in { 0.9, 6.2 } do
+		Geometry.Part(lab, "WallStripe" .. index, Vector3.new(12.4, 0.3, 0.08), frame * CFrame.new(0, height, 6.88), colors.Accent)
+	end
+	Geometry.Sign(lab, "Title", frame * CFrame.new(0, 7.35, 6.75), title, colors.Accent, 10.5)
+
+	-- Level-up screen.
+	local screen = Geometry.Part(lab, "LevelScreen", Vector3.new(3.6, 3.8, 0.16), frame * CFrame.new(0, 3.5, 6.82), colors.Dark)
+	local light = Instance.new("PointLight")
+	light.Color = colors.Accent
+	light.Brightness = 1.4
+	light.Range = 12
+	light.Parent = screen
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.CanvasSize = Vector2.new(360, 380)
+	gui.LightInfluence = 0
+	gui.MaxDistance = 120
+	gui.Parent = screen
+	local backdrop = Instance.new("Frame")
+	backdrop.Size = UDim2.fromScale(1, 1)
+	backdrop.BackgroundColor3 = Color3.fromRGB(10, 16, 34)
+	backdrop.Parent = gui
+	local heading = Instance.new("TextLabel")
+	heading.BackgroundTransparency = 1
+	heading.Size = UDim2.fromScale(0.9, 0.2)
+	heading.Position = UDim2.fromScale(0.05, 0.04)
+	heading.Font = Enum.Font.FredokaOne
+	heading.Text = "LEVEL UP"
+	heading.TextScaled = true
+	heading.TextColor3 = colors.Yellow
+	heading.Parent = backdrop
+	for index = 1, 6 do
+		local bar = Instance.new("Frame")
+		local height = 0.1 + index * 0.085
+		bar.AnchorPoint = Vector2.new(0, 1)
+		bar.Position = UDim2.fromScale(0.08 + (index - 1) * 0.145, 0.92)
+		bar.Size = UDim2.fromScale(0.11, height)
+		bar.BackgroundColor3 = colors.Accent:Lerp(colors.Yellow, (index - 1) / 5)
+		bar.BorderSizePixel = 0
+		bar.Parent = backdrop
+	end
+
+	-- Neon chevrons stacked on the left of the wall.
+	for index = 1, 3 do
+		chevron(lab, "Chevron" .. index, frame * CFrame.new(-4.2, 1.8 + index * 1.15, 6.84),
+			colors.Accent:Lerp(colors.Yellow, (index - 1) / 2))
+	end
+
+	-- Vertical-jump tester: pole with colored vanes on the right.
+	Geometry.Part(lab, "TesterBase", Vector3.new(1.8, 0.3, 1.8), frame * CFrame.new(4.6, 0.45, 5.2), colors.Metal, Enum.Material.Metal)
+	Geometry.Part(lab, "TesterPole", Vector3.new(0.3, 9.2, 0.3), frame * CFrame.new(4.6, 4.9, 5.2), colors.Metal, Enum.Material.Metal)
+	local vaneColors = { colors.Accent, colors.Light, colors.Yellow }
+	for index = 0, 12 do
+		Geometry.Part(lab, "Vane" .. index, Vector3.new(1.5, 0.06, 0.26),
+			frame * CFrame.new(3.85, 5.1 + index * 0.3, 5.2), vaneColors[index % 3 + 1])
+	end
+
+	-- Lit sneaker display cases at the front corners.
+	for index, side in { -1, 1 } do
+		local base = frame * CFrame.new(side * 4.7, 0, 0.6)
+		Geometry.Part(lab, "Pedestal" .. index, Vector3.new(1.5, 2.8, 1.5), base * CFrame.new(0, 1.7, 0), colors.Light)
+		Geometry.Part(lab, "PedestalBand" .. index, Vector3.new(1.54, 0.2, 1.54), base * CFrame.new(0, 2.9, 0), colors.Accent, Enum.Material.Neon)
+		local case = glass(Geometry.Part(lab, "Case" .. index, Vector3.new(1.3, 1.3, 1.3), base * CFrame.new(0, 3.75, 0), colors.Glass), 0.7)
+		local caseLight = Instance.new("PointLight")
+		caseLight.Brightness = 0.8
+		caseLight.Range = 5
+		caseLight.Color = colors.Light
+		caseLight.Parent = case
+		sneaker(lab, base * CFrame.new(0, 3.1, 0) * CFrame.Angles(0, math.rad(side * 35), 0),
+			side < 0 and colors.Accent or colors.Yellow, colors)
+	end
+	return lab
+end
+
+-- Freestanding stand with one panel per global leaderboard (LeaderboardConfig.Boards).
+-- Each panel is tagged LeaderboardConfig.PanelTag with a "Board" attribute; the client
+-- (LeaderboardPresentation) draws the list on the panel's Front face, which points along
+-- the frame's LookVector (toward the viewers).
+function Props.Leaderboards(parent, frame, colors)
+	local shared = game:GetService("ReplicatedStorage"):FindFirstChild("Shared")
+	assert(shared, "Sync the main Rojo project first (LeaderboardConfig is needed).")
+	local config = require(shared.Config.LeaderboardConfig)
+	local CollectionService = game:GetService("CollectionService")
+	local stand = Geometry.Folder(parent, "Leaderboards")
+	local panelWidth, panelHeight, gap, header, lift = 13, 14, 0.8, 3, 1.2
+	local count = #config.Boards
+	local width = count * panelWidth + (count + 1) * gap
+	local height = panelHeight + header + gap * 2
+	local function at(x, y, z) return frame * CFrame.new(x, y, z) end
+	for _, side in { -1, 1 } do
+		Geometry.Part(stand, "Post" .. side, Vector3.new(1, lift + height, 1), at(side * (width / 2 - 0.8), (lift + height) / 2, 0.9),
+			colors.Metal, Enum.Material.Metal, true)
+		Geometry.Part(stand, "Foot" .. side, Vector3.new(1.6, 0.4, 4), at(side * (width / 2 - 0.8), 0.2, 0.9), colors.Metal, Enum.Material.Metal, true)
+	end
+	Geometry.Part(stand, "Backing", Vector3.new(width, height, 0.6), at(0, lift + height / 2, 0.3), colors.Dark, Enum.Material.Metal, true)
+	for _, y in { lift, lift + height } do
+		Geometry.Part(stand, "Trim" .. y, Vector3.new(width + 0.2, 0.35, 0.8), at(0, y, 0.25), colors.Accent, Enum.Material.Neon)
+	end
+	Geometry.Sign(stand, "Header", at(0, lift + height - gap - header / 2, -0.12), "LEADERBOARDS", colors.Accent, width - 8)
+	for index, board in config.Boards do
+		-- The viewer faces the frame, so its left is the frame's +X: board 1 goes there.
+		local x = width / 2 - gap - panelWidth / 2 - (index - 1) * (panelWidth + gap)
+		local panel = Geometry.Part(stand, "Board" .. board.Id, Vector3.new(panelWidth, panelHeight, 0.2),
+			at(x, lift + gap + panelHeight / 2, -0.1), colors.Dark)
+		panel:SetAttribute("Board", board.Id)
+		CollectionService:AddTag(panel, config.PanelTag)
+	end
+	return stand
+end
+
+return Props
+]]></string>
+      </Properties>
+    </Item>
+  </Item>
+</roblox>

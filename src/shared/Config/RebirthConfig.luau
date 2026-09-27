@@ -1,10 +1,10 @@
--- Rebirth: once you are strong enough (only reachable at College Arena), start over from
+-- Rebirth: once you are strong enough (only reachable at the Skyline Rooftop), start over from
 -- the Neighborhood with permanent Cash and Training multipliers. Server-authoritative:
 -- RebirthService validates everything; clients only display these numbers.
 local RebirthConfig = {
 	-- Needed for the next rebirth (n = rebirths already done).
-	RequiredVertical = 200,
-	BaseCash = 100000,
+	RequiredVertical = 300, -- Skyline Rooftop only (College caps at 250)
+	BaseCash = 200000,
 	CashGrowth = 1.6, -- each rebirth costs 1.6x the previous one
 	-- Permanent bonuses per rebirth (stack additively).
 	CashBonusPerRebirth = 0.5, -- dunk and air-trick Cash x(1 + 0.5 n)

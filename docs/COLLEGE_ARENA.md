@@ -12,7 +12,7 @@ College Arena is the third court and the last stop before a [Rebirth](REBIRTH.md
 | Training cap | 250 Vertical | `CourtConfig.College.TrainingVerticalCap` |
 | New challenges | College Highlights (25 College dunks, $6,000), Sky Walker (250 Vertical, $12,000) | `ChallengeConfig` |
 
-The 150 Vertical gate matches the High School training cap, so a player reaches College by maxing out the High School. The 250 cap is above the Rebirth requirement (200 Vertical), so College is where players finish a run. Example College dunk at 250 Vertical with a PERFECT slam: Windmill $100 x1.6 court x1.5 timing x3.2 Vertical = **$768**, plus air-trick Cash (also x1.6).
+The 150 Vertical gate matches the High School training cap, so a player reaches College by maxing out the High School. The 250 cap matches the Skyline Rooftop gate (250 Vertical + $120,000), which is where runs now finish (Rebirth needs 300; see `SKYLINE_ROOFTOP.md`). Example College dunk at 250 Vertical with a PERFECT slam: Windmill $100 x1.6 court x1.5 timing x3.2 Vertical = **$768**, plus air-trick Cash (also x1.6).
 
 The optional challenge pool is now $22,700 (was $4,700).
 
