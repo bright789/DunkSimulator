@@ -15,6 +15,8 @@ local Daily = require(ReplicatedStorage.Shared.Config.DailyConfig)
 local Leaderboards = require(ReplicatedStorage.Shared.Config.LeaderboardConfig)
 local Locker = require(ReplicatedStorage.Shared.Config.LockerConfig)
 local Monetization = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
+local Events = require(ReplicatedStorage.Shared.Config.EventConfig)
+local isStudio = game:GetService("RunService"):IsStudio()
 local DataConfig = require(script.Parent.Parent.Config.DataConfig)
 
 type PlayerState = {
@@ -409,8 +411,8 @@ function PlayerService.RegisterDunk(player: Player, styleId: string, rating: str
 	local bonuses = Courts.GetBonuses(state.CurrentCourt, state.UnlockedCourts)
 	local cashReward = DunkRewards.DunkCash(style.Reward, bonuses.DunkCashMultiplier * Rebirths.CashMultiplier(state.Rebirths)
 		* Daily.BoostMultiplier(state.Daily.BoostUntil, os.time())
-		* (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1) * state.FriendMultiplier * state.GroupMultiplier,
-		state.Vertical, rating)
+		* (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1) * state.FriendMultiplier * state.GroupMultiplier
+		* Events.CashMultiplier(os.time(), isStudio), state.Vertical, rating)
 	state.Cash = math.min(state.Cash + cashReward, DataConfig.MaxCash)
 	state.Dunks += 1
 	state.CashDisplay.Value = state.Cash
@@ -442,7 +444,7 @@ function PlayerService.AwardDunkTrick(player: Player, trickId: string, comboInde
 	local cash = DunkRewards.TrickCash(trickId, comboIndex, bonuses.DunkCashMultiplier
 		* Rebirths.CashMultiplier(state.Rebirths) * Daily.BoostMultiplier(state.Daily.BoostUntil, os.time())
 		* (1 + (shoe and shoe.TrickBonus or 0)) * (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1)
-		* state.FriendMultiplier * state.GroupMultiplier)
+		* state.FriendMultiplier * state.GroupMultiplier * Events.CashMultiplier(os.time(), isStudio))
 	if cash <= 0 or state.Cash > DataConfig.MaxCash - cash then return nil end
 	state.Cash += cash
 	state.CashDisplay.Value = state.Cash

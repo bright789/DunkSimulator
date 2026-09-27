@@ -26,6 +26,8 @@ local MusicController = require(script.Parent:WaitForChild("MusicController"))
 local music = MusicController.new(player, view)
 local AutoTrainController = require(script.Parent:WaitForChild("AutoTrainController"))
 local autoTrain = AutoTrainController.new(player, view)
+local CodesController = require(script.Parent:WaitForChild("CodesController"))
+local codes = CodesController.new(player, view)
 local connections = {}
 local previous = {}
 local destroyed = false
@@ -130,6 +132,7 @@ script.Destroying:Connect(function()
 	invite.Destroy()
 	music.Destroy()
 	autoTrain.Destroy()
+	codes.Destroy()
 	daily.Destroy()
 	contest.Destroy()
 	locker.Destroy()

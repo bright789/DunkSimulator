@@ -96,6 +96,8 @@ Game Feel & Juice v0.2 implementation adds style-specific post-validation gather
 
 **Implemented — Weekly contest champion, group bonus, saved music:** weekly contest board resetting Monday 00:00 UTC with a crown for #1 and a prize for last week's champion; +10% Cash for members of Dunk Simulator Official (292818851); MUSIC setting saved (schema v11). See `WEEKLY_CHAMPION.md` and `INVITES_MUSIC_PASSES.md`.
 
+**Implemented — Launch kit:** server-only redeem codes (RELEASE, DUNKSIM, group-only GROUPDUNK; claimed once per player in a separate codes DataStore) and scheduled server-wide Cash events with a HUD countdown pill (2X CASH WEEKEND, 2–5 Oct 2026 UTC). Two new ad thumbnails (weekend event, Skyline Rooftop). See `LAUNCH_KIT.md`.
+
 ## 11. Monetization
 
 Introduce balanced, platform-compliant cosmetics and optional convenience products after core retention is validated.

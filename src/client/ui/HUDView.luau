@@ -114,7 +114,7 @@ function HUDView.new(playerGui: PlayerGui)
 	local navigation = Instance.new("Frame")
 	navigation.Name = "Navigation"
 	navigation.BackgroundTransparency = 1
-	navigation.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight * 4 + Config.Layout.Gap * 3)
+	navigation.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight * 5 + Config.Layout.Gap * 4)
 	navigation.LayoutOrder = 5
 	navigation.Parent = column
 	local dunksButton = Instance.new("TextButton")
@@ -170,6 +170,13 @@ function HUDView.new(playerGui: PlayerGui)
 	musicButton.Size = UDim2.new(0.48, 0, 0, Config.Layout.DunksButtonHeight)
 	musicButton.Position = UDim2.new(0.52, 0, 0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 3)
 	musicButton.Parent = navigation
+	local codesButton = dunksButton:Clone()
+	codesButton.Name = "Codes"
+	codesButton.Text = "CODES"
+	codesButton.TextColor3 = Config.Colors.Gold
+	codesButton.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight)
+	codesButton.Position = UDim2.fromOffset(0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 4)
+	codesButton.Parent = navigation
 	-- Cash Boost countdown pill (shown only while a boost runs).
 	local boost = UI.Panel(column, "CashBoost", UDim2.new(1, 0, 0, Config.Layout.BoostHeight), UDim2.new())
 	boost.LayoutOrder = 6
@@ -197,6 +204,15 @@ function HUDView.new(playerGui: PlayerGui)
 	groupButton.Text = "JOIN GROUP: +10% CASH"
 	groupButton.TextColor3 = Config.Colors.Gold
 	groupButton.Parent = column
+	-- Timed event pill (EventConfig), e.g. "2X CASH WEEKEND  1d 4h".
+	local eventPill = UI.Panel(column, "Event", UDim2.new(1, 0, 0, Config.Layout.BoostHeight), UDim2.new())
+	eventPill.LayoutOrder = 9
+	eventPill.Visible = false
+	eventPill.BackgroundColor3 = Color3.fromRGB(90, 30, 10)
+	local eventLabel = UI.Label(eventPill, "Text", "", UDim2.new(1, -16, 1, 0), UDim2.fromOffset(8, 0), 14)
+	eventLabel.Font = Config.BoldFont
+	eventLabel.TextColor3 = Config.Colors.Gold
+	eventLabel.TextXAlignment = Enum.TextXAlignment.Center
 	UI.Interactive(dunksButton)
 	UI.Interactive(courtsButton)
 	UI.Interactive(challengesButton)
@@ -205,6 +221,7 @@ function HUDView.new(playerGui: PlayerGui)
 	UI.Interactive(lockerButton)
 	UI.Interactive(inviteButton)
 	UI.Interactive(musicButton)
+	UI.Interactive(codesButton)
 	UI.Interactive(autoButton)
 	UI.Interactive(groupButton)
 
@@ -260,7 +277,8 @@ function HUDView.new(playerGui: PlayerGui)
 	resize()
 	local view = { DunksButton = dunksButton, CourtsButton = courtsButton, ChallengesButton = challengesButton,
 		RebirthButton = rebirthButton, DailyButton = dailyButton, LockerButton = lockerButton,
-		InviteButton = inviteButton, MusicButton = musicButton, AutoTrainButton = autoButton, GroupButton = groupButton }
+		InviteButton = inviteButton, MusicButton = musicButton, AutoTrainButton = autoButton, GroupButton = groupButton,
+		CodesButton = codesButton }
 	local courtName, rebirths = "--", 0
 
 	local function refreshCourtLabel()
@@ -309,6 +327,15 @@ function HUDView.new(playerGui: PlayerGui)
 		groupButton.TextColor3 = member and Config.Colors.Gain or Config.Colors.Gold
 		if groupButton.Visible ~= visible then
 			groupButton.Visible = visible
+			resize()
+		end
+	end
+
+	-- Event countdown pill: pass nil to hide it.
+	function view.SetEvent(text: string?)
+		eventLabel.Text = text or ""
+		if eventPill.Visible ~= (text ~= nil) then
+			eventPill.Visible = text ~= nil
 			resize()
 		end
 	end

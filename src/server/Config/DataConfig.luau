@@ -18,6 +18,9 @@ return {
 	StudioWeeklyPrefix = "DunkSimulator_WeeklyContest_DEV_v1_W",
 	ProductionChampionStoreName = "DunkSimulator_WeeklyChampions_v1",
 	StudioChampionStoreName = "DunkSimulator_WeeklyChampions_DEV_v1",
+	-- Codes each player has redeemed (key = UserId, value = list of codes). See CodesService.
+	ProductionCodesStoreName = "DunkSimulator_Codes_v1",
+	StudioCodesStoreName = "DunkSimulator_Codes_DEV_v1",
 	ProductionReferralStoreName = "DunkSimulator_Referrals_v1",
 	StudioReferralStoreName = "DunkSimulator_Referrals_DEV_v1",
 	KeyPrefix = "Player_",

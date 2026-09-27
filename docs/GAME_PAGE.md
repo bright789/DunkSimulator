@@ -43,6 +43,8 @@ The files are in `assets/thumbnails/`. **Upload the `.jpg` versions:** Roblox wa
 | 1 | `thumbnail-1-dunk.jpg` | A Windmill poster dunk in the College Arena with "DUNK SIMULATOR", "PERFECT!" and "+$1,296" (a real College Windmill payout). |
 | 2 | `thumbnail-2-vertical.jpg` | "JUMP TO THE ROOF!" A big jumper over the arena's vertical-meter lines with a "250 VERTICAL" badge. |
 | 3 | `thumbnail-3-courts.jpg` | "UNLOCK NEW COURTS!" Neighborhood → High School → College panels. |
+| Event | `thumbnail-4-weekend.jpg` | "2X CASH WEEKEND!" Put it first only while the event runs (see `LAUNCH_KIT.md`). |
+| 5 | `thumbnail-5-rooftop.jpg` | "NEW COURT! SKYLINE ROOFTOP" night shot of Court #4. |
 | Icon | `icon-512.png` | The Tomahawk jumper on a pink/purple sunburst with "DUNK SIM". |
 
 How they were made:

@@ -88,6 +88,9 @@
         "GroupRequest": {
           "$className": "RemoteEvent"
         },
+        "CodeRequest": {
+          "$className": "RemoteEvent"
+        },
         "DunkAnimationStatus": {
           "$className": "RemoteEvent"
         },

@@ -20,6 +20,7 @@ local MilestoneService = require(script.Parent.services.MilestoneService)
 local InviteService = require(script.Parent.services.InviteService)
 local SettingsService = require(script.Parent.services.SettingsService)
 local WeeklyChampionService = require(script.Parent.services.WeeklyChampionService)
+local CodesService = require(script.Parent.services.CodesService)
 local ProgressionConfig = require(game:GetService("ReplicatedStorage").Shared.Config.ProgressionConfig)
 
 workspace.Gravity = ProgressionConfig.Jump.Gravity
@@ -54,6 +55,7 @@ MonetizationService.Init()
 InviteService.Init()
 SettingsService.Init()
 WeeklyChampionService.Init()
+CodesService.Init()
 DunkStyleService.Init()
 UpgradeService.Init()
 
