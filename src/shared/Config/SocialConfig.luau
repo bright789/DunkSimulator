@@ -19,6 +19,11 @@ local SocialConfig = {
 	-- Accounts younger than this (days) can't credit an inviter. Anyone can craft a join link
 	-- with "ref:" launch data, so this (plus the friend check and daily cap) slows alt farming.
 	MinAccountAgeDays = 7,
+	-- Community group: members earn GroupBonus extra dunk and air-trick Cash. The HUD button
+	-- opens Roblox's join prompt. 0 = no group yet (button hidden, no bonus).
+	GroupId = 292818851, -- Dunk Simulator Official
+	GroupBonus = 0.1,
+	GroupRecheckSeconds = 10,
 	-- Launch data can take a few seconds to arrive after a player joins.
 	LaunchDataAttempts = 5,
 	LaunchDataRetrySeconds = 2,
@@ -27,6 +32,8 @@ local SocialConfig = {
 	-- data (e.g. "ref:123"; the friend and account-age checks are skipped for it). Keep both
 	-- off when done.
 	StudioPretendFriendsOnline = 0,
+	-- Studio only: treat the player as a group member (needs a GroupId set).
+	StudioPretendInGroup = false,
 	StudioLaunchData = nil,
 }
 

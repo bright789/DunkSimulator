@@ -35,6 +35,16 @@ local ContestConfig = {
 	},
 	PlacementDunks = { 10, 5, 3 },
 	MaxScore = 50,
+	-- Weekly champion (WeeklyChampionService): every round's best score counts toward a
+	-- weekly board that resets Monday 00:00 UTC. The #1 wears a crown; last week's #1 gets a
+	-- one-time prize (Cash worth PrizeDunks dunks + a Cash Boost) the next time they join.
+	Weekly = {
+		TopCount = 5,
+		RefreshSeconds = 60,
+		PrizeDunks = 100,
+		PrizeBoostMinutes = 60,
+		CrownText = "WEEKLY CHAMP",
+	},
 }
 
 -- Five judge cards for one dunk. `tricks` is the list of air tricks landed (ids).
@@ -56,6 +66,16 @@ function ContestConfig.Judge(styleId: string, tricks: { string }, rating: string
 		cards[index] = math.clamp(math.floor(base + opinion + 0.5), 1, 10)
 	end
 	return cards
+end
+
+-- Weeks start Monday 00:00 UTC (the Unix epoch was a Thursday, so shift by 4 days).
+local WEEK = 7 * 86400
+local MONDAY_OFFSET = 4 * 86400
+function ContestConfig.WeekNumber(unixTime: number): number
+	return math.floor((unixTime - MONDAY_OFFSET) / WEEK)
+end
+function ContestConfig.WeekEndsAt(week: number): number
+	return (week + 1) * WEEK + MONDAY_OFFSET
 end
 
 function ContestConfig.Total(cards: { number }): number

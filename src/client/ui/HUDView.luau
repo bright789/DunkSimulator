@@ -190,6 +190,13 @@ function HUDView.new(playerGui: PlayerGui)
 	autoButton.TextSize = 14
 	autoButton.TextColor3 = Config.Colors.Gain
 	autoButton.Parent = column
+	-- Community group: JOIN GROUP button (non-members) / bonus note (members).
+	local groupButton = autoButton:Clone()
+	groupButton.Name = "Group"
+	groupButton.LayoutOrder = 8
+	groupButton.Text = "JOIN GROUP: +10% CASH"
+	groupButton.TextColor3 = Config.Colors.Gold
+	groupButton.Parent = column
 	UI.Interactive(dunksButton)
 	UI.Interactive(courtsButton)
 	UI.Interactive(challengesButton)
@@ -199,6 +206,7 @@ function HUDView.new(playerGui: PlayerGui)
 	UI.Interactive(inviteButton)
 	UI.Interactive(musicButton)
 	UI.Interactive(autoButton)
+	UI.Interactive(groupButton)
 
 	-- Touch devices: Roblox's movement thumbstick takes touches in the lower-left of the
 	-- screen, and buttons there block it, so the menu buttons move to the top-right corner.
@@ -252,7 +260,7 @@ function HUDView.new(playerGui: PlayerGui)
 	resize()
 	local view = { DunksButton = dunksButton, CourtsButton = courtsButton, ChallengesButton = challengesButton,
 		RebirthButton = rebirthButton, DailyButton = dailyButton, LockerButton = lockerButton,
-		InviteButton = inviteButton, MusicButton = musicButton, AutoTrainButton = autoButton }
+		InviteButton = inviteButton, MusicButton = musicButton, AutoTrainButton = autoButton, GroupButton = groupButton }
 	local courtName, rebirths = "--", 0
 
 	local function refreshCourtLabel()
@@ -292,6 +300,15 @@ function HUDView.new(playerGui: PlayerGui)
 		autoButton.TextColor3 = on and Config.Colors.Gain or Config.Colors.Muted
 		if autoButton.Visible ~= visible then
 			autoButton.Visible = visible
+			resize()
+		end
+	end
+
+	function view.SetGroup(visible: boolean, member: boolean, percent: number)
+		groupButton.Text = member and string.format("GROUP BONUS +%d%%", percent) or string.format("JOIN GROUP: +%d%% CASH", percent)
+		groupButton.TextColor3 = member and Config.Colors.Gain or Config.Colors.Gold
+		if groupButton.Visible ~= visible then
+			groupButton.Visible = visible
 			resize()
 		end
 	end

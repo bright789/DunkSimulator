@@ -94,6 +94,8 @@ Game Feel & Juice v0.2 implementation adds style-specific post-validation gather
 
 **Implemented — Growth, audio and passes:** INVITE button with referral rewards and a +10%/friend Cash bonus, per-court APM music with a MUSIC toggle and Rooftop city ambience, an Auto Train pass (HUD toggle) and a one-time Starter Pack pass with a post-tutorial offer. See `INVITES_MUSIC_PASSES.md`.
 
+**Implemented — Weekly contest champion, group bonus, saved music:** weekly contest board resetting Monday 00:00 UTC with a crown for #1 and a prize for last week's champion; +10% Cash for members of Dunk Simulator Official (292818851); MUSIC setting saved (schema v11). See `WEEKLY_CHAMPION.md` and `INVITES_MUSIC_PASSES.md`.
+
 ## 11. Monetization
 
 Introduce balanced, platform-compliant cosmetics and optional convenience products after core retention is validated.

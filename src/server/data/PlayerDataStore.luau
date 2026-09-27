@@ -90,6 +90,7 @@ function Store.Write(userId: number, pending, canContinue)
 			updated.Daily = Daily.CopyState(pending.Snapshot.Daily)
 			updated.Stats = Leaderboards.CopyStats(pending.Snapshot.Stats)
 			updated.Locker = Locker.CopyState(pending.Snapshot.Locker)
+			updated.Settings = { Music = pending.Snapshot.Settings.Music }
 			updated.Revision = pending.Revision + 1
 			updated.WriteId = pending.WriteId
 			return updated, userIds, metadata

@@ -82,6 +82,12 @@
         "AutoTrainRequest": {
           "$className": "RemoteEvent"
         },
+        "SettingsRequest": {
+          "$className": "RemoteEvent"
+        },
+        "GroupRequest": {
+          "$className": "RemoteEvent"
+        },
         "DunkAnimationStatus": {
           "$className": "RemoteEvent"
         },

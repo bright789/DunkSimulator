@@ -1,6 +1,6 @@
 -- Background music: a shuffled playlist per court (FeedbackConfig.Audio.Music) that
--- crossfades when this player travels. The HUD's MUSIC button turns it off and on for the
--- session. Purely local; nothing is sent to the server.
+-- crossfades when this player travels. The HUD's MUSIC button turns it off and on; the choice
+-- is saved with the player's data (SettingsRequest / SettingMusic attribute).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
@@ -10,7 +10,9 @@ local Config = require(ReplicatedStorage.Shared.Config.FeedbackConfig).Audio.Mus
 local MusicController = {}
 
 function MusicController.new(player: Player, hud)
-	local enabled = true
+	local settingsRequest = ReplicatedStorage.Remotes:WaitForChild("SettingsRequest")
+	-- Saved choice (nil until the player's data loads, then true/false).
+	local enabled = player:GetAttribute("SettingMusic") ~= false
 	local court: string? = nil
 	local current: Sound? = nil
 	local order: { string } = {}
@@ -77,7 +79,16 @@ function MusicController.new(player: Player, hud)
 	table.insert(connections, hud.MusicButton.Activated:Connect(function()
 		enabled = not enabled
 		hud.SetMusic(enabled)
+		settingsRequest:FireServer("Music", enabled)
 		playNext()
+	end))
+	table.insert(connections, player:GetAttributeChangedSignal("SettingMusic"):Connect(function()
+		local saved = player:GetAttribute("SettingMusic") ~= false
+		if saved ~= enabled then
+			enabled = saved
+			hud.SetMusic(enabled)
+			playNext()
+		end
 	end))
 	hud.SetMusic(enabled)
 	setCourt(player:GetAttribute("CurrentCourt"))

@@ -12,6 +12,19 @@ local Locker = require(ReplicatedStorage.Shared.Config.LockerConfig)
 
 local Schema = {}
 
+-- Player settings (v11). Music: background music on/off (MusicController).
+local function defaultSettings()
+	return { Music = true }
+end
+
+local function sanitizeSettings(stored)
+	local settings = defaultSettings()
+	if type(stored) ~= "table" then return settings, true end
+	local repaired = false
+	if type(stored.Music) == "boolean" then settings.Music = stored.Music else repaired = true end
+	return settings, repaired
+end
+
 local function finite(value): boolean
 	return type(value) == "number" and value == value and math.abs(value) < math.huge
 end
@@ -31,6 +44,7 @@ function Schema.Defaults()
 		Daily = Daily.DefaultState(),
 		Stats = Leaderboards.DefaultStats(ProgressionConfig.StartingVertical),
 		Locker = Locker.DefaultState(),
+		Settings = defaultSettings(),
 	}
 end
 
@@ -103,6 +117,11 @@ function Schema.Decode(stored)
 		migrated.Locker = Locker.DefaultState()
 		migrated.SchemaVersion = 10
 	end
+	if migrated.SchemaVersion == 10 then
+		-- Settings: music starts on for everyone.
+		migrated.Settings = defaultSettings()
+		migrated.SchemaVersion = 11
+	end
 	if migrated.SchemaVersion ~= Config.SchemaVersion then
 		return nil, nil, "No migration for this schema version"
 	end
@@ -159,6 +178,9 @@ function Schema.Decode(stored)
 	local locker, lockerRepaired = Locker.Sanitize(migrated.Locker)
 	profile.Locker = locker
 	repaired = repaired or lockerRepaired
+	local settings, settingsRepaired = sanitizeSettings(migrated.Settings)
+	profile.Settings = settings
+	repaired = repaired or settingsRepaired
 	return profile, revision, nil, repaired
 end
 
@@ -166,7 +188,7 @@ function Schema.Snapshot(values)
 	if type(values) ~= "table" or values.Cash == nil or values.Vertical == nil or values.TrainingLevel == nil
 		or values.EquippedDunkStyle == nil or values.UnlockedCourts == nil or values.CurrentCourt == nil
 		or values.VerticalTrainingRemainder == nil or values.Challenges == nil or values.Rebirths == nil
-		or values.Daily == nil or values.Stats == nil or values.Locker == nil then
+		or values.Daily == nil or values.Stats == nil or values.Locker == nil or values.Settings == nil then
 		return nil, "Runtime snapshot is missing progression"
 	end
 	local current = table.clone(values)
@@ -189,6 +211,7 @@ function Schema.SameProgress(first, second): boolean
 		and Daily.SameState(first.Daily, second.Daily)
 		and Leaderboards.SameStats(first.Stats, second.Stats)
 		and Locker.SameState(first.Locker, second.Locker)
+		and first.Settings.Music == second.Settings.Music
 end
 
 return Schema

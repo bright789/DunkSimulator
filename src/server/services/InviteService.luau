@@ -7,7 +7,11 @@
 --     friends with the inviter, and they never credited anyone before (recorded in the
 --     referral DataStore). Inviters earn at most MaxInviterRewardsPerDay rewards per UTC day;
 --     rewards for an offline inviter wait in the store until their next join.
+--   * Community group members (SocialConfig.GroupId) earn GroupBonus extra Cash. Membership is
+--     read with GroupService:GetGroupsAsync (fresh, not cached) on join and when the client
+--     asks after Roblox's join prompt (GroupRequest, rate-limited).
 local DataStoreService = game:GetService("DataStoreService")
+local GroupService = game:GetService("GroupService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -26,6 +30,7 @@ local initialized = false
 local store: DataStore? = nil
 local friends: { [Player]: { [Player]: boolean } } = {}
 local notice: RemoteEvent
+local nextGroupCheck: { [Player]: number } = {}
 
 local function today(): number
 	return math.floor(os.time() / 86400)
@@ -187,8 +192,30 @@ local function handleReferral(player: Player)
 	end
 end
 
+local function checkGroup(player: Player)
+	if Config.GroupId == 0 or player.Parent ~= Players then return end
+	local member = false
+	for attempt = 1, 3 do
+		local ok, groups = pcall(GroupService.GetGroupsAsync, GroupService, player.UserId)
+		if ok and type(groups) == "table" then
+			for _, group in groups do
+				if group.Id == Config.GroupId then member = true end
+			end
+			break
+		end
+		task.wait(attempt)
+	end
+	if isStudio and Config.StudioPretendInGroup then member = true end
+	if player.Parent ~= Players then return end
+	local wasMember = player:GetAttribute("InGroup") == true
+	PlayerService.SetGroupMultiplier(player, member and 1 + Config.GroupBonus or 1)
+	player:SetAttribute("InGroup", member)
+	if member and not wasMember then Analytics.Custom(player, "GroupBonusActive") end
+end
+
 -- Called (in its own thread) once a player's data is ready.
 function InviteService.OnPlayerReady(player: Player)
+	task.spawn(checkGroup, player)
 	trackFriends(player)
 	claimPending(player)
 	handleReferral(player)
@@ -201,7 +228,14 @@ function InviteService.Init()
 	local ok, result = pcall(DataStoreService.GetDataStore, DataStoreService,
 		isStudio and DataConfig.StudioReferralStoreName or DataConfig.ProductionReferralStoreName)
 	if ok then store = result else warn("[InviteService] Referral store unavailable: " .. tostring(result)) end
+	ReplicatedStorage.Remotes.GroupRequest.OnServerEvent:Connect(function(player, action, ...)
+		if action ~= "Check" or select("#", ...) ~= 0 or not PlayerService.IsDataReady(player) then return end
+		if os.clock() < (nextGroupCheck[player] or 0) then return end
+		nextGroupCheck[player] = os.clock() + Config.GroupRecheckSeconds
+		checkGroup(player)
+	end)
 	Players.PlayerRemoving:Connect(function(player)
+		nextGroupCheck[player] = nil
 		local set = friends[player]
 		friends[player] = nil
 		if set then

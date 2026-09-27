@@ -36,6 +36,8 @@ type PlayerState = {
 	-- Robux passes this player owns (checked by MonetizationService each join; not saved).
 	Passes: { [string]: boolean },
 	FriendMultiplier: number,
+	GroupMultiplier: number,
+	Settings: { Music: boolean },
 	CourtTransition: boolean,
 	Dunks: number,
 	DunkState: string,
@@ -114,6 +116,8 @@ local function addPlayer(player: Player, profile)
 		Locker = Locker.CopyState(profile.Locker),
 		Passes = {},
 		FriendMultiplier = 1,
+		GroupMultiplier = 1,
+		Settings = { Music = profile.Settings.Music },
 		CourtTransition = placeCharacter ~= nil,
 		Dunks = 0,
 		DunkState = "Idle",
@@ -138,6 +142,7 @@ local function addPlayer(player: Player, profile)
 	player:SetAttribute("ContestWins", state.Stats.ContestWins)
 	player:SetAttribute("EquippedShoe", state.Locker.Shoes.Equipped)
 	player:SetAttribute("BallSkin", state.Locker.Balls.Equipped)
+	player:SetAttribute("SettingMusic", state.Settings.Music)
 	leaderstats.Parent = player
 
 	state.CharacterConnection = player.CharacterAdded:Connect(function(character)
@@ -404,7 +409,8 @@ function PlayerService.RegisterDunk(player: Player, styleId: string, rating: str
 	local bonuses = Courts.GetBonuses(state.CurrentCourt, state.UnlockedCourts)
 	local cashReward = DunkRewards.DunkCash(style.Reward, bonuses.DunkCashMultiplier * Rebirths.CashMultiplier(state.Rebirths)
 		* Daily.BoostMultiplier(state.Daily.BoostUntil, os.time())
-		* (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1) * state.FriendMultiplier, state.Vertical, rating)
+		* (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1) * state.FriendMultiplier * state.GroupMultiplier,
+		state.Vertical, rating)
 	state.Cash = math.min(state.Cash + cashReward, DataConfig.MaxCash)
 	state.Dunks += 1
 	state.CashDisplay.Value = state.Cash
@@ -436,7 +442,7 @@ function PlayerService.AwardDunkTrick(player: Player, trickId: string, comboInde
 	local cash = DunkRewards.TrickCash(trickId, comboIndex, bonuses.DunkCashMultiplier
 		* Rebirths.CashMultiplier(state.Rebirths) * Daily.BoostMultiplier(state.Daily.BoostUntil, os.time())
 		* (1 + (shoe and shoe.TrickBonus or 0)) * (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1)
-		* state.FriendMultiplier)
+		* state.FriendMultiplier * state.GroupMultiplier)
 	if cash <= 0 or state.Cash > DataConfig.MaxCash - cash then return nil end
 	state.Cash += cash
 	state.CashDisplay.Value = state.Cash
@@ -460,6 +466,22 @@ function PlayerService.SetPasses(player: Player, owned: { [string]: boolean })
 		state.Passes[pass.Key] = owned[pass.Key] == true
 		player:SetAttribute("Pass_" .. pass.Key, state.Passes[pass.Key])
 	end
+end
+
+-- Community group Cash bonus (InviteService is its only caller). Not saved.
+function PlayerService.SetGroupMultiplier(player: Player, multiplier: number)
+	local state = states[player]
+	if not state or type(multiplier) ~= "number" or multiplier ~= multiplier or multiplier < 1 or multiplier > 2 then return end
+	state.GroupMultiplier = multiplier
+end
+
+-- Saved player settings. Returns true if the value changed.
+function PlayerService.SetMusicSetting(player: Player, on: boolean): boolean
+	local state = states[player]
+	if not PlayerService.IsDataReady(player) or not state or type(on) ~= "boolean" or state.Settings.Music == on then return false end
+	state.Settings.Music = on
+	player:SetAttribute("SettingMusic", on)
+	return true
 end
 
 -- Friends-in-server Cash bonus (InviteService is its only caller). Not saved.
@@ -653,6 +675,7 @@ function PlayerService.Init(onReady, onDataReady)
 				Daily = Daily.CopyState(state.Daily),
 				Stats = Leaderboards.CopyStats(state.Stats),
 				Locker = Locker.CopyState(state.Locker),
+				Settings = { Music = state.Settings.Music },
 			}
 		end,
 		Cleanup = function(player: Player)

@@ -116,3 +116,33 @@
   - `ServerMain`
   - `default.project.json`: `SocialNotice`, `AutoTrainRequest` remotes
   - `tools/pass-icons.ps1`
+
+## Community group bonus (2026-09-27)
+
+- **For players:** members of the game's Roblox group earn **+10% dunk and air-trick Cash**.
+- **HUD:** a pill button under AUTO TRAIN shows **JOIN GROUP: +10% CASH** for non-members. It opens Roblox's own join prompt (`GroupService:PromptJoinAsync`). Members see **GROUP BONUS +10%**.
+- **Membership check:** `InviteService` reads membership with `GroupService:GetGroupsAsync`, which isn't cached. It runs on join and again when the client asks after the prompt (`GroupRequest("Check")`, at most every 10 s). The bonus is multiplied in `PlayerService` next to the friend bonus.
+- **Rules:** Roblox allows group-join rewards (it doesn't allow rewards for likes or favorites).
+- **Turning it on:** create the group (Creator Hub → Communities), then put its id in `SocialConfig.GroupId`. While it's `0`, the button is hidden and there's no bonus.
+- **Status:** turned on with **Dunk Simulator Official** (id `292818851`, "Anyone can join"), owned by Bryte213.
+- **Studio testing:** `SocialConfig.StudioPretendInGroup` fakes membership in Studio.
+- **Tested with group id 7 as a stand-in:**
+  - Faking membership showed "GROUP BONUS +10%".
+  - A High School Between the Legs dunk paid $2,102, the old $1,911 × 1.1.
+  - Without it, the button read "JOIN GROUP: +10% CASH". I didn't click it, because 7 is a real Roblox group.
+
+## Saved music setting (schema v11)
+
+**How it's saved:**
+- The MUSIC button now saves the choice. Player data is **schema v11**, with a new `Settings = { Music = true/false }` field.
+- Migration v10 → v11 turns music ON for everyone, and `Schema.Decode` repairs a non-boolean value.
+
+**How it flows:**
+- The client sends `SettingsRequest("Music", bool)`.
+- `SettingsService` validates it (0.5 s rate limit), stores it through `PlayerService.SetMusicSetting` and requests a save.
+- The `SettingMusic` attribute tells `MusicController` the saved value on join.
+
+**Tested on the QA store:**
+- A v10 profile loaded as v11 with music ON.
+- Turning music OFF, stopping and rejoining came back OFF, with no track playing.
+

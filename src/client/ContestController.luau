@@ -15,6 +15,15 @@ local function clock(seconds: number): string
 	return string.format("%d:%02d", seconds // 60, seconds % 60)
 end
 
+-- "3d 4h" / "5h 12m" / "9m" until the weekly reset.
+local function span(seconds: number): string
+	seconds = math.max(0, math.floor(seconds))
+	local days, hours, minutes = seconds // 86400, (seconds % 86400) // 3600, (seconds % 3600) // 60
+	if days > 0 then return string.format("%dd %dh", days, hours) end
+	if hours > 0 then return string.format("%dh %dm", hours, minutes) end
+	return string.format("%dm", minutes)
+end
+
 local function decode(raw)
 	if typeof(raw) ~= "string" or raw == "" then return nil end
 	local ok, value = pcall(HttpService.JSONDecode, HttpService, raw)
@@ -46,7 +55,15 @@ function ContestController.new(player: Player)
 				view.SetBanner("DUNK CONTEST IN " .. clock(left), "Best dunk in " .. Contest.OpenSeconds
 					.. "s wins. Judges love Perfect slams and big combos!")
 			else
-				view.SetBanner(nil)
+				-- Between rounds: the weekly champion race.
+				local top = decode(folder:GetAttribute("WeeklyTop"))
+				local champ = type(top) == "table" and top[1] or nil
+				local mine = player:GetAttribute("WeeklyBest")
+				local reset = span((folder:GetAttribute("WeekEndsAt") or now) - now)
+				view.SetBanner(champ and string.format("👑 WEEKLY CHAMP: %s  %d pts", tostring(champ.Name), champ.Score or 0)
+					or "👑 WEEKLY CHAMP: open!",
+					string.format("Your best this week: %s   |   Resets in %s   |   Next contest %s",
+						typeof(mine) == "number" and (mine .. " pts") or "--", reset, clock(left)))
 			end
 		elseif phase == "Results" then
 			view.SetBanner("CONTEST OVER", "Next contest in a few minutes")
@@ -77,10 +94,11 @@ function ContestController.new(player: Player)
 		if mine.Won then Feedback.Rebirth() elseif (mine.Cash or 0) > 0 then Feedback.ChallengeClaim() end
 	end))
 	table.insert(connections, view.Close.Activated:Connect(view.HideResults))
-	for _, attribute in { "Leader", "EndsAt", "StartsAt" } do
+	for _, attribute in { "Leader", "EndsAt", "StartsAt", "WeeklyTop" } do
 		table.insert(connections, folder:GetAttributeChangedSignal(attribute):Connect(refresh))
 	end
 	table.insert(connections, player:GetAttributeChangedSignal("ContestBest"):Connect(refresh))
+	table.insert(connections, player:GetAttributeChangedSignal("WeeklyBest"):Connect(refresh))
 
 	local ticker = task.spawn(function()
 		while true do

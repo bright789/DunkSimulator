@@ -17,6 +17,7 @@ local Daily = require(ReplicatedStorage.Shared.Config.DailyConfig)
 local PlayerService = require(script.Parent.PlayerService)
 local DataService = require(script.Parent.DataService)
 local Analytics = require(script.Parent.AnalyticsReporter)
+local WeeklyChampion = require(script.Parent.WeeklyChampionService)
 
 local ContestService = {}
 local initialized = false
@@ -91,6 +92,7 @@ local function finishRound()
 			local paid = cash > 0 and PlayerService.GrantCash(player, cash, "ContestPrize", "Gameplay")
 			local won = contested and rank == 1
 			PlayerService.RecordContest(player, entry.Best, won)
+			task.spawn(WeeklyChampion.RecordScore, player, entry.Best)
 			Analytics.Custom(player, "ContestPlace", rank)
 			Analytics.Custom(player, "ContestScore", entry.Best)
 			DataService.RequestSave(player)
@@ -136,6 +138,7 @@ function ContestService.Init()
 			setPhase("Results")
 			local ok, problem = pcall(finishRound)
 			if not ok then warn("[ContestService] Results failed: " .. tostring(problem)) end
+			WeeklyChampion.RefreshSoon()
 			task.wait(Config.ResultsSeconds)
 			repeat startsAt += Config.IntervalSeconds until startsAt > now() + Config.AnnounceSeconds
 		end

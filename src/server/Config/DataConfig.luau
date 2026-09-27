@@ -1,5 +1,5 @@
 return {
-	SchemaVersion = 10,
+	SchemaVersion = 11,
 	PrioritySaveCooldownSeconds = 10,
 	ProductionStoreName = "DunkSimulator_PlayerData_v1",
 	StudioStoreName = "DunkSimulator_PlayerData_DEV_v1",
@@ -12,6 +12,12 @@ return {
 	StudioReceiptStoreName = "DunkSimulator_Receipts_DEV_v1",
 	-- Referral records ("Invitee_<id>" = who they credited, "Inviter_<id>" = daily count and
 	-- rewards waiting for an inviter who was offline). See InviteService.
+	-- Weekly Dunk Contest board (OrderedDataStore per week: prefix .. week number) and the
+	-- record of each week's champion and whether their prize was claimed.
+	ProductionWeeklyPrefix = "DunkSimulator_WeeklyContest_v1_W",
+	StudioWeeklyPrefix = "DunkSimulator_WeeklyContest_DEV_v1_W",
+	ProductionChampionStoreName = "DunkSimulator_WeeklyChampions_v1",
+	StudioChampionStoreName = "DunkSimulator_WeeklyChampions_DEV_v1",
 	ProductionReferralStoreName = "DunkSimulator_Referrals_v1",
 	StudioReferralStoreName = "DunkSimulator_Referrals_DEV_v1",
 	KeyPrefix = "Player_",

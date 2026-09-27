@@ -3,6 +3,7 @@
 -- server paid (SocialNotice). Display and prompt only; InviteService decides every reward.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SocialService = game:GetService("SocialService")
+local GroupService = game:GetService("GroupService")
 
 local Config = require(ReplicatedStorage.Shared.Config.SocialConfig)
 local UI = require(script.Parent.ui:WaitForChild("UIComponents"))
@@ -23,6 +24,28 @@ function InviteController.new(player: Player, hud)
 	end
 	table.insert(connections, player:GetAttributeChangedSignal("FriendBonusPercent"):Connect(refreshBonus))
 	refreshBonus()
+
+	-- Community group button (hidden until SocialConfig.GroupId is set).
+	local groupPercent = math.floor(Config.GroupBonus * 100 + 0.5)
+	local function refreshGroup()
+		hud.SetGroup(Config.GroupId ~= 0 and player:GetAttribute("InGroup") ~= nil, player:GetAttribute("InGroup") == true, groupPercent)
+	end
+	table.insert(connections, player:GetAttributeChangedSignal("InGroup"):Connect(refreshGroup))
+	refreshGroup()
+	local joining = false
+	table.insert(connections, hud.GroupButton.Activated:Connect(function()
+		if joining or Config.GroupId == 0 or player:GetAttribute("InGroup") == true then return end
+		joining = true
+		task.spawn(function()
+			local ok, status = pcall(GroupService.PromptJoinAsync, GroupService, Config.GroupId)
+			if ok and (status == Enum.GroupMembershipStatus.Joined or status == Enum.GroupMembershipStatus.AlreadyMember) then
+				ReplicatedStorage.Remotes.GroupRequest:FireServer("Check")
+			elseif ok and status == Enum.GroupMembershipStatus.JoinRequestPending then
+				popup.Show("GROUP", "REQUEST SENT", "The bonus starts once your join request is accepted.", false)
+			end
+			joining = false
+		end)
+	end))
 
 	table.insert(connections, hud.InviteButton.Activated:Connect(function()
 		if prompting then return end
@@ -53,6 +76,11 @@ function InviteController.new(player: Player, hud)
 				or (data.Count == 1 and "A FRIEND JOINED!" or string.format("%d FRIENDS JOINED!", data.Count or 1))
 			popup.Show("INVITE REWARD", title, string.format("+$%s and 2x Cash for %d min", UI.Number(data.Cash), data.Minutes), true)
 			Feedback.ChallengeReady()
+		elseif kind == "WeeklyChampion" and type(data.Cash) == "number" and type(data.Minutes) == "number" then
+			-- Sent by WeeklyChampionService: last week's #1 collects their prize.
+			popup.Show("WEEKLY CHAMPION", "👑 YOU WON LAST WEEK!", string.format("+$%s and 2x Cash for %d min",
+				UI.Number(data.Cash), data.Minutes), true)
+			Feedback.Rebirth()
 		elseif kind == "StarterPack" and type(data.Cash) == "number" and type(data.Minutes) == "number" then
 			-- Sent by MonetizationService once the Starter Pack is granted.
 			popup.Show("STARTER PACK", "UNLOCKED!", string.format("+$%s, 2x Cash for %d min and Sky Risers in your Locker",
