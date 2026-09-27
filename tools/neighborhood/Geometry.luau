@@ -43,24 +43,58 @@ function Geometry.Arc(parent, name, frame, radius, startAngle, endAngle, segment
 	return folder
 end
 
+-- Signs share the HUD look (mirrors src/shared/Config/HUDConfig.luau): a deep-navy
+-- rounded panel with a sign-colored rim, white FredokaOne text with a dark cartoon
+-- outline, unaffected by scene lighting. Very dark sign colors use the HUD's light-blue
+-- panel stroke for the rim instead.
+local SIGN_PANEL = Color3.fromRGB(18, 24, 52)
+local SIGN_STROKE = Color3.fromRGB(110, 190, 255)
+local SIGN_TEXT = Color3.fromRGB(255, 255, 255)
+local SIGN_OUTLINE = Color3.fromRGB(6, 10, 30)
+local PIXELS_PER_STUD = 64
+
 function Geometry.Sign(parent, name, frame, text, color, width)
-	local board = Geometry.Part(parent, name, Vector3.new(width, 2.5, 0.2), frame, color)
+	local _, _, brightness = color:ToHSV()
+	local rim = brightness < 0.35 and SIGN_STROKE or color
+	local board = Geometry.Part(parent, name, Vector3.new(width, 2.5, 0.2), frame, rim)
+	local canvas = Vector2.new(math.floor(width * PIXELS_PER_STUD + 0.5), math.floor(2.5 * PIXELS_PER_STUD + 0.5))
 	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
 		local gui = Instance.new("SurfaceGui")
 		gui.Name = face.Name .. "Label"
 		gui.Face = face
-		gui.CanvasSize = Vector2.new(768, 160)
-		gui.LightInfluence = 0.5
-		gui.MaxDistance = 160
+		gui.CanvasSize = canvas
+		gui.LightInfluence = 0
+		gui.MaxDistance = 220
 		gui.Parent = board
+		local panel = Instance.new("Frame")
+		panel.Name = "Panel"
+		panel.Size = UDim2.new(1, -20, 1, -20)
+		panel.Position = UDim2.fromOffset(10, 10)
+		panel.BackgroundColor3 = SIGN_PANEL
+		panel.BorderSizePixel = 0
+		panel.Parent = gui
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 18)
+		corner.Parent = panel
+		local shade = Instance.new("UIGradient")
+		shade.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.new(0.72, 0.72, 0.72))
+		shade.Rotation = 90
+		shade.Parent = panel
 		local label = Instance.new("TextLabel")
-		label.Size = UDim2.fromScale(1, 1)
+		label.Size = UDim2.new(1, -40, 1, -26)
+		label.Position = UDim2.fromOffset(20, 13)
 		label.BackgroundTransparency = 1
 		label.Text = text
-		label.TextColor3 = Color3.fromRGB(242, 235, 215)
+		label.TextColor3 = SIGN_TEXT
 		label.TextScaled = true
-		label.Font = Enum.Font.GothamBold
-		label.Parent = gui
+		label.Font = Enum.Font.FredokaOne
+		label.Parent = panel
+		local outline = Instance.new("UIStroke")
+		outline.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+		outline.Color = SIGN_OUTLINE
+		outline.Thickness = 5
+		outline.Transparency = 0.15
+		outline.Parent = label
 	end
 	return board
 end

@@ -1,18 +1,17 @@
 # Dunk v0.3: Presentation and Approach
 
-Sync Rojo and restart Play. No animation upload, new remote, or Studio object is required to test the code changes. Jump curve, rewards, possession, phase durations, state machine, and cleanup retain the verified v0.2 behavior. [Basic Dunk Assist](BASIC_DUNK_ASSIST.md) documents the current entry/buffer/translation tuning. Only BasicOneHand is defined.
+This is the historical v0.3 approach/hoop guide. For the current four-style R15 animation architecture, markers, asset workflow, and new `DunkAnimationStatus` remote, use [Dunk Animation System v1](DUNK_ANIMATIONS.md). No animation upload or Studio object is required to keep the procedural fallback working. [Basic Dunk Assist](BASIC_DUNK_ASSIST.md) documents entry and normalization.
 
 ## Approach and Ball Motion
 
 After server validation, AlignPosition first normalizes height toward Rim.Y - 3 while holding entry X/Z and keeping the ball in hand. It then applies the existing at-most-five-stud horizontal assist. The optional animation and original ball timeline start after normalization. AlignOrientation turns the root smoothly toward the rim. Neither position nor rotation is teleported; effectively zero horizontal separation retains current facing. Entry rejects clear retreating/backward approaches, without a front-of-hoop-only restriction. See Basic Dunk Assist for the Vertical-35 unlock, scaled height limits, and normalization deadlines.
 
-During the first 35% of the 0.30-second gather, the detached ball follows the current hand placement. It then smoothly blends from that moving hand toward the above-rim endpoint. This lets an authored reaching arm influence presentation without controlling completion. The existing 0.25-second downward pass and 0.20-second return stay intact. The optional animation fades out during return, allowing the hand to settle before the weld is restored. All position/rotation constraints and the optional animation track are cleaned up on success or cancellation.
+During the first 35% of Basic's gather, the detached ball follows the current hand placement, then blends toward the above-rim endpoint. Current style-specific gather/finish/return durations live in `DunkStyles`. A configured local track fades during return; the per-character cache is destroyed on character removal. All position/rotation constraints and temporary fallback IK are cleaned up on success or cancellation.
 
 New `DunkConfig.Execution` settings:
 
 | Setting | Default | Purpose |
 | --- | --- | --- |
-| AnimationName | BasicOneHand | Selects the sole animation definition |
 | FacingMaxTorque | 40000 | Rotation torque limit |
 | FacingMaxAngularVelocity | 8 rad/s | Rotation speed limit |
 | FacingResponsiveness | 20 | Smooth turn response |
@@ -21,40 +20,7 @@ New `DunkConfig.Execution` settings:
 
 ## Animation Architecture and Markers
 
-`DunkAnimations.luau` holds the BasicOneHand definition: real asset ID (currently empty), R15 rig type, Action priority, speed 1, 0.05-second fade-in, 0.12-second fade-out, and marker names. The server's `DunkAnimationController.Start(humanoid, name, optionalOnCue)` handles Animator loading/playback, marker connections, fade-out, and destruction. DunkService contains no animation-specific behavior.
-
-An empty ID or a different rig type uses the scripted fallback. Invalid ID format or a synchronous load error warns and falls back. An inaccessible or still-loading Roblox asset may also generate an engine warning; execution never waits for its length or a marker, so the scripted sequence continues. Keep the ID empty until you own a usable published animation. No fake ID is included.
-
-Supported presentation cues are `Takeoff`, `BallAboveRim`, `BallRelease`, and `DunkComplete`. `GetMarkerReachedSignal` routes authored markers to the same optional callback as fallback server-timeline cues. Each named cue dispatches at most once per session; duplicate or late markers cannot retrigger it. Callback errors are isolated. Enable `Execution.DebugLogging` to see the source of each cue.
-
-In v0.3, markers are presentation hooks, NOT the ball simulation clock or a scoring API. The fixed server phase timing still drives the ball and confirms completion, even if markers are missing, mistimed, or fired early. Author the clip to the timeline below. Later animation variants can use the same named interface; none are added now. `DunkComplete` describes the visual rim pass at 0.55 seconds; the +25 Cash and success UI still wait until the full return and cleanup around 0.75 seconds. A marker alone cannot produce a reward. `Takeoff` labels the committed pose, not a new jump impulse.
-
-## Create BasicOneHand in Studio
-
-1. Stop Play. Use a separate animation-authoring place or a spare rig away from gameplay. Insert an R15 rig through Studio's Rig Builder/rig tool, matching your game's avatar proportions. Name it `BasicOneHandRig`.
-2. Open Animation Editor from the Avatar tools, select that rig, and create an animation named `BasicOneHand`. Disable looping and choose Action priority in the editor's options. Use a 0.75-second timeline. Do not translate/rotate HumanoidRootPart as root motion; execution already moves and turns the character. See the [Animation Editor guide](https://create.roblox.com/docs/animation/editor).
-3. Animate the right shoulder, elbow, wrist, torso, and a modest leg tuck. Keep the right hand facing forward and reaching above the head. Use these prototype pose targets; the exact joint angles depend on the rig:
-
-| Time | Pose | Marker |
-| --- | --- | --- |
-| 0.00 | Airborne starting pose, right hand near normal ball grip | Takeoff |
-| 0.10 | Lift right arm, bend elbow; slight torso extension | None |
-| 0.27 | Extend right arm overhead toward hoop | BallAboveRim |
-| 0.30 | Wrist over rim, begin downward follow-through | BallRelease |
-| 0.55 | Right hand follows down, body relaxed | DunkComplete |
-| 0.75 | Return arm/torso toward ordinary airborne pose | None |
-
-4. Scrub and play the clip repeatedly. Aim for smooth curves with no full-body spin. For preview only, place a two-stud orange sphere at the hand's grip location to check scale; do not export geometry or add a second gameplay ball. This first animation is a prototype reach, not an IK solution that guarantees exact contact at every avatar size/rim offset.
-5. In the timeline settings enable **Show Animation Events**. At each time above, position the scrubber, choose **Edit Animation Events**, click **+ Add Event**, enter the exact case-sensitive marker name, and save. Parameters can remain empty. These must be event markers, not renamed keyframes. See [Roblox animation events](https://create.roblox.com/docs/animation/events).
-6. Save the authoring work using the editor's Save/Save As option. Saving an editable sequence is separate from publishing a playable asset.
-
-## Publish and Configure the Asset
-
-1. In Animation Editor open the **...** menu and choose **Publish to Roblox**. Use the name `BasicOneHand` and a useful description.
-2. Set Creator to the experience owner. For a group-owned experience, select that group, not your personal account. Submit/publish and wait for success. See [animation export and ownership](https://create.roblox.com/docs/animation/editor#export-an-animation).
-3. Copy the animation ID from the confirmation dialog. If needed, find the animation in Creator Dashboard's Development Items > Animations, open its options, and use **Copy Asset ID**. See [publishing and locating IDs](https://create.roblox.com/docs/tutorials/curriculums/animator/play-your-animation).
-4. Open `src/shared/Config/DunkAnimations.luau`. Replace BasicOneHand's empty `AnimationId` string with `rbxassetid://` followed immediately by your actual copied numeric ID. Leave Speed at 1 for the authored timeline and RigType as R15. Do not replace default jump/run IDs.
-5. Save, sync Rojo, and restart Play. Test on an R15 avatar. R6 continues with the fallback; it needs a separately authored compatible asset before changing RigType. If access/moderation/loading errors appear in Output, verify creator permissions and publication; clear AnimationId to return to asset-free testing.
+`DunkAnimations.luau` now has four empty legitimate-ID slots. Server-created Animators, client per-character track caching, `GetMarkerReachedSignal` for Gather/Slam/Release/Recover, server-clock start, and protected procedural fallback are documented in [Dunk Animation System v1](DUNK_ANIMATIONS.md). The server still drives the ball and result; markers never score. Follow that guide rather than the superseded v0.3 marker timings.
 
 ## Improve DunkHoop in Studio
 
@@ -97,14 +63,14 @@ These are approximate regulation-shaped proportions: a board roughly four rim di
 
 ## Manual Test Checklist
 
-- [ ] With AnimationId empty, repeated v0.2 dunks still work: pickup, entry/buffer, alignment, downward ball pass, +25 only after return/cleanup, retained possession, normal movement/jump afterward.
+- [ ] With AnimationId empty, repeated Basic dunks still work: pickup, entry/buffer, alignment, downward ball pass, +$20 Neighborhood Cash only after return/cleanup, retained possession, normal movement/jump afterward.
 - [ ] Test approaching from front, left, right, and an oblique angle. The character turns smoothly toward the rim along its approach side, without translation/rotation snaps. Test directly beneath the rim for stable facing.
 - [ ] Recheck Vertical 30/35/40/50/75/100 on the SAME logical rim and avatar. The explicit Vertical-35 unlock and scaled height envelope replace physical-only eligibility. Jump heights, eight-stud horizontal range and cooldown are unchanged. No assistance starts for invalid attempts.
 - [ ] Hold movement/jump and spam F: one execution/reward. Training cannot run while Executing and works again afterward. Test two clients and verify replicated facing/ball presentation.
-- [ ] Reset, disconnect, remove the ball, or remove/move the hoop during execution. Verify Idle, no reward, no stuck controls, and no leftover DunkFacing/DunkAlignment/attachments or animation tracks.
+- [ ] Reset, disconnect, remove the ball, or remove/move the hoop during execution. Verify Idle, no reward, no stuck controls, and no leftover DunkFacing/DunkAlignment/IK. A configured track may remain cached while that character exists, but must stop playing on interruption and be destroyed on character removal.
 - [ ] Configure the real R15 asset: the arm raises during gather, ball stays near the moving hand initially, transitions above the ring, releases downward, then smoothly rejoins the hand. Test the asset on the actual avatar proportions.
-- [ ] Missing/misspelled/duplicate or early DunkComplete markers cannot prevent normal fallback timing, grant early Cash, or duplicate rewards. Enable debug logging to inspect cues; disable it afterward.
+- [ ] Missing/misspelled/duplicate or early Gather/Slam/Release/Recover markers cannot grant early Cash or duplicate rewards. Server Contact/`DunkResult` remain authoritative; use `DUNK_ANIMATIONS.md` for current marker tests.
 - [ ] Empty ID, invalid ID format, wrong rig, or inaccessible asset: scripted execution still works. Check Output for asset errors; engine permission/moderation issues cannot be confirmed by a local build.
 - [ ] New visual hoop does not change the logical Rim Position, progression threshold, collision behavior, or training. Test before and after adding decoration.
 
-Rojo build verifies packaging, not engine physics or uploaded assets. Studio Script Analysis and playtests remain necessary; no standalone Luau analyzer is available in this environment.
+Rojo build verifies packaging, not engine physics or uploaded assets. Studio Script Analysis and playtests remain necessary; the standalone Luau analyzer does not include Roblox engine types in this environment.

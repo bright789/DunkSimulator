@@ -1,0 +1,7 @@
+{
+  "name": "DunkAnimationBuilder",
+  "tree": {
+    "$className": "Folder",
+    "$path": "dunkanimations"
+  }
+}

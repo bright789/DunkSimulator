@@ -1,5 +1,6 @@
 return {
-	SchemaVersion = 1,
+	SchemaVersion = 5,
+	PrioritySaveCooldownSeconds = 10,
 	ProductionStoreName = "DunkSimulator_PlayerData_v1",
 	StudioStoreName = "DunkSimulator_PlayerData_DEV_v1",
 	KeyPrefix = "Player_",

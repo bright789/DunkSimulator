@@ -4,24 +4,24 @@
 
 New players start at Vertical 30, Cash 0, TrainingLevel 1. TrainingLevel is private server state, not a leaderstats column or a client-authoritative attribute. Cash, Vertical, and TrainingLevel now survive rejoining through [Data Persistence v0.1](DATA_PERSISTENCE.md); gameplay waits for successful loading. Use the isolated DEV store for these tests.
 
-| Training Level | Vertical per valid tick | Cost to buy this level |
+| Training Level | Training efficiency | Cost to buy this level |
 | --- | --- | --- |
-| 1 | +1 | Starting level |
-| 2 | +2 | $100 |
-| 3 | +3 | $300 |
-| 4 | +4 | $750 |
-| 5 | +5 | $1,500 |
-| 6 | +6 | $3,000 |
-| 7 | +7 | $6,000 |
-| 8 | +8 | $12,000 |
-| 9 | +9 | $25,000 |
-| 10 | +10 | $50,000 |
+| 1 | 1.00x | Starting level |
+| 2 | 1.10x | $250 |
+| 3 | 1.20x | $600 |
+| 4 | 1.30x | $1,200 |
+| 5 | 1.40x | $2,000 |
+| 6 | 1.50x | $3,500 |
+| 7 | 1.60x | $5,500 |
+| 8 | 1.70x | $8,000 |
+| 9 | 1.80x | $12,000 |
+| 10 | 2.00x | $18,000 |
 
-These are prototype prices, not final economy balance. `src/shared/Config/UpgradeConfig.luau` owns the starting level, full price/gain table, interaction range (8), purchase/open throttles (0.5 seconds), session check interval (0.2 seconds), and feedback duration (2 seconds). Maximum level is the table length. Existing tick time (0.5 seconds) and jump curve remain in ProgressionConfig, unchanged.
+These are prototype prices, not final economy balance. `src/shared/Config/UpgradeConfig.luau` owns the starting level, full price/efficiency table, interaction range (8), purchase/open throttles (0.5 seconds), and session check interval (0.2 seconds). The unchanged 2-second UI confirmation lives in `src/shared/Config/FeedbackConfig.luau`. Maximum level is the table length. `ProgressionConfig.Training.BaseProgressPerTick` is 1.00; the existing tick time (0.5 seconds) and jump curve are unchanged.
 
-**Training now gives no Cash.** TrainingService's existing hold sessions/timing remain untouched; every valid tick calls PlayerService.AwardTraining, which selects VerticalGain from the authoritative player's TrainingLevel. It updates actual jump height using the existing curve. Buying a level only deducts Cash and changes TrainingLevel; it grants no Vertical and does not recalculate jump height until training increases Vertical.
+**Training gives no Cash.** TrainingService's existing hold sessions/timing remain untouched; every valid tick calls PlayerService.AwardTraining, which computes 1.00 base progress × authoritative TrainingLevel efficiency × validated court training bonus and accumulates the existing persisted fractional remainder. Only whole points update Vertical, jump height and HUD feedback. Buying a level only deducts Cash and changes TrainingLevel; it grants no Vertical and does not recalculate jump height until training increases Vertical.
 
-Successful completed dunks still award exactly **$25**. Four dunks fund Level 2; normal training cannot fund purchases. The loop is TRAIN -> DUNK -> CASH -> UPGRADE -> TRAIN FASTER (larger gains, not shorter tick intervals).
+Completed Neighborhood Basic One-Hand dunks award **$20**; Two-Hand Power awards **$35**, Tomahawk **$60**, and Windmill **$100**, from DunkStyles configuration. Thirteen Basic dunks can fund the $250 Level 2 purchase from zero Cash, before any challenge claims; normal training cannot fund purchases. Court multipliers still adjust final payouts. The loop is TRAIN -> DUNK -> CASH -> UPGRADE -> TRAIN MORE EFFICIENTLY, without shorter tick intervals.
 
 ## One-Time Studio Setup
 
@@ -69,7 +69,7 @@ This establishes a placement defect in that saved place, not proof that the live
 
 4. Inspect the new placement and save the place. The action moves the **existing** station 24 studs behind the trainer in the trainer's local frame, matching their bottom heights. Its Size, Parent, prompt, visibility and physics properties are preserved. Only Parts inside `Map.Neighborhood.Props.NeighborhoodV01.UpgradeArea`, under the expected BuilderOwner marker, receive the same rigid transform. It does not recreate anything, move the trainer/hoop/spawn, or rebuild the map. Repeating the action at the same trainer position leaves the result unchanged. Missing/invalid station or unowned dressing is rejected before movement.
 5. Press Play. In **server Output**, compare the startup and after-3-seconds `[UpgradeStation diagnostic]` records. Expect: Destroyed=false, In Workspace=true, Same resolved station=true, Same Gameplay=true, Parent is original Gameplay=true, Same CFrame=true, Transparency=0, Anchored=true, Same prompt=true, and Prompt enabled=true. Both records describe the same captured Instance. The temporary destruction listener disconnects after three seconds; no polling loop or runtime repair runs.
-6. Approach within eight studs with a living character and an unobstructed view; press E. The Training Upgrades panel should open without spending Cash. Walk away and verify it closes. Confirm trainer, pickup, dunk, +$25 and ball return still work.
+6. Approach within eight studs with a living character and an unobstructed view; press E. The Training Upgrades panel should open without spending Cash. Walk away and verify it closes. Confirm trainer, pickup, configured style reward and ball return still work.
 7. Stop Play and disable diagnostics in edit mode with `workspace:SetAttribute("DiagnoseUpgradeStation", nil)`, then save. Diagnostics are opt-in and Studio-only; they never run in published servers.
 
 The agent cannot run the live Studio session: Edit-to-Play survival and E/UI interaction require these tests. If removal persists, include both diagnostic records and inspect the **server** Explorer explicitly. Do not rerun Build.Run or clone stations as a workaround.
@@ -77,7 +77,7 @@ The agent cannot run the live Studio session: Edit-to-Play survival and E/UI int
 ## Server Flow and Purchase Security
 
 1. UpgradeService binds the direct station prompt once at startup. Triggered is treated as input intent: the server verifies initialized player state, living original character/root, current anchored station identity, enabled direct prompt, server-observed distance, optional line of sight, and that a dunk is not Executing.
-2. Opening creates at most one per-player session with an original character and a server-generated single-use OfferId. Server snapshots contain current level/gain/Cash, next level/gain/price, affordability, and cooldown readiness. No money moves on opening.
+2. Opening creates at most one per-player session with an original character and a server-generated single-use OfferId. Server snapshots contain current level/efficiency/Cash, next level/efficiency/price, affordability, and cooldown readiness. No money moves on opening.
 3. A buy request contains only `"Buy", OfferId`. The identifier prevents replay of the same UI offer; it is not a trusted price/level or proof of eligibility. The server rejects extra payloads, wrong/stale tokens, invalid actions, missing sessions, or invalid current context. Independent per-player 0.5-second purchase throttles survive closing/reopening the UI.
 4. The server marks processing, rotates the token before processing, and calls PlayerService.BuyNextTrainingLevel. The private state owner validates its current level, cap, configured next price, and affordability; subtracts Cash and increments exactly one level without yielding. No client values are copied into player state. Other players have separate locks/tokens/cooldowns/state.
 5. Only after the transaction does the server send success and a fresh snapshot. Errors produce a generic message, not internal server details. Insufficient Cash and max level leave both level and Cash unchanged. Replays cannot buy an additional level. A new deliberate, eligible request with a fresh token after cooldown can buy the next level.
@@ -89,33 +89,35 @@ This follows Roblox's guidance to validate distance/context and rate-limit both 
 
 ## Manual Acceptance and Regression Tests
 
-- Fresh Play: Vertical 30, Cash 0. At station, panel shows Level 1 / +1, next Level 2 / +2, $100; button says NOT ENOUGH CASH. Opening/closing changes neither level, Vertical, nor Cash.
+- Fresh Play: Vertical 30, Cash 0. At station, panel shows Level 1 / 1.00x, next Level 2 / 1.10x, $250; button says NOT ENOUGH CASH. Opening/closing changes neither level, Vertical, nor Cash.
 - Hold trainer for ten ticks: Vertical becomes 40 and Cash stays 0. Release, walk away, die, and respawn: existing hold cancellation/jump behavior is preserved. At roughly Vertical 35 the original basic dunk threshold remains.
-- Perform three completed dunks: Cash $75, still cannot buy Level 2. A fourth gives exactly $100. Each still returns the ball and restores control.
-- With exactly $100, buy Level 2: Cash becomes $0, Vertical stays unchanged, UI shows Level 2/+2, next cost $300, and confirmed level-up feedback. Subsequent training ticks add +2 at the same 0.5-second interval and give no Cash.
-- Earn another $300 and buy Level 3; verify +3 per tick. Check every table entry through Level 10; at max, UI shows MAX LEVEL/+10 and no buy action. Further server requests do not spend Cash.
+- Perform 12 completed Neighborhood Basic dunks: Cash $240, still cannot buy Level 2 without claiming a challenge. A thirteenth gives $260. Each still returns the ball and restores control.
+- With at least $250, buy Level 2: Cash falls by exactly $250, Vertical stays unchanged, UI shows Level 2 / 1.10x, next cost $600, and confirmed level-up feedback. Subsequent ticks keep the 0.5-second interval, generate 1.10 progress each at Neighborhood and give no Cash; whole-Vertical gains vary with fractional carry.
+- Earn enough for Level 3 ($600) and verify 1.20x efficiency. Check every table entry through Level 10; at max, UI shows MAX LEVEL / 2.00x and no buy action. Further server requests do not spend Cash.
 - Rapidly click/tap Upgrade: one click/offer must produce at most one purchase. Replay the same OfferId immediately and after cooldown: never another reward/purchase. Close/reopen immediately after purchase: cooldown remains enforced. Test with enough Cash to afford multiple levels so accidental duplicates would be visible.
 - Walk farther than eight studs after opening, then request a purchase: UI closes and no purchase occurs. Trigger prompt from far away in a local test: no session opens. Place an obstruction between player and station with RequiresLineOfSight enabled: no open/purchase.
 - While open, reset/die; remove the character, station or prompt; disable prompt; unanchor station. Purchases stop and UI closes. Restore edit-mode assets by stopping Play, then restart. Leave during interaction: no stuck state or errors for other players.
 - Studio local server with two clients: open/buy simultaneously; only the requesting player's Cash and TrainingLevel change. One player's close/death/spam must not throttle or affect the other player.
 - Send no token, a table token, stale/another player's token, invented level/price/Cash, or extra arguments in a disposable local test: no state change; eligible open sessions receive Invalid request where not rate-limited. Requests without a session and flood requests are silently dropped.
 - Check X close, live Cash refresh, max-level display, return after respawn, and readable panel on smaller windows. Leave after a confirmed save and rejoin: level, Cash, and Vertical should restore, not reset.
-- Rebuild the map twice: one station (same instance), one decorated stand, unchanged logical Rim. Existing entrance, trainer, pickup, ball motion, +$25 dunk feedback, and ball return remain functional.
+- Rebuild the map twice: one station (same instance), one decorated stand, unchanged logical Rim. Existing entrance, trainer, pickup, ball motion, matching style-reward feedback, and ball return remain functional.
 
 ### Faster Late-Level Testing (Studio Only)
 
 Do not edit display-only leaderstats: purchases never read them. For disposable local tests of high levels and exact balances, use the existing server module in the **server** Command Bar after Play begins:
 
 ```luau
+assert(game:GetService("RunService"):IsStudio(), "Test grants are Studio-only")
 local players = game:GetService("Players")
 local service = require(game:GetService("ServerScriptService").services.PlayerService)
 local player = assert(players:GetPlayers()[1])
 assert(service.IsReady(player) and service.GetDunkState(player) == "Idle")
-service.SetDunkState(player, "Completed")
+assert(service.EquipDunkStyle(player, "BasicOneHand"), "Reach 35 Vertical first")
 for count = 1, 4000 do
-    assert(service.RegisterDunk(player))
+    service.SetDunkState(player, "Completed")
+    assert(service.RegisterDunk(player, "BasicOneHand"))
 end
 service.SetDunkState(player, "Idle")
 ```
 
-This intentionally simulates $100,000 of server rewards for test setup (and also increments the debug dunk count). It does not validate dunk execution; use real dunks for that regression check. Use 4 iterations for exactly $100 on a fresh player, 3 for $75, or 13 for $325 to check duplicate-offer behavior. Select the intended test player explicitly when using multiple clients. **These balances now persist: stopping Play does not discard them.** Use only your private test experience/DEV store, wait for Ready, and use the guarded DEV reset in `DATA_PERSISTENCE.md` afterward if you want a fresh profile. Never run test grants in production. No test grant remote or new gameplay currency source is added.
+This explicitly equips eligible Basic One-Hand and simulates $80,000 at its current $20 Neighborhood reward for isolated late-level test setup (also incrementing challenge dunk counts). It does not validate dunk execution; use real dunks for that check. Starting from known Cash, 12 iterations add $240 and 13 add $260. Reach 35 Vertical first. Select the intended test player explicitly with multiple clients. **These balances persist: stopping Play does not discard them. Never use this grant during the timed fresh-player balance playtest.** Use only the private DEV test experience and its guarded reset from `DATA_PERSISTENCE.md`. Never grant test rewards in production. This is a privileged server Command Bar workflow, not a gameplay button or remote.

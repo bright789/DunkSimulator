@@ -198,7 +198,7 @@ Player flow: entrance/spawn -> nearby pickup -> court/jump attempt -> trainer of
 - After reparenting and restarting Play: both prompts work; training gives level-based Vertical (+1 initially), no Cash, every 0.5 seconds and stops on release, distance, death, or departure. See `TRAINING_UPGRADES.md` for the current economy.
 - Pick up one ball; repeated pickup cannot duplicate possession. F feedback and ball restoration still work.
 - Test on the flat court at Vertical 30, around 35, 40, and 50 with the same avatar: 30 should remain below normal dunk capability; around 35 first basic dunks; 40/50 increasingly comfortable. If changed, check floor/Rim heights and launch props, not configuration.
-- Completed dunk gives exactly +25 Cash, no Vertical change; F spam, grounded/distant attempts, or cancellation give no extra rewards.
+- Completed Neighborhood dunk gives its configured base style reward (Basic $20, Two-Hand $35, Tomahawk $60, Windmill $100), no Vertical change; F spam, grounded/distant attempts, or cancellation give no extra rewards.
 - During execution, remove the resolved hoop in a disposable Play test: cancellation restores controls/ball without reward. Stop Play to restore edit-mode map.
 - Missing/wrong-type trainer, pickup, Gameplay Folder, or Rim yields a clear warning/rejection, not a server crash. Test only in a backup/Play session.
 - New Gameplay objects win over legacy root names; do not keep duplicates in the final saved map. Decorative objects named Rim elsewhere are ignored.

@@ -1,0 +1,16 @@
+return {
+	UpdateIntervalSeconds = 1 / 30,
+	IdleCadence = 1.15,
+	WalkCadence = 1.8,
+	RunCadence = 2.35,
+	WalkSpeedThreshold = 2,
+	RunSpeedThreshold = 12,
+	FloorProbeAboveRoot = 2,
+	FloorProbeDistance = 12,
+	FloorClearance = 0.08,
+	ForwardOffset = 0.35,
+	MinimumBounceTravel = 0.15,
+	TopLift = 0.45,
+	EntryBlendSeconds = 0.18,
+	GatherSeconds = 0.12,
+}

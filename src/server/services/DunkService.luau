@@ -4,10 +4,12 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config.DunkConfig)
+local Styles = require(ReplicatedStorage.Shared.Config.DunkStyles)
 local PlayerService = require(script.Parent.PlayerService)
 local BasketballService = require(script.Parent.BasketballService)
 local DunkExecution = require(script.Parent.DunkExecution)
 local GameplayObjects = require(script.Parent.GameplayObjects)
+local ChallengeService = require(script.Parent.ChallengeService)
 local remotes = ReplicatedStorage.Remotes
 
 local DunkService = {}
@@ -27,7 +29,7 @@ local function debugRejection(player: Player, code: string?, message: string?)
 	print("[DunkValidation] " .. player.Name .. " " .. (code or "REJECTED") .. ": " .. (message or "Request ignored."))
 end
 
-local function validateAttempt(player: Player, expectedCharacter: Model?, expectedRim: BasePart?): (string?, boolean, string?)
+local function validateAttempt(player: Player, expectedCharacter: Model?, expectedRim: BasePart?, styleId: string?): (string?, boolean, string?)
 	if not PlayerService.IsReady(player) then
 		return "Player data is not ready.", false, "PLAYER_NOT_READY"
 	end
@@ -42,10 +44,14 @@ local function validateAttempt(player: Player, expectedCharacter: Model?, expect
 		return "Pick up a basketball first.", false, "NO_BALL"
 	end
 	local vertical = PlayerService.GetVertical(player)
-	if not vertical or not (vertical >= Config.DunkMinimumVertical) then
-		return string.format("Basic Dunk unlocks at Vertical %d.", Config.DunkMinimumVertical), false, "VERTICAL_TOO_LOW"
+	local style = Styles.Get(styleId)
+	if not style or PlayerService.GetEquippedDunkStyle(player) ~= styleId then
+		return "Dunk selection is unavailable.", false, "INVALID_STYLE"
 	end
-	local rim = GameplayObjects.FindRim()
+	if not vertical or not Styles.IsUnlocked(styleId, vertical) then
+		return string.format("%s unlocks at Vertical %d.", style.DisplayName, style.RequiredVertical), false, "VERTICAL_TOO_LOW"
+	end
+	local rim = GameplayObjects.FindRim(PlayerService.GetCurrentCourt(player))
 	if not rim or rim ~= expectedRim then
 		return "The hoop is missing, changed, or its Rim is not anchored.", false, "INVALID_RIM"
 	end
@@ -72,8 +78,10 @@ local function validateAttempt(player: Player, expectedCharacter: Model?, expect
 	local maxAboveRim = Config.GetMaxAboveRim(vertical)
 	if not (offset.Y >= -Config.DunkMaxBelowRim and offset.Y <= maxAboveRim) then
 		local tolerance = offset.Y < 0 and Config.DunkMaxBelowRim or maxAboveRim
+		-- A press near the top of a very high jump waits (within the normal input buffer)
+		-- until the player falls into range instead of being rejected outright.
 		local insideBuffer = offset.Y >= -Config.DunkMaxBelowRim - Config.DunkBufferVerticalAllowance
-			and offset.Y <= maxAboveRim + Config.DunkBufferVerticalAllowance
+			and offset.Y <= maxAboveRim + math.max(Config.DunkBufferVerticalAllowance, Config.DunkHighBufferStuds)
 		return string.format("%s (height gap %.1f / %.1f studs).",
 			offset.Y < 0 and "Jump higher" or "Too high above the rim", math.abs(offset.Y), tolerance), insideBuffer,
 			offset.Y < 0 and "TOO_LOW" or "TOO_HIGH"
@@ -83,31 +91,41 @@ end
 
 local function attemptDunk(player: Player): (string?, string?)
 	local character = player.Character
-	local rim = GameplayObjects.FindRim()
-	local expiresAt = os.clock() + Config.DunkInputBufferSeconds
+	local rim = GameplayObjects.FindRim(PlayerService.GetCurrentCourt(player))
+	local requestedAt = os.clock()
+	local expiresAt = requestedAt + Config.DunkInputBufferSeconds
+	local styleId = PlayerService.GetEquippedDunkStyle(player)
 	local lastReason = "Dunk request expired. Press F again near the rim."
 	local lastCode = "BUFFER_EXPIRED"
 	repeat
-		local reason, canBuffer, code = validateAttempt(player, character, rim)
-		if not reason and character and rim then
+		local reason, canBuffer, code = validateAttempt(player, character, rim, styleId)
+		if not reason and character and rim and styleId then
+			local courtId = PlayerService.GetCurrentCourt(player)
 			PlayerService.SetDunkState(player, "Executing")
-			local completed, cancellation = DunkExecution.Run(player, character, rim)
+			local completed, cancellation, trickCash, rating = DunkExecution.Run(player, character, rim, styleId)
 			if not completed then
 				return cancellation, "EXECUTION_CANCELLED"
 			end
 			PlayerService.SetDunkState(player, "Completed")
-			if not PlayerService.RegisterDunk(player) then
+			local registered, cashReward = PlayerService.RegisterDunk(player, styleId, rating)
+			if not registered then
 				return "Player data is not ready.", "PLAYER_NOT_READY"
 			end
 			nextAttempt[player] = os.clock() + Config.DunkCooldown
-			print("[DunkService] " .. player.Name .. " completed a dunk")
-			remotes.DunkResult:FireClient(player, Config.DunkCashReward)
+			local tracked, trackingProblem = pcall(ChallengeService.OnSuccessfulDunk, player, styleId, courtId)
+			if not tracked then warn("[DunkService] Challenge tracking failed: " .. tostring(trackingProblem)) end
+			print("[DunkService] " .. player.Name .. " completed " .. styleId)
+			remotes.DunkResult:FireClient(player, cashReward, nil, styleId, trickCash, rating)
 			return nil, nil
 		end
 		lastReason = reason or lastReason
 		lastCode = code or lastCode
 		if not canBuffer then
 			return reason, code
+		end
+		if code == "TOO_HIGH" then
+			-- Near the apex of a very high jump, wait long enough to fall into range.
+			expiresAt = math.max(expiresAt, requestedAt + Config.DunkHighBufferSeconds)
 		end
 		RunService.Heartbeat:Wait()
 	until os.clock() > expiresAt

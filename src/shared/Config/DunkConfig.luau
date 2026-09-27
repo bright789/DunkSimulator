@@ -3,21 +3,25 @@ local ProgressionConfig = require(script.Parent.ProgressionConfig)
 local DunkConfig = {
 	PickupDistance = 10,
 	PickupCooldown = 0.5,
-	BallDiameter = 2,
+	BallDiameter = 1.5,
 	BallColor = Color3.fromRGB(230, 115, 25),
 	DunkHorizontalDistance = 8,
 	DunkMinimumVertical = 35,
 	DunkMaxBelowRim = 8,
 	DunkMaxAboveRim = 8,
-	DunkMaxEngagementAboveRim = 60,
+	-- Hard cap on how far above the rim a dunk may start. High-Vertical players can start
+	-- at their apex; the Descent phase brings them down into the wind-up.
+	DunkMaxEngagementAboveRim = 120,
 	DunkInputBufferSeconds = 0.5,
 	DunkBufferVerticalAllowance = 3,
+	-- Presses this far above the allowed height keep buffering while the player falls.
+	DunkHighBufferStuds = 45,
+	DunkHighBufferSeconds = 1.1,
 	-- Facing or inward movement qualifies, but clear outward movement never does.
 	DunkMaxFacingAngleDegrees = 110,
 	DunkMaxRetreatSpeed = 3,
 	DunkApproachDirectionEpsilon = 0.1,
 	DunkCooldown = 1,
-	DunkCashReward = 25,
 	FeedbackDuration = 1.5,
 	DebugDunkValidation = false,
 	Execution = {
@@ -35,6 +39,19 @@ local DunkConfig = {
 		NormalizeMaxVelocity = 100,
 		NormalizeTimeoutSeconds = 1.25,
 		OwnershipSettleSeconds = 0.1,
+		-- Rising players keep moving for a moment after F; allow this much overshoot
+		-- above the accepted entry ceiling before cancelling.
+		HandoffOvershootStuds = 12,
+		-- Velocity kept per Heartbeat during the ownership handoff (0 = hard stop).
+		HandoffVelocityDamping = 0.45,
+		-- Descent into the wind-up: seconds = base + drop studs * per-stud, capped.
+		DescentBaseSeconds = 0.22,
+		DescentSecondsPerStud = 0.008,
+		DescentMaxSeconds = 0.7,
+		DescentMaxVelocity = 240,
+		DescentResponsiveness = 120,
+		-- Air-trick combos (how many, which, Cash) live in DunkRewards.Tricks; a combo
+		-- stretches the descent to DunkRewards.ComboSeconds when it needs more air time.
 		AlignmentTimeoutSeconds = 0.75,
 		AlignmentSettleSeconds = 0.08,
 		AlignmentSettleSpeed = 3,
@@ -47,6 +64,13 @@ local DunkConfig = {
 		BallAboveRim = 2,
 		BallBelowRim = 2,
 		RimMovementTolerance = 0.25,
+		-- Rim hang: root this far below the rim, just outside the ring's front edge.
+		HangRootBelowRim = 3.3,
+		HangStandOffPadding = 0.35,
+		MaxHangReach = 1.2,
+		DefaultRimRadius = 1.3,
+		-- Extra room for the raised wind-up position when checking alignment.
+		WindupTolerance = 1,
 		DebugLogging = false,
 	},
 }

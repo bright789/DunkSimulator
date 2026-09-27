@@ -1,103 +1,103 @@
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local Animations = require(ReplicatedStorage.Shared.Config.DunkAnimations)
-local DebugLogging = require(ReplicatedStorage.Shared.Config.DunkConfig).Execution.DebugLogging
+local remotes = ReplicatedStorage.Remotes
 
 local DunkAnimationController = {}
+local readiness = {}
+local characterConnections = {}
+local initialized = false
 
-function DunkAnimationController.Start(humanoid: Humanoid, name: string, onCue)
-	local definition = assert(Animations[name], "Unknown dunk animation: " .. name)
-	local track: AnimationTrack? = nil
-	local animation: Animation? = nil
-	local connections = {}
-	local seen = {}
+local function hasConfiguredAnimation(styleId: string): boolean
+	local definition = Animations[styleId]
+	return type(definition) == "table" and type(definition.AnimationId) == "string"
+		and definition.AnimationId:match("^rbxassetid://[1-9]%d*$") ~= nil
+end
+
+local function trackCharacter(player: Player, character: Model)
+	readiness[player] = { Character = character, Styles = {} }
+	task.spawn(function()
+		local humanoid = character:WaitForChild("Humanoid", 10)
+		if player.Character ~= character or not humanoid or not humanoid:IsA("Humanoid") then return end
+		if not humanoid:FindFirstChildOfClass("Animator") then
+			local animator = Instance.new("Animator")
+			animator.Parent = humanoid
+		end
+	end)
+end
+
+function DunkAnimationController.Init()
+	if initialized then return end
+	initialized = true
+	local function addPlayer(player: Player)
+		characterConnections[player] = { player.CharacterAdded:Connect(function(character)
+			trackCharacter(player, character)
+		end), player.CharacterRemoving:Connect(function(character)
+			local record = readiness[player]
+			if record and record.Character == character then readiness[player] = nil end
+		end) }
+		if player.Character then trackCharacter(player, player.Character) end
+	end
+	Players.PlayerAdded:Connect(addPlayer)
+	Players.PlayerRemoving:Connect(function(player)
+		readiness[player] = nil
+		if characterConnections[player] then
+			for _, connection in characterConnections[player] do connection:Disconnect() end
+		end
+		characterConnections[player] = nil
+	end)
+	for _, player in Players:GetPlayers() do addPlayer(player) end
+
+	remotes.DunkAnimationStatus.OnServerEvent:Connect(function(player, character, styleId, available, ...)
+		if select("#", ...) ~= 0 or typeof(character) ~= "Instance" or character ~= player.Character
+			or type(styleId) ~= "string" or type(available) ~= "boolean"
+			or not hasConfiguredAnimation(styleId) then return end
+		local record = readiness[player]
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if not record or record.Character ~= character or not humanoid
+			or humanoid.RigType ~= Animations[styleId].RigType
+			or not humanoid:FindFirstChildOfClass("Animator") then return end
+		record.Styles[styleId] = available
+	end)
+end
+
+function DunkAnimationController.Start(player: Player, humanoid: Humanoid, styleId: string)
+	local character = humanoid.Parent
+	local record = readiness[player]
+	local useTrack = character == player.Character and record and record.Character == character
+		and record.Styles[styleId] == true and hasConfiguredAnimation(styleId)
+		and humanoid.RigType == Animations[styleId].RigType
+	local startedTrack = useTrack == true
 	local stopped = false
 	local session = {}
 
-	local function cue(marker: string, source: string)
-		if stopped or seen[marker] then
-			return
+	function session.UsingTrack(): boolean
+		if stopped or not useTrack then return false end
+		if readiness[player] ~= record or record.Styles[styleId] ~= true or player.Character ~= character then
+			useTrack = false
+			return false
 		end
-		seen[marker] = true
-		if DebugLogging then
-			print("[DunkAnimation] " .. name .. ": " .. marker .. " (" .. source .. ")")
-		end
-		if onCue then
-			local success, message = pcall(onCue, marker, source)
-			if not success then
-				warn("[DunkAnimation] Presentation callback failed: " .. tostring(message))
-			end
-		end
-	end
-
-	function session.Cue(marker: string)
-		cue(marker, "server timeline")
+		return true
 	end
 
 	function session.FadeOut()
-		if track then
-			track:Stop(definition.FadeOutSeconds)
+		if session.UsingTrack() then
+			remotes.DunkPresentation:FireClient(player, styleId, "AnimationFadeOut", character)
 		end
 	end
 
 	function session.Destroy()
-		if stopped then
-			return
+		if stopped then return end
+		if startedTrack and player.Parent == Players then
+			remotes.DunkPresentation:FireClient(player, styleId, "AnimationStop", character)
 		end
 		stopped = true
-		for _, connection in connections do
-			connection:Disconnect()
-		end
-		if track then
-			track:Stop(0)
-			track:Destroy()
-		end
-		if animation then
-			animation:Destroy()
-		end
 	end
 
-	local assetId = definition.AnimationId
-	if assetId == "" or humanoid.RigType ~= definition.RigType then
-		return session
-	end
-	if typeof(assetId) ~= "string" or not string.match(assetId, "^rbxassetid://[1-9]%d*$") then
-		warn("[DunkAnimation] Configure a real rbxassetid:// ID or leave AnimationId empty; using scripted fallback.")
-		return session
-	end
-
-	local success, message = pcall(function()
-		local animator = humanoid:FindFirstChildOfClass("Animator")
-		if not animator then
-			animator = Instance.new("Animator")
-			animator.Parent = humanoid
-		end
-		animation = Instance.new("Animation")
-		animation.AnimationId = assetId
-		track = animator:LoadAnimation(animation)
-		track.Priority = definition.Priority
-		track.Looped = false
-		for _, marker in definition.Markers do
-			table.insert(connections, track:GetMarkerReachedSignal(marker):Connect(function()
-				cue(marker, "animation marker")
-			end))
-		end
-		track:Play(definition.FadeInSeconds, 1, definition.Speed)
-	end)
-	if not success then
-		warn("[DunkAnimation] Animation unavailable; using scripted fallback: " .. tostring(message))
-		for _, connection in connections do
-			connection:Disconnect()
-		end
-		if track then
-			track:Destroy()
-			track = nil
-		end
-		if animation then
-			animation:Destroy()
-			animation = nil
-		end
-	end
+	remotes.DunkPresentation:FireClient(player, styleId, "AnimationStart", character, startedTrack,
+		Workspace:GetServerTimeNow())
 	return session
 end
 

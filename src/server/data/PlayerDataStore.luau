@@ -2,6 +2,7 @@ local DataStoreService = game:GetService("DataStoreService")
 local RunService = game:GetService("RunService")
 local Config = require(script.Parent.Parent.Config.DataConfig)
 local Schema = require(script.Parent.PlayerDataSchema)
+local Challenges = require(game:GetService("ReplicatedStorage").Shared.Config.ChallengeConfig)
 
 local Store = {}
 local dataStore = nil
@@ -77,6 +78,11 @@ function Store.Write(userId: number, pending, canContinue)
 			updated.Cash = pending.Snapshot.Cash
 			updated.Vertical = pending.Snapshot.Vertical
 			updated.TrainingLevel = pending.Snapshot.TrainingLevel
+			updated.EquippedDunkStyle = pending.Snapshot.EquippedDunkStyle
+			updated.UnlockedCourts = table.clone(pending.Snapshot.UnlockedCourts)
+			updated.CurrentCourt = pending.Snapshot.CurrentCourt
+			updated.VerticalTrainingRemainder = pending.Snapshot.VerticalTrainingRemainder
+			updated.Challenges = Challenges.CopyState(pending.Snapshot.Challenges)
 			updated.Revision = pending.Revision + 1
 			updated.WriteId = pending.WriteId
 			return updated, userIds, metadata
@@ -100,11 +106,27 @@ function Store.ResetStudioData(userId: number, confirmation: string)
 	assert(userId == game:GetService("StudioService"):GetUserId(), "Reset only the signed-in Studio user's solo-test data")
 	assert(confirmation == "RESET " .. tostring(userId), "Confirmation must be RESET followed by your exact UserId")
 	assert(Store.Name() == Config.StudioStoreName and Store.Name() ~= Config.ProductionStoreName, "Reset must use the isolated DEV store")
-	local success, problem = pcall(function()
-		getStore():RemoveAsync(Config.KeyPrefix .. tostring(userId))
+	assert(#game:GetService("Players"):GetPlayers() == 0, "Stop all players before resetting DEV data")
+	local resetRevision = nil
+	local success, updated = pcall(function()
+		return getStore():UpdateAsync(Config.KeyPrefix .. tostring(userId), function(current)
+			if not RunService:IsStudio() or RunService:IsRunning() then
+				return nil
+			end
+			local profile, revision, problem = Schema.Decode(current)
+			assert(profile, "Cannot safely reset invalid DEV profile: " .. tostring(problem))
+			assert(revision + 1 < Config.MaxCash, "DEV profile revision exhausted")
+			local fresh = Schema.Defaults()
+			fresh.Revision = revision + 1
+			resetRevision = fresh.Revision
+			return fresh, { userId }, {}
+		end)
 	end)
-	assert(success, "DEV reset failed: " .. tostring(problem))
-	print(string.format("[DataService] Reset DEV data for player %d. Next join will use new-player defaults.", userId))
+	assert(success, "DEV reset failed: " .. tostring(updated))
+	local profile, revision, problem, repaired = Schema.Decode(updated)
+	assert(profile and not problem and not repaired and revision == resetRevision
+		and Schema.SameProgress(profile, Schema.Defaults()), "DEV reset outcome was not confirmed")
+	print(string.format("[DataService] Reset DEV data for player %d to new-player defaults (revision %d).", userId, revision))
 end
 
 return Store

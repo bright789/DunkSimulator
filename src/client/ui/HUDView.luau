@@ -1,26 +1,29 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("HUDConfig"))
 local UI = require(script.Parent:WaitForChild("UIComponents"))
 local StatFeedback = require(script.Parent:WaitForChild("StatFeedback"))
+local Styles = require(ReplicatedStorage.Shared.Config:WaitForChild("DunkStyles"))
+local Courts = require(ReplicatedStorage.Shared.Config:WaitForChild("CourtConfig"))
+local DunkRewards = require(ReplicatedStorage.Shared.Config:WaitForChild("DunkRewards"))
+local FeedbackConfig = require(ReplicatedStorage.Shared.Config.FeedbackConfig).Stats
 
 local HUDView = {}
 
-local function makeCard(parent: Instance, name: string, prefix: string, order: number, accent: Color3)
+local function makeCard(parent: Instance, name: string, prefix: string, order: number, accent: Color3, pulseScale: number)
 	local card = UI.Panel(parent, name, UDim2.new(1, 0, 0, Config.Layout.CardHeight), UDim2.new())
 	card.LayoutOrder = order
 	local padding = Instance.new("UIPadding")
 	padding.PaddingLeft = UDim.new(0, 14)
 	padding.PaddingRight = UDim.new(0, 14)
 	padding.Parent = card
-	local value = UI.Label(card, "Value", "--", UDim2.new(1, 0, 0, 34), UDim2.fromOffset(0, 6), 28)
+	local value = UI.Label(card, "Value", "--", UDim2.new(1, 0, 0, 34), UDim2.fromOffset(0, 6), 30)
 	value.Font = Config.BoldFont
-	local caption = UI.Label(card, "Caption", name:upper(), UDim2.new(0.48, 0, 0, 18), UDim2.fromOffset(0, 44), 13)
+	value.TextColor3 = accent
+	local caption = UI.Label(card, "Caption", name:upper(), UDim2.new(1, 0, 0, 18), UDim2.fromOffset(0, 44), 13)
 	caption.TextColor3 = Config.Colors.Muted
-	local gain = UI.Label(card, "Gain", "", UDim2.new(0.52, 0, 0, 18), UDim2.new(0.48, 0, 0, 44), 13)
-	gain.Font = Config.BoldFont
-	gain.TextColor3 = accent
-	gain.TextXAlignment = Enum.TextXAlignment.Right
-	return { Value = value, Prefix = prefix, Feedback = StatFeedback.new(gain) }
+	-- Gain badge pops in at the right end of the value row (value is 34 tall at y 6).
+	return { Value = value, Prefix = prefix, Feedback = StatFeedback.new(card, accent, pulseScale, 23) }
 end
 
 function HUDView.new(playerGui: PlayerGui)
@@ -35,7 +38,31 @@ function HUDView.new(playerGui: PlayerGui)
 	dataStatus.AnchorPoint = Vector2.new(0.5, 0)
 	dataStatus.TextXAlignment = Enum.TextXAlignment.Center
 	dataStatus.TextColor3 = Config.Colors.Muted
-	local columnHeight = Config.Layout.CardHeight * 3 + Config.Layout.ProgressHeight + Config.Layout.Gap * 3
+	local capToast = Instance.new("CanvasGroup")
+	capToast.Name = "TrainingCap"
+	capToast.Size = UDim2.fromScale(0.45, 0.11)
+	capToast.Position = UDim2.fromScale(0.5, 0.11)
+	capToast.AnchorPoint = Vector2.new(0.5, 0)
+	capToast.Visible = false
+	capToast.GroupTransparency = 1
+	UI.StylePanel(capToast)
+	capToast.Parent = bounds
+	local capSize = Instance.new("UISizeConstraint")
+	capSize.MaxSize = Vector2.new(390, 82)
+	capSize.Parent = capToast
+	local capHeading = UI.Label(capToast, "Heading", "COURT TRAINING MAXED",
+		UDim2.fromScale(0.92, 0.36), UDim2.fromScale(0.04, 0.08), 17)
+	capHeading.Font = Config.BoldFont
+	capHeading.TextColor3 = Config.Colors.Warning
+	capHeading.TextXAlignment = Enum.TextXAlignment.Center
+	local capDetail = UI.Label(capToast, "Detail", "",
+		UDim2.fromScale(0.92, 0.5), UDim2.fromScale(0.04, 0.45), 12)
+	capDetail.TextWrapped = true
+	capDetail.TextXAlignment = Enum.TextXAlignment.Center
+	local capTween = nil
+	local capTask = nil
+	local columnHeight = Config.Layout.CardHeight * 3 + Config.Layout.ProgressHeight
+		+ Config.Layout.DunksButtonHeight * 2 + Config.Layout.CourtHeaderHeight + Config.Layout.Gap * 6
 	local column = Instance.new("Frame")
 	column.Name = "Stats"
 	column.BackgroundTransparency = 1
@@ -48,17 +75,22 @@ function HUDView.new(playerGui: PlayerGui)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Padding = UDim.new(0, Config.Layout.Gap)
 	layout.Parent = column
+	local courtLabel = UI.Label(column, "CurrentCourt", "COURT  /  --",
+		UDim2.new(1, 0, 0, Config.Layout.CourtHeaderHeight), UDim2.new(), 12)
+	courtLabel.LayoutOrder = 0
+	courtLabel.Font = Config.BoldFont
+	courtLabel.TextColor3 = Config.Colors.Muted
 	local cards = {
-		Cash = makeCard(column, "Cash", "$ ", 1, Config.Colors.Gain),
-		Vertical = makeCard(column, "Vertical", "↑ ", 2, Config.Colors.Accent),
-		TrainingLevel = makeCard(column, "Training", "LVL ", 3, Config.Colors.Accent),
+		Cash = makeCard(column, "Cash", "$ ", 1, Config.Colors.Gain, FeedbackConfig.CashScale),
+		Vertical = makeCard(column, "Vertical", "↑ ", 2, Config.Colors.Accent, FeedbackConfig.VerticalScale),
+		TrainingLevel = makeCard(column, "Training", "LVL ", 3, Config.Colors.Gold, FeedbackConfig.LevelScale),
 	}
 	local progress = UI.Panel(column, "DunkProgress", UDim2.new(1, 0, 0, Config.Layout.ProgressHeight), UDim2.new())
 	progress.LayoutOrder = 4
 	local milestone = Config.Progression
 	local heading = UI.Label(progress, "Heading", milestone.LockedHeading, UDim2.new(1, -28, 0, 16), UDim2.fromOffset(14, 10), 12)
 	heading.TextColor3 = Config.Colors.Accent
-	local title = UI.Label(progress, "Title", milestone.Name, UDim2.new(1, -28, 0, 25), UDim2.fromOffset(14, 29), 20)
+	local title = UI.Label(progress, "Title", "--", UDim2.new(1, -28, 0, 25), UDim2.fromOffset(14, 29), 20)
 	title.Font = Config.BoldFont
 	local detail = UI.Label(progress, "Detail", "--", UDim2.new(1, -28, 0, 18), UDim2.fromOffset(14, 58), 12)
 	detail.TextColor3 = Config.Colors.Muted
@@ -78,9 +110,39 @@ function HUDView.new(playerGui: PlayerGui)
 	fill.BorderSizePixel = 0
 	UI.Round(fill, 3)
 	fill.Parent = track
-	local preview = UI.Label(progress, "Preview", milestone.PreviewHeading .. "  /  " .. milestone.PreviewDetail,
+	local preview = UI.Label(progress, "Preview", "--",
 		UDim2.new(1, -28, 0, 28), UDim2.fromOffset(14, 101), 11)
 	preview.TextColor3 = Config.Colors.Muted
+	local navigation = Instance.new("Frame")
+	navigation.Name = "Navigation"
+	navigation.BackgroundTransparency = 1
+	navigation.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight * 2 + Config.Layout.Gap)
+	navigation.LayoutOrder = 5
+	navigation.Parent = column
+	local dunksButton = Instance.new("TextButton")
+	dunksButton.Name = "Dunks"
+	dunksButton.Size = UDim2.new(0.48, 0, 0, Config.Layout.DunksButtonHeight)
+	dunksButton.LayoutOrder = 5
+	UI.StylePanel(dunksButton)
+	dunksButton.Text = Config.DunkSelection.ButtonText
+	dunksButton.Font = Config.BoldFont
+	dunksButton.TextSize = 14
+	dunksButton.TextColor3 = Config.Colors.Accent
+	dunksButton.Parent = navigation
+	local courtsButton = dunksButton:Clone()
+	courtsButton.Name = "Courts"
+	courtsButton.Text = "COURTS"
+	courtsButton.Position = UDim2.fromScale(0.52, 0)
+	courtsButton.Parent = navigation
+	local challengesButton = dunksButton:Clone()
+	challengesButton.Name = "Challenges"
+	challengesButton.Text = "CHALLENGES"
+	challengesButton.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight)
+	challengesButton.Position = UDim2.fromOffset(0, Config.Layout.DunksButtonHeight + Config.Layout.Gap)
+	challengesButton.Parent = navigation
+	UI.Interactive(dunksButton)
+	UI.Interactive(courtsButton)
+	UI.Interactive(challengesButton)
 	screen.Parent = playerGui
 
 	local function resize()
@@ -91,7 +153,16 @@ function HUDView.new(playerGui: PlayerGui)
 	end
 	local resizeConnection = bounds:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
 	resize()
-	local view = {}
+	local view = { DunksButton = dunksButton, CourtsButton = courtsButton, ChallengesButton = challengesButton }
+
+	function view.SetChallengeBadge(count: number)
+		challengesButton.Text = count > 0 and string.format("CHALLENGES (%d)", count) or "CHALLENGES"
+		challengesButton.TextColor3 = count > 0 and Config.Colors.Gain or Config.Colors.Accent
+	end
+
+	function view.SetCourt(name: string)
+		courtLabel.Text = "COURT  /  " .. name
+	end
 
 	function view.SetDataStatus(status: string?)
 		dataStatus.Visible = status ~= "Ready"
@@ -99,29 +170,66 @@ function HUDView.new(playerGui: PlayerGui)
 			or (status == "Closing" and "Saving Player Data..." or "Loading Player Data...")
 	end
 
+	function view.ShowTrainingCap(courtId: string, cap: number)
+		local court = Courts.Get(courtId)
+		if not court or court.TrainingVerticalCap ~= cap then return end
+		if capTask then task.cancel(capTask); capTask = nil end
+		if capTween then capTween:Cancel(); capTween:Destroy(); capTween = nil end
+		capDetail.Text = string.format("%s Limit: %d Vertical\n%s", court.DisplayName, cap,
+			courtId == Courts.StartingId and "Unlock High School to keep training." or "More courts coming soon.")
+		capToast.GroupTransparency = 1
+		capToast.Visible = true
+		capTween = TweenService:Create(capToast, TweenInfo.new(Config.TrainingCap.FadeSeconds), { GroupTransparency = 0 })
+		capTween:Play()
+		capTask = task.delay(Config.TrainingCap.HoldSeconds, function()
+			capTask = nil
+			if capTween then capTween:Cancel(); capTween:Destroy() end
+			local fade = TweenService:Create(capToast, TweenInfo.new(Config.TrainingCap.FadeSeconds), { GroupTransparency = 1 })
+			capTween = fade
+			fade.Completed:Connect(function()
+				if capTween == fade then capToast.Visible = false; capTween = nil end
+				fade:Destroy()
+			end)
+			fade:Play()
+		end)
+	end
+
 	function view.SetStat(name: string, value: number, previous: number?)
 		local card = cards[name]
 		card.Value.Text = card.Prefix .. UI.Number(value)
 		if previous and value > previous then
-			local change = name == "TrainingLevel" and Config.Feedback.LevelUp
+			local change = name == "TrainingLevel" and FeedbackConfig.LevelUpText
 				or ("+" .. (name == "Cash" and "$" or "") .. UI.Number(value - previous))
 			card.Feedback.Show(change)
 		end
 	end
 
-	function view.SetVertical(vertical: number)
-		local required = math.max(0, milestone.BasicVertical)
-		local unlocked = vertical >= required
+	function view.SetDunkProgress(vertical: number, equippedId: string?)
+		local equipped = Styles.Get(equippedId)
+		local nextStyle = Styles.Get(Styles.NextLocked(vertical))
+		local usable = equipped and Styles.IsUnlocked(equippedId, vertical)
+		local required = nextStyle and nextStyle.RequiredVertical or 0
 		local fraction = required > 0 and math.clamp(vertical / required, 0, 1) or 1
-		heading.Text = unlocked and milestone.UnlockedHeading or milestone.LockedHeading
-		heading.TextColor3 = unlocked and Config.Colors.Gain or Config.Colors.Accent
-		detail.Text = unlocked and milestone.UnlockedDetail
-			or string.format(milestone.ProgressFormat, UI.Number(vertical), UI.Number(required))
+		heading.Text = usable and milestone.EquippedHeading or milestone.LockedHeading
+		heading.TextColor3 = usable and Config.Colors.Gain or Config.Colors.Accent
+		title.Text = usable and equipped.DisplayName or (nextStyle and nextStyle.DisplayName or "--")
+		detail.Text = not nextStyle and milestone.AllUnlocked
+			or (usable and string.format(milestone.NextFormat, nextStyle.DisplayName)
+				or string.format(milestone.RequiredFormat, UI.Number(required)))
+		preview.Text = nextStyle and string.format(milestone.ProgressFormat, UI.Number(vertical), UI.Number(required)) or ""
+		if usable then
+			local earnings = string.format(milestone.RewardFormat,
+				UI.Number(DunkRewards.DunkCash(equipped.Reward, 1, vertical)),
+				(string.format("%.2f", DunkRewards.VerticalMultiplier(vertical)):gsub("%.?0+$", "")))
+			preview.Text = earnings .. (nextStyle and "\n" .. preview.Text or "")
+		end
 		fill.Size = UDim2.fromScale(fraction, 1)
 		fill.BackgroundColor3 = heading.TextColor3
 	end
 
 	function view.Destroy()
+		if capTask then task.cancel(capTask) end
+		if capTween then capTween:Cancel(); capTween:Destroy() end
 		resizeConnection:Disconnect()
 		for _, card in cards do
 			card.Feedback.Destroy()

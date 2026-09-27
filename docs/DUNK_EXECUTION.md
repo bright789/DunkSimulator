@@ -2,7 +2,9 @@
 
 This is the verified execution baseline. [Dunk v0.3](DUNK_PRESENTATION.md) adds smooth facing, early hand-follow gather, and optional animation playback while preserving this entry/reward/cleanup design. Use its additional test checklist and asset authoring guide.
 
-Current entry tuning is documented in [Basic Dunk Assist](BASIC_DUNK_ASSIST.md): an explicit Vertical-35 unlock, eight-stud horizontal radius, eight studs below/progression-scaled height above the rim, 0.5-second buffer, three-stud buffer-only extension, unchanged approach/cooldown checks and +25 Cash. A bounded height-normalization phase precedes the original sequence. Keep the hoop position and Vertical curve; sync Rojo and restart Play without new Studio objects or remotes.
+The fixed 0.30/0.25/0.20-second ball sequence below is the historical Basic v0.2 baseline. Current per-style timings, ball/body paths and v0.2 Game Feel contact cues are configured in `DunkStyles.luau`; see [Dunk Styles](DUNK_STYLES.md) and [Game Feel](GAME_FEEL.md). Entry validation, normalization and completion-only rewards retain this baseline architecture.
+
+Current entry tuning is documented in [Basic Dunk Assist](BASIC_DUNK_ASSIST.md): an explicit Vertical-35 unlock, eight-stud horizontal radius, eight studs below/progression-scaled height above the rim, 0.5-second buffer, three-stud buffer-only extension and unchanged approach/cooldown checks. Neighborhood Basic now pays +$20 only after completion. A bounded height-normalization phase precedes the original sequence. Keep the hoop position and Vertical curve; sync Rojo and restart Play without new Studio objects or remotes.
 
 ## State and Authority
 
@@ -10,7 +12,7 @@ PlayerService stores `DunkState` in private session state and mirrors it to a Pl
 
 DunkService admits requests only in Idle. Attempting includes the existing input buffer and validates possession, actual position, airborne state, life, character, and rim identity. Only a fully valid opportunity enters Executing. No animation starts on F press alone. The same server request remains active throughout execution and can grant only one reward. Cooldown still starts on admission and renews on completion.
 
-TrainingService cancels an existing training session and refuses a new one while the private state is Executing. PlayerService also refuses training rewards in that state. Hold E again after execution to resume training. All other training timing, rewards, Vertical progression, and jump calculations are unchanged.
+TrainingService cancels an existing training session and refuses a new one while the private state is Executing. PlayerService also refuses training progress in that state. Hold E again after execution to resume training. Training timing and jump calculations are unchanged; current per-level efficiency and court bonuses are documented in `EARLY_GAME_REBALANCE.md`.
 
 ## Character Alignment
 
@@ -32,7 +34,7 @@ The assembly split can reset character network ownership. DunkExecution explicit
 
 Each phase checks character, ball, hoop, movement bounds, and timeout every Heartbeat. The server explicitly reaches the below-rim endpoint before continuing. This is scripted visual motion, not free ball physics or rim collision simulation. BasketballService then restores the original held-ball placement, unanchors the ball, and enables its weld. Its begin/end motion methods isolate possession from this visual implementation for future replacement with physics.
 
-The original ball sequence targets 0.75 seconds plus frame scheduling, after server handoff and stable height/horizontal preparation. Only after all phases and cleanup succeed does DunkService transition to Completed and call PlayerService.RegisterDunk once. Cash/count change and `DUNK! / +$25` follow then, never at entry or just because the ball was released. Cancellation, including during the return phase, earns no reward. Vertical is untouched.
+The original Basic ball sequence targets 0.75 seconds plus frame scheduling, after server handoff and stable height/horizontal preparation. Only after all phases and cleanup succeed does DunkService transition to Completed and call PlayerService.RegisterDunk once. Cash/count change and the current Neighborhood Basic `DUNK! / +$20` follow then, never at entry or just because the ball was released. Cancellation, including during the return phase, earns no reward. Vertical is untouched. Other styles use their configured timing.
 
 ## Cleanup
 
@@ -73,7 +75,7 @@ Keep durations positive, the timeout longer than their sum, and force/speed/tole
 
 - [ ] Sync and restart Play with the existing map. Recheck Vertical 30 is locked, 35 is unlocked, and 40/50/75/100 have reliable engagement. Slightly early airborne F still buffers; see the exact Basic Dunk Assist matrix.
 - [ ] After validation, observe bounded height normalization while holding the ball, then horizontal alignment, gather, downward rim pass, and return. No instant teleport or unbounded pulling. The character is never anchored.
-- [ ] Watch Cash and Dunks in server view: unchanged at execution start, exactly +25 Cash/+1 Dunks after the full sequence, unchanged Vertical. Confirm DUNK feedback occurs only at completion.
+- [ ] Watch Cash and Dunks in server view: unchanged at execution start, exactly +$20 Neighborhood Basic Cash/+1 Dunks after the full sequence, unchanged Vertical. Confirm DUNK feedback occurs only at completion.
 - [ ] Hold movement/jump and spam F throughout execution: no competing dunks, duplicate rewards, or control fighting. Walk and jump normally immediately afterward; repeat many dunks.
 - [ ] Inspect the same Humanoid before/after: WalkSpeed, AutoRotate, JumpHeight, JumpPower, and UseJumpPower return to their original values. No DunkAlignment/DunkAlignmentAttachment objects remain; ball is welded, unanchored, and massless again.
 - [ ] Try training during execution with a nearby trainer: no training ticks or Vertical changes. Hold E again afterward: level-based Vertical gains resume, with no training Cash.

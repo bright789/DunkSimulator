@@ -1,6 +1,6 @@
 # Dunk System v0.1
 
-**Historical baseline:** the tuning table and regression distances below describe the pre-assist prototype. Current entry rules and tests are in [Basic Dunk Assist](BASIC_DUNK_ASSIST.md): an explicit Vertical-35 unlock, progression-scaled engagement, and height normalization. The jump curve and +25 completion reward are unchanged; use that guide's current values when playtesting.
+**Historical baseline:** the tuning table and regression distances below describe the pre-assist prototype. Current entry rules and tests are in [Basic Dunk Assist](BASIC_DUNK_ASSIST.md): an explicit Vertical-35 unlock, progression-scaled engagement, and height normalization. The jump curve is unchanged; the current Neighborhood Basic completion reward is +$20 after the early-game rebalance. Use current config values when playtesting.
 
 This document describes the preserved entry rules and Studio setup. Execution and reward timing are now extended by [Dunk v0.2](DUNK_EXECUTION.md): valid entry starts the short scripted sequence; cash and success feedback occur only after full completion and cleanup. Use its checklist for cancellation/control restoration. Keep the playtested hoop position unchanged.
 
@@ -25,7 +25,7 @@ Workspace
 5. Set Rim Size to `4, 0.4, 4`, Anchored to true, CanCollide to false, Color to bright orange (RGB 255, 100, 0), and Material to Neon so the target is easy to see. A flat block is sufficient; a torus is unnecessary.
 6. For the sample floor/spawn above, set Rim Position to `0, 12, -15`. Its center is 12 studs above the floor. Keep a clear approach and ample overhead space. For another floor, add its top elevation to Y. There must be solid ground below the approach, but no platform at rim height.
 7. Save the Studio place separately. Rojo manages the source and the two remotes, not these Workspace objects. Restart Play after creating/replacing the pickup. The rim is resolved on every request.
-8. Press Play, approach the pickup, and press E. Verify an orange ball follows the right hand and `F - Dunk` appears. Walk toward the rim, jump, and press F near the jump apex. A valid dunk displays `DUNK!` and `+$25` for 1.5 seconds.
+8. Press Play, approach the pickup, and press E. Verify an orange ball follows the right hand and the contextual `[F] DUNK` hint appears. Walk toward the rim, jump, and press F near the hoop; the current server-authoritative assist does not require exact apex timing. A completed Neighborhood Basic dunk displays `DUNK!` and `+$20`.
 
 No manual RemoteEvents or custom client scripts are needed in Studio; Rojo supplies them. The basic F-key dunk controller targets keyboard for v0.1. No touch/gamepad dunk binding is implemented yet.
 
@@ -44,10 +44,10 @@ Edit `src/shared/Config/DunkConfig.luau`, sync, and restart Play to reload modul
 | DunkInputBufferSeconds | 0.35 seconds | Maximum server request lifetime while waiting for valid height |
 | DunkBufferVerticalAllowance | 3 studs | Extra height range where an airborne request can wait, never award |
 | DunkCooldown | 1 second | Per-player attempt interval, including failed attempts |
-| DunkCashReward | 25 | Cash per accepted dunk; Vertical stays unchanged |
+| DunkStyles.Definitions.BasicOneHand.Reward | 20 | Cash per completed Basic dunk; current base rewards live in DunkStyles ($20/$35/$60/$100) |
 | FeedbackDuration | 1.5 seconds | Confirmed-success message duration |
 
-Keep distances and timing positive, and cash rewards nonnegative whole numbers. Preserve the current playtested regulation rim position: Vertical 30 cannot reach its dunk zone, approximately 35 is the first basic dunk milestone, and 40+ should become more comfortable. This is a physical threshold, not a stat comparison. The four-stud allowance below the rim is unchanged; only the upper window grows from four to six studs. There is no separate dunk-height stat. The earlier Y = 12 setup is an example, not a calibrated regulation height; do not reposition the existing tested rim using that example.
+Keep distances and timing positive, and cash rewards nonnegative whole numbers. Preserve the current playtested rim position: Vertical 30 cannot perform Basic, while Vertical 35 is the explicit Basic style requirement and normal first practical dunk milestone. Current validation also requires physical airborne proximity; check `BASIC_DUNK_ASSIST.md` and DunkConfig rather than this historical pre-assist window. There is no separate dunk-height stat. The earlier Y = 12 setup is an example, not a calibrated rim height; do not reposition the existing tested rim using that example.
 
 An airborne, ball-possessing player already within the six-stud horizontal radius can press F up to 0.35 seconds before entering the scoring height window. Requests can wait only within three additional vertical studs beyond that window. During the wait, the server samples current positions every Heartbeat. The extra buffer range never awards cash: the root must actually enter the unchanged minimum height and satisfy all checks before expiry. Grounded input is not buffered. Leaving range, landing, death, lost possession, character replacement, or rim removal/replacement cancels the pending attempt. No teleporting or character movement is applied.
 
@@ -64,7 +64,7 @@ Each F press sends an empty RequestDunk message. The server validates every atte
 Keep the same regulation rim, avatar, floor, and gravity throughout these tests. Reach the target Vertical through training, not by editing the display-only leaderstats.
 
 - Vertical 30: try early airborne presses, near-apex presses, and repeated requests from the normal floor. No dunk should succeed unless the avatar actually enters the reach zone; the buffer must not reward an unreachable jump.
-- Vertical 35: jump toward the rim and press F slightly before reaching the old scoring window (within approximately 0.35 seconds). Expect one +25 reward on entering the zone, with Vertical unchanged. Compare centered and slightly off-center approaches inside six studs.
+- Vertical 35: jump toward the rim and press F near the hoop. Expect one +$20 Neighborhood Basic reward only after completed execution, with Vertical unchanged. Compare centered and slightly off-center approaches inside the current configured range.
 - Vertical 40: repeat early, apex, and descending attempts. Dunking should feel more reliable as the avatar spends longer above the minimum height; it must still fail when grounded or outside six studs.
 - Vertical 50: test near/above rim height and descent. The extra two studs above the rim should reduce timing sensitivity, without allowing success while above the expanded window.
 - Press too early to enter the scoring window within 0.35 seconds: no reward. Entering after expiry must require another request once cooldown permits.
@@ -75,7 +75,7 @@ Keep the same regulation rim, avatar, floor, and gravity throughout these tests.
 - [ ] Start with 30 Vertical, 0 Cash, Dunks attribute 0, and no held ball/hint. Output has no script errors.
 - [ ] Press F without a ball: no success message or cash. Pick up once: one ball and the hint appear. Repeated pickup presses never create duplicates.
 - [ ] Inspect the ball: unanchored, welded to the right limb, Massless true, CanCollide/CanTouch/CanQuery false. Walking and jumping remain normal. Test R15 and R6 if both rigs will be supported.
-- [ ] With possession, stand near the rim and press F: no cash or success. Wait at least one second, jump near the rim, and press F near the apex: exactly +25 Cash, Dunks +1, unchanged Vertical, one success message and server log.
+- [ ] With possession, stand near the rim and press F: no cash or success. Wait at least one second, jump near the rim, and press F while airborne: exactly +$20 Neighborhood Basic Cash after completion, Dunks +1, unchanged Vertical, one success message and server log.
 - [ ] Try while horizontally distant, too low, or far above the rim: no reward. Try dead or with the character removed: no reward/errors. Test ground rejection with the rim temporarily lowered to root height, then restore it.
 - [ ] Repeatedly press F quickly: no reward more frequently than the one-second server cooldown. Holding F does not auto-dunk. Wait, then jump/press again: one additional reward and possession retained.
 - [ ] In Studio's CLIENT Command Bar, while near the rim, run `for attempt = 1, 20 do game.ReplicatedStorage.Remotes.RequestDunk:FireServer() end`. At most one attempt can be processed in that burst; no reward if grounded/invalid. Repeat airborne. Supplying fake positions, reward numbers, or success flags as extra arguments must not affect the result.

@@ -35,10 +35,40 @@
         "DunkResult": {
           "$className": "RemoteEvent"
         },
+        "DunkPresentation": {
+          "$className": "RemoteEvent"
+        },
+        "DunkTrick": {
+          "$className": "RemoteEvent"
+        },
+        "SlamTiming": {
+          "$className": "RemoteEvent"
+        },
+        "DunkAnimationStatus": {
+          "$className": "RemoteEvent"
+        },
+        "EquipDunkStyle": {
+          "$className": "RemoteEvent"
+        },
+        "CourtRequest": {
+          "$className": "RemoteEvent"
+        },
+        "CourtState": {
+          "$className": "RemoteEvent"
+        },
         "TrainingUpgradeRequest": {
           "$className": "RemoteEvent"
         },
         "TrainingUpgradeState": {
+          "$className": "RemoteEvent"
+        },
+        "TrainingCapNotice": {
+          "$className": "RemoteEvent"
+        },
+        "ChallengeRequest": {
+          "$className": "RemoteEvent"
+        },
+        "ChallengeState": {
           "$className": "RemoteEvent"
         }
       }

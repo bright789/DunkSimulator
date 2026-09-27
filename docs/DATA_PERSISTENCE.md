@@ -2,24 +2,32 @@
 
 ## What Is Saved
 
-Only Cash, Vertical, and TrainingLevel persist. Existing private PlayerService state remains authoritative during gameplay. Leaderstats, TrainingLevel/DataStatus attributes, and the HUD are display-only mirrors. Ball possession, current dunk execution/state, session dunk count, and map objects are not saved.
+Cash, Vertical, TrainingLevel, EquippedDunkStyle, UnlockedCourts, CurrentCourt, VerticalTrainingRemainder and one-time Challenges persist. Existing private PlayerService state remains authoritative; leaderstats, display attributes and HUD are mirrors only. Ball possession, dunk execution/state, court-transition state, session dunk count and map objects are not saved. Court Bonuses and Dunk Challenges extend the existing lifecycle without bypassing its safety rules; see `COURT_BONUSES.md` and `DUNK_CHALLENGES.md`.
 
-New-player defaults come directly from ProgressionConfig.StartingCash/StartingVertical and UpgradeConfig.StartingLevel, currently 0 / 30 / 1. A successful read returning no record creates a new profile; a failed read never does.
+New-player defaults come from ProgressionConfig, UpgradeConfig, DunkStyles, CourtConfig and ChallengeConfig: Cash 0, Vertical 30, TrainingLevel 1, intended BasicOneHand selection, Neighborhood unlocked/selected, fractional training remainder 0, and seven unclaimed challenge entries. Basic remains locked until 35. A successful read returning no record creates a new profile; a failed read never does.
 
 Example record after its first successful save (field order is irrelevant):
 
 ```lua
 {
-    SchemaVersion = 1,
+    SchemaVersion = 5,
     Cash = 425,
     Vertical = 63,
     TrainingLevel = 4,
+    EquippedDunkStyle = "Tomahawk",
+    UnlockedCourts = { Neighborhood = true },
+    CurrentCourt = "Neighborhood",
+    VerticalTrainingRemainder = 0.45,
+    Challenges = {
+        basic_dunker_1 = { Progress = 3, Completed = false },
+        -- The other six configured challenge IDs are also present.
+    },
     Revision = 1,
     WriteId = "server-generated-write-guid",
 }
 ```
 
-Revision/WriteId are persistence bookkeeping, not new progression. There are no speculative inventory, court, style, or rebirth fields. Existing unknown fields, DataStore key metadata, and associated UserIds are retained when updating a record.
+Revision/WriteId are persistence bookkeeping. There are no speculative inventory/rebirth fields or redundant style-unlock booleans. Court unlocks are different: they persist a purchase entitlement, not a Vertical-derived style. Existing unknown unrelated fields, key metadata and UserIds are retained on update.
 
 ## Configuration and Names
 
@@ -30,7 +38,8 @@ All persistence settings are in `src/server/Config/DataConfig.luau`, which is no
 | ProductionStoreName | `DunkSimulator_PlayerData_v1` |
 | StudioStoreName | `DunkSimulator_PlayerData_DEV_v1` |
 | KeyPrefix | `Player_` followed by immutable UserId |
-| SchemaVersion | 1 |
+| SchemaVersion | 5 (same existing store names/keys) |
+| PrioritySaveCooldownSeconds | 10 (court unlock/claim requests share the existing worker) |
 | AutosaveSeconds / jitter | 90 + random 0-10 seconds per player |
 | MaxAttempts | 4 per pending operation |
 | Retry delays | 1, 2, 4 seconds + random 0-0.5 seconds |
@@ -46,12 +55,12 @@ Studio always selects the DEV name with RunService:IsStudio(); live servers sele
 
 1. DataService registers a private Loading session and a display-only DataStatus attribute. There is no writable default runtime state or leaderstats yet.
 2. PlayerDataStore requests the UserId key using uncached GetAsync, protected by pcall, bounded retries, and backoff.
-3. PlayerDataSchema inspects the root/schema/revision. Unversioned or version-0 records migrate to v1. Unknown future versions, unsupported migration paths, non-table roots, and corrupt revision metadata fail closed rather than being overwritten.
-4. Missing/non-finite/non-numeric individual progression fields use canonical defaults. Finite numbers are floored and clamped: Cash to 0..MaxCash; Vertical to StartingVertical..MaxVertical; TrainingLevel to StartingLevel..the configured upgrade table length. Other valid fields are preserved. A single concise repair warning is emitted.
-5. PlayerService initializes its existing private state from the validated values, then publishes leaderstats and TrainingLevel. DataService marks Ready. Its private status, not the attribute, controls readiness.
-6. The existing character immediately receives the unchanged jump calculation; CharacterAdded handles a later spawn and every respawn. Training reads the loaded private TrainingLevel and upgrade affordability reads loaded private Cash.
+3. PlayerDataSchema inspects root/schema/revision. Legacy records migrate through v1 -> v2 (intended BasicOneHand selection) -> v3 (Neighborhood-only unlocks/selection) -> v4 (fractional training remainder 0) -> v5 (default challenge records). Cash/Vertical/TrainingLevel, style selection and court state are preserved. Invalid styles recover to highest unlocked style or Basic if none; Basic remains unusable below 35. Court sanitation retains known IDs with exact true values, always restores Neighborhood and falls back there for invalid/locked CurrentCourt. Unsupported future schemas, non-table roots and corrupt revisions still fail closed.
+4. Missing/non-finite/non-numeric individual progression fields use canonical defaults. Finite numbers are floored and clamped: Cash to 0..MaxCash; Vertical to StartingVertical..MaxVertical; TrainingLevel to StartingLevel..the configured upgrade table length. Fractional carry must be finite and in `[0, 1)`; it is normalized to millionths, with malformed values repaired to zero. Challenge progress is integer and capped at each configured target; claim flags require exact `true`. Other valid fields are preserved. A single concise repair warning is emitted.
+5. PlayerService initializes private state and display mirrors. DataService marks Ready and defers the court-placement callback. Its private status, not the attribute, controls data readiness; progression also waits for CourtTransition to finish.
+6. Existing/later characters receive the unchanged loaded-Vertical jump calculation. CourtTravel places each living character at saved CurrentCourt after readiness checks, and restores that court on respawn. Training reads private TrainingLevel; affordability reads private Cash.
 
-Training, purchases, dunk rewards, and pickup already call PlayerService.IsReady; that method now also checks the private persistence session. Loading/failed/closing sessions cannot mutate progression. The HUD keeps `--` placeholders until real values arrive and shows only a small loading/status label; its layout/style is unchanged. No new remotes or HUD queries are introduced.
+Training, purchases, dunk rewards and pickup call PlayerService.IsReady. Loading/failed/closing sessions and court transitions cannot mutate progression. HUD placeholders wait for replicated values; court UI reads a server snapshot, never DataStore. Persistence itself exposes no client save/load/reset remote.
 
 If loading fails or exceeds its deadline, progression remains unavailable and the player receives a friendly kick. No fallback/default save is enqueued. A late response after departure, timeout, or shutdown is ignored. Loading existing players uses separate tasks, so a slow request does not block other service initialization.
 
@@ -59,7 +68,7 @@ These are storage integrity bounds, not changes to the jump curve or training ba
 
 ## Saving and Shutdown
 
-DataService asks PlayerService for a non-yielding copy of only its private persistent fields. DataStore is not the live database. Training/dunks/purchases update memory and replication without making any DataStore request.
+DataService asks PlayerService for a non-yielding copy of private persistent progression, including a fresh unlock map, fractional training remainder and challenge records. DataStore is not the live database. Training/dunks/TrainingLevel purchases/equips update memory and replication without per-action DataStore traffic. A significant court purchase requests a priority snapshot through DataService.RequestSave (ten-second admission interval) and the same serialized worker; there is no direct CourtService DataStore access or second racing writer. Feedback confirms the runtime purchase, not guaranteed immediate durability.
 
 - Autosave captures roughly every 90-100 seconds, staggered per player; no per-tick saves.
 - PlayerRemoving changes Ready to Closing **before** taking the final snapshot. No further rewards/purchases can change it. Character resources/state are cleaned after the save worker ends or its close deadline expires.
@@ -87,29 +96,36 @@ Revision protection assumes all writers follow this protocol. External/manual ed
 1. Save a backup of your place. Prefer publishing a separate private **test experience**, not testing against a public production experience.
 2. Publish the test place to Roblox so it belongs to an experience.
 3. Open **File > Experience Settings** (called **Game Settings** in some Studio layouts), select **Security**, turn on **Enable Studio Access to API Services**, and save. Code does not enable this setting for you.
-4. Stop Play, start/connect Rojo, sync the current source, then start a fresh **solo Play** session. No map rebuild, object migration, or remote changes are required.
+4. Stop Play, connect/sync Rojo and complete the one-time HighSchoolBuilder setup in `COURT_PROGRESSION.md`, then start a fresh **solo Play** session. Persistence itself does not create maps or modify Studio settings.
 5. In server Output, verify `Loading player <UserId> (DunkSimulator_PlayerData_DEV_v1)` followed by `data ready`. If API access is unavailable, expect retries and a safe kick rather than playable defaults.
 6. Use the same signed-in Roblox account and the same experience/store for each persistence test. Solo Play normally uses your account's positive UserId. Record the actual ID from server Output. Studio multi-client dummy IDs are not reliable substitutes for real-account rejoin tests.
 
 Studio API access can reach the same backing stores as live servers if code selects the same name. The separate DEV name is an additional guard, not permission to enable access carelessly in your live experience. Roblox recommends using a separate test version. See [official Studio DataStore access instructions](https://create.roblox.com/docs/cloud-services/data-stores#enable-studio-access).
 
-## Safe DEV Reset
+## Fresh Player Playtest / Safe DEV Reset
 
-This deliberately destructive helper resets **only the signed-in Studio user's positive solo-test UserId in the configured DEV store**. It is not a gameplay button or RemoteEvent and cannot run in production or during Play. No reset occurs automatically.
+This deliberately destructive helper resets **only the signed-in Studio user's positive solo-test UserId in the configured DEV store**. It is not a gameplay button or RemoteEvent and cannot run in production or during Play. No reset occurs automatically. Studio uses `DunkSimulator_PlayerData_DEV_v1`; published servers use `DunkSimulator_PlayerData_v1`.
 
-1. During solo Play, record your actual UserId from the load log and confirm it is positive. The server Command Bar can also run `print(game:GetService("Players"):GetPlayers()[1].UserId)`.
-2. Stop Play and all other Studio test sessions/windows using this DEV profile. Wait for pending saves to finish. A remote session still running could write after a reset; the helper cannot discover all other Studio processes.
-3. In Studio **edit mode**, open View > Command Bar. Replace the numeric example with that exact UserId and intentionally run:
+1. Publish a separate private test experience and enable Studio API access as described above. During solo Play, record your positive UserId from the `[DataService] Loading player ...` log. Finish the previous session and check for its final `Saved player ...` message.
+2. **Stop Play** and close all other Studio test sessions/windows using this DEV profile. Wait for the previous session to stop before resetting. Do not run the command in Play, a client Command Bar, or a published game.
+3. In Studio **edit mode**, open View > Command Bar and run `print(game:GetService("StudioService"):GetUserId())`. Confirm that this positive ID matches the solo-test ID you recorded. Then run this exact reset command; it targets only that signed-in account:
 
 ```lua
-local userId = 12345678
-require(game:GetService("ServerScriptService").data.PlayerDataStore)
-    .ResetStudioData(userId, "RESET " .. tostring(userId))
+local userId = game:GetService("StudioService"):GetUserId(); require(game:GetService("ServerScriptService").data.PlayerDataStore).ResetStudioData(userId, "RESET " .. tostring(userId))
 ```
 
-4. Check for the DEV reset confirmation, then start a fresh solo Play. Defaults should load.
+4. Require a `[DataService] Reset DEV data for player ... to new-player defaults` confirmation with no error and the matching ID. **Start a new solo Play session**. Wait for `DataStatus = Ready` before interacting.
+5. Before training or dunking, verify the HUD shows Cash 0, Vertical 30 and Training Level 1. COURTS shows Neighborhood selected/unlocked and High School locked; DUNKS shows Basic One-Hand as the intended default selection but still locked until 35 Vertical. CHALLENGES shows zero dunk-count progress and no claims; Rising Athlete and Above the Rim show 30/60 and 30/120 progress from starting Vertical. All other fields come from the current `PlayerDataSchema.Defaults()`.
 
-The helper checks IsStudio, not IsRunning, exact confirmation, store separation, and that the target matches StudioService:GetUserId. That last API is restricted to an elevated Studio context such as the editor Command Bar; do not invoke this helper from a normal runtime Script. Wrong users, dummy/negative IDs, live servers, and Play mode are rejected. It uses protected RemoveAsync once; a failed reset is reported, not treated as success. Never remove its guards or put it behind a client remote. [StudioService API](https://create.roblox.com/docs/reference/engine/classes/StudioService#GetUserId).
+For a full saved-profile check immediately after joining, switch the Command Bar to **Server** and run:
+
+```lua
+local player = game:GetService("Players"):GetPlayers()[1]; local server = game:GetService("ServerScriptService"); local schema = require(server.data.PlayerDataSchema); local profile, _, problem = require(server.data.PlayerDataStore).Load(player.UserId, function() return true end); assert(profile, problem); print("Fresh profile:", schema.SameProgress(profile, schema.Defaults()), "Cash", profile.Cash, "Vertical", profile.Vertical, "TrainingLevel", profile.TrainingLevel, "Remainder", profile.VerticalTrainingRemainder, "Court", profile.CurrentCourt, "Style", profile.EquippedDunkStyle)
+```
+
+`Fresh profile: true` immediately after joining confirms the reset **stored record** matches canonical new-player defaults: Cash, Vertical, TrainingLevel, zero fractional remainder, default style, Neighborhood-only unlock/selection and zero/unclaimed challenge records. Once the player is Ready, ChallengeService evaluates Vertical 30 into 30/60 and 30/120 runtime progress; neither challenge is completed or claimed. That derived progress may appear in later saves, so the stored-record equality check is intended for the first moments before gameplay/autosave. Play normally afterward and rejoin to confirm saving has resumed.
+
+The helper checks `IsStudio`, edit mode, no active players, exact confirmation, distinct DEV/production names, and that the target matches `StudioService:GetUserId`. That API needs the elevated editor Command Bar context; do not invoke this helper from a runtime Script. The helper uses `UpdateAsync` to replace the DEV record with `PlayerDataSchema.Defaults()` and advance its revision. A stale pre-reset session using the prior revision cannot overwrite the fresh record through normal saves, including autosave, PlayerRemoving or BindToClose. An invalid/unsupported profile revision or unconfirmed write fails instead of claiming success. Other Studio windows cannot be stopped by this helper, so close them first. Never remove these guards or put this behind a client remote. [StudioService API](https://create.roblox.com/docs/reference/engine/classes/StudioService#GetUserId).
 
 ## Manual Acceptance Tests A-H
 
@@ -130,7 +146,7 @@ Run the guarded DEV reset, then solo Play. Wait for Ready. Expect Cash 0, Vertic
 
 ### B — Save Progression
 
-Train to dunk capability, earn at least $100 through completed dunks, and buy Level 2. Train again and complete another dunk so all three fields differ from defaults. Release training, wait for execution to finish, and record exact values. Stop Play/leave, verify a `Saved player <UserId>` confirmation with no final-save warning, then rejoin using the same account. Compare all three fields exactly; do not train/dunk before recording the restored values. Repeat after waiting 100 seconds to exercise autosave as well as leave saving.
+Train to dunk capability, earn at least $250 through completed dunks or claimed challenges, and buy Level 2. Train again and complete another dunk so all three fields differ from defaults. Release training, wait for execution to finish, and record exact values. Stop Play/leave, verify a `Saved player <UserId>` confirmation with no final-save warning, then rejoin using the same account. Compare all three fields exactly; do not train/dunk before recording the restored values. Repeat after waiting 100 seconds to exercise autosave as well as leave saving.
 
 ### C — Jump Restoration
 
@@ -138,11 +154,11 @@ Reach a noticeably higher Vertical (for example 70), leave/save, and rejoin. Con
 
 ### D — TrainingLevel Restoration
 
-Leave with Level 2 or higher, save, and rejoin. Record Vertical, hold E for one successful tick, then release. The increase must equal `UpgradeConfig.Levels[TrainingLevel].VerticalGain`, not the starting gain. Cash must remain unchanged.
+Leave with Level 2 or higher, save, and rejoin. Record Vertical and `VerticalTrainingRemainder`, then count multiple valid ticks. Expected total progress is `1.00 × UpgradeConfig.Levels[TrainingLevel].TrainingMultiplier × current court TrainingMultiplier × tick count`, plus the starting remainder. Visible Vertical increases by the whole part; the new remainder carries the fraction. For Level 2 at Neighborhood with zero starting carry, ten ticks add 11 whole Vertical. Cash must remain unchanged.
 
 ### E — Cash Restoration
 
-Earn enough Cash for your next configured upgrade (at Level 2, the next costs $300). Record Cash/level, leave/save, and rejoin. Approach UpgradeStation and open its UI: the restored balance must be recognized. Buy once; Cash falls by the configured price, level increases once, Vertical does not change from the purchase, and HUD updates normally. Leave/rejoin again to confirm the post-purchase values persisted. Insufficient Cash still rejects purchases.
+Earn enough Cash for your next configured upgrade (at Level 2, the next costs $600). Record Cash/level, leave/save, and rejoin. Approach UpgradeStation and open its UI: the restored balance must be recognized. Buy once; Cash falls by the configured price, level increases once, Vertical does not change from the purchase, and HUD updates normally. Leave/rejoin again to confirm the post-purchase values persisted. Insufficient Cash still rejects purchases.
 
 ### F — Respawn
 
@@ -162,4 +178,4 @@ Additional release checks: delayed loading before/after character spawn; leaving
 
 Local validation passes: Rojo build/project JSON and source packaging, compilation of all 25 source Luau files, diff checks, and 18 isolated Luau checks executing the actual persistence/PlayerService modules with mocked Roblox services. They cover new/default/load gating, restored jump/gains/purchases, exact reload, failed/late loads, schema sanitation, final snapshot serialization, ambiguous/transient write retry, stale revision rejection, bounded shutdown, respawn/late character creation, extra-field preservation, display-mirror tampering, concurrent player isolation, and reset guards. The temporary official Luau CLI/harness live outside the repository; no game dependency or test framework was added.
 
-These are not live DataStore or Studio rendering tests. Complete A-H against Roblox before treating this milestone as playtested. Remaining limitations: no full session lock, no guarantee during outages/crashes, possible loss since the last confirmed save, no recovery/admin dashboard, and no migration beyond the explicit legacy-to-v1 path. No gameplay/economy tuning, dunk changes, or map rebuild are part of this milestone.
+The original persistence, Dunk Styles and Court Progression milestones are user-playtested. Court Bonuses introduced v4 for fractional carry; Dunk Challenges adds v5 for one-time progress and claims. The current isolated challenge regression checks cover v4 migration, capped progress, overlap, duplicate claims and rejoin; see `DUNK_CHALLENGES.md` for Studio acceptance. Local checks are not live DataStore/rendering tests. Remaining limitations: no full session lock, no guarantee during outages/crashes, possible loss since the last confirmed save and no recovery dashboard. Migration is now legacy -> v1 -> v2 -> v3 -> v4 -> v5; store names must not change or existing records would appear missing.

@@ -1,22 +1,41 @@
 local Players = game:GetService("Players")
 local StarterGui = game:GetService("StarterGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Feedback = require(script.Parent:WaitForChild("FeedbackController"))
 
 local player = Players.LocalPlayer
 local HUDView = require(script.Parent:WaitForChild("ui"):WaitForChild("HUDView"))
 local view = HUDView.new(player:WaitForChild("PlayerGui"))
+local DunkStylesController = require(script.Parent:WaitForChild("DunkStylesController"))
+local styles = DunkStylesController.new(player, view)
+local CourtsController = require(script.Parent:WaitForChild("CourtsController"))
+local courts = CourtsController.new(player, view)
+local ChallengesController = require(script.Parent:WaitForChild("ChallengesController"))
+local challenges = ChallengesController.new(player, view)
 local connections = {}
 local previous = {}
 local destroyed = false
+
+table.insert(connections, ReplicatedStorage.Remotes:WaitForChild("TrainingCapNotice").OnClientEvent:Connect(function(courtId, cap)
+	if typeof(courtId) == "string" and typeof(cap) == "number" then
+		view.ShowTrainingCap(courtId, cap)
+	end
+end))
 
 local function update(name: string, value)
 	if typeof(value) ~= "number" or value ~= value or math.abs(value) == math.huge then
 		return
 	end
 	view.SetStat(name, value, previous[name])
-	previous[name] = value
-	if name == "Vertical" then
-		view.SetVertical(value)
+	if name == "Vertical" and previous[name] and value > previous[name] and player:GetAttribute("DataStatus") == "Ready" then
+		Feedback.Training()
 	end
+	courts.SetStat(name, value)
+	challenges.SetStat(name, value)
+	if name == "Vertical" then
+		styles.SetVertical(value, previous[name])
+	end
+	previous[name] = value
 end
 
 local function updateTrainingLevel()
@@ -75,5 +94,8 @@ script.Destroying:Connect(function()
 			task.cancel(thread)
 		end
 	end
+	styles.Destroy()
+	courts.Destroy()
+	challenges.Destroy()
 	view.Destroy()
 end)

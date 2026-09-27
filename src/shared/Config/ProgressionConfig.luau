@@ -5,11 +5,16 @@ local ProgressionConfig = {
 		StationName = "VerticalTrainer",
 		TickIntervalSeconds = 0.5,
 		MaxDistance = 10,
+		BaseProgressPerTick = 1,
+		CapFeedbackCooldownSeconds = 2,
 	},
 	Jump = {
 		ReferenceVertical = 30,
 		BaseHeight = 7.2,
 		Exponent = 1.7,
+		-- Workspace gravity set at server start. Humanoid.JumpHeight keeps every
+		-- Vertical level's apex the same; higher gravity only shortens hang time.
+		Gravity = 285,
 	},
 }
 

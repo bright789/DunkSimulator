@@ -1,0 +1,560 @@
+<roblox version="4">
+  <Item class="Folder" referent="0">
+    <Properties>
+      <string name="Name">DunkAnimationBuilder</string>
+    </Properties>
+    <Item class="ModuleScript" referent="1">
+      <Properties>
+        <string name="Name">Build</string>
+        <string name="Source"><![CDATA[local RunService = game:GetService("RunService")
+local ServerStorage = game:GetService("ServerStorage")
+local Workspace = game:GetService("Workspace")
+local Config = require(script.Parent.Config)
+local Poses = require(script.Parent.Poses)
+
+local Build = {}
+
+local hierarchy = {
+	Name = "HumanoidRootPart",
+	Children = {
+		{
+			Name = "LowerTorso",
+			Children = {
+				{
+					Name = "UpperTorso",
+					Children = {
+						{ Name = "Head" },
+						{ Name = "RightUpperArm", Children = { { Name = "RightLowerArm", Children = { { Name = "RightHand" } } } } },
+						{ Name = "LeftUpperArm", Children = { { Name = "LeftLowerArm", Children = { { Name = "LeftHand" } } } } },
+					},
+				},
+				{ Name = "RightUpperLeg", Children = { { Name = "RightLowerLeg", Children = { { Name = "RightFoot" } } } } },
+				{ Name = "LeftUpperLeg", Children = { { Name = "LeftLowerLeg", Children = { { Name = "LeftFoot" } } } } },
+			},
+		},
+	},
+}
+
+local jointNames = {}
+local function collectJoints(node)
+	if node.Name ~= "HumanoidRootPart" then
+		jointNames[node.Name] = true
+	end
+	for _, child in node.Children or {} do
+		collectJoints(child)
+	end
+end
+collectJoints(hierarchy)
+
+local function findUnique(parent, name)
+	local found = nil
+	for _, child in parent:GetChildren() do
+		if child.Name == name then
+			assert(not found, "Duplicate " .. parent:GetFullName() .. "." .. name)
+			found = child
+		end
+	end
+	return found
+end
+
+local function checkTimeline(style, frames)
+	assert(type(frames) == "table" and #frames >= 7, style.Id .. " needs a complete pose timeline")
+	assert(frames[1].Time == 0 and frames[#frames].Time == style.Duration, style.Id .. " has an unexpected duration")
+	-- Clips end reaching up; the client rim grab takes over from the last pose.
+	local times = {}
+	local animatedJoints = {}
+	local lastTime = -1
+	local rightArmMin = math.huge
+	local rightArmMax = -math.huge
+	local leftArmMax = -math.huge
+	for _, frame in frames do
+		assert(type(frame.Time) == "number" and frame.Time > lastTime and frame.Time <= style.Duration, style.Id .. " frame times must increase")
+		lastTime = frame.Time
+		times[frame.Time] = true
+		for jointName, angles in frame.Joints or {} do
+			assert(jointNames[jointName], style.Id .. " has unknown R15 joint " .. tostring(jointName))
+			assert(typeof(angles) == "Vector3", style.Id .. " joint " .. jointName .. " needs degree angles")
+			for _, value in { angles.X, angles.Y, angles.Z } do
+				assert(value == value and math.abs(value) <= 180, style.Id .. " joint " .. jointName .. " has invalid rotation")
+			end
+			if angles.Magnitude > 0 then animatedJoints[jointName] = true end
+			if jointName == "RightUpperArm" then
+				rightArmMin = math.min(rightArmMin, angles.X)
+				rightArmMax = math.max(rightArmMax, angles.X)
+			elseif jointName == "LeftUpperArm" then
+				leftArmMax = math.max(leftArmMax, angles.X)
+			end
+		end
+	end
+	for jointName in jointNames do
+		assert(animatedJoints[jointName], style.Id .. " does not animate " .. jointName)
+	end
+	for markerName, markerTime in style.Markers do
+		assert(times[markerTime], style.Id .. " marker " .. markerName .. " needs a frame at " .. tostring(markerTime))
+	end
+	assert(rightArmMax >= 160, style.Id .. " lacks a high overhead cock before the slam")
+	if style.Id == "TwoHandPower" then
+		assert(leftArmMax >= 160, "TwoHandPower needs both arms loaded overhead")
+	elseif style.Id == "Tomahawk" then
+		assert(rightArmMin <= -140, "Tomahawk needs the ball cocked far behind the head")
+	elseif style.Id == "Windmill" then
+		assert(rightArmMin <= -150, "Windmill needs a full backward arm circle")
+	end
+end
+
+local function addPose(parent, node, anglesByJoint, easingDirection)
+	local pose = Instance.new("Pose")
+	pose.Name = node.Name
+	pose.Weight = node.Name == "HumanoidRootPart" and 0 or 1
+	pose.CFrame = CFrame.Angles(
+		math.rad((anglesByJoint[node.Name] or Vector3.zero).X),
+		math.rad((anglesByJoint[node.Name] or Vector3.zero).Y),
+		math.rad((anglesByJoint[node.Name] or Vector3.zero).Z)
+	)
+	pose.EasingStyle = Enum.PoseEasingStyle.Cubic
+	pose.EasingDirection = easingDirection
+	if parent:IsA("Keyframe") then
+		parent:AddPose(pose)
+	else
+		parent:AddSubPose(pose)
+	end
+	for _, child in node.Children or {} do
+		addPose(pose, child, anglesByJoint, easingDirection)
+	end
+end
+
+local function generate(style)
+	local frames = Poses[style.Id]
+	checkTimeline(style, frames)
+	local sequence = Instance.new("KeyframeSequence")
+	sequence.Name = style.Id
+	sequence.Loop = false
+	sequence.Priority = Enum.AnimationPriority.Action
+	sequence:SetAttribute("BuilderOwner", Config.Owner)
+	local success, problem = pcall(function()
+		local activeAngles = {}
+		for _, frameData in frames do
+			if frameData.Reset then
+				activeAngles = {}
+			end
+			for jointName, angles in frameData.Joints or {} do
+				activeAngles[jointName] = angles
+			end
+			local keyframe = Instance.new("Keyframe")
+			keyframe.Time = frameData.Time
+			keyframe.Name = string.format("%.2f", frameData.Time)
+			addPose(keyframe, hierarchy, activeAngles, frameData.EasingDirection)
+			for markerName, markerTime in style.Markers do
+				if markerTime == frameData.Time then
+					local marker = Instance.new("KeyframeMarker")
+					marker.Name = markerName
+					keyframe:AddMarker(marker)
+				end
+			end
+			sequence:AddKeyframe(keyframe)
+		end
+	end)
+	if not success then
+		sequence:Destroy()
+		error(problem)
+	end
+	return sequence
+end
+
+function Build.Run()
+	assert(RunService:IsStudio() and not RunService:IsRunning(), "DunkAnimationBuilder is Studio EDIT MODE only; stop Play first.")
+	local previousFolder = findUnique(ServerStorage, Config.OutputName)
+	assert(not previousFolder or previousFolder:IsA("Folder"), "ServerStorage." .. Config.OutputName .. " must be a Folder")
+	local previousById = {}
+	if previousFolder then
+		for _, style in Config.Styles do
+			local previous = findUnique(previousFolder, style.Id)
+			assert(not previous or (previous:IsA("KeyframeSequence") and previous:GetAttribute("BuilderOwner") == Config.Owner),
+				"Refusing to replace unowned " .. previousFolder:GetFullName() .. "." .. style.Id)
+			previousById[style.Id] = previous
+		end
+	end
+	local stage = Instance.new("Folder")
+	local generated = {}
+	local buildOk, buildError = pcall(function()
+		for _, style in Config.Styles do
+			local sequence = generate(style)
+			sequence.Parent = stage
+			generated[style.Id] = sequence
+		end
+	end)
+	if not buildOk then
+		stage:Destroy()
+		error(buildError)
+	end
+	local folder = previousFolder or Instance.new("Folder")
+	if not previousFolder then
+		folder.Name = Config.OutputName
+		folder:SetAttribute("BuilderOwner", Config.Owner)
+		folder.Parent = ServerStorage
+	end
+	local installed = {}
+	local installOk, installError = pcall(function()
+		for _, style in Config.Styles do
+			local previous = previousById[style.Id]
+			if previous then previous.Parent = nil end
+			local sequence = generated[style.Id]
+			sequence.Parent = folder
+			table.insert(installed, sequence)
+		end
+	end)
+	if not installOk then
+		for _, sequence in installed do sequence.Parent = stage end
+		for _, style in Config.Styles do
+			local previous = previousById[style.Id]
+			if previous then previous.Parent = folder end
+		end
+		if not previousFolder then folder:Destroy() end
+		stage:Destroy()
+		error(installError)
+	end
+	for _, style in Config.Styles do
+		local previous = previousById[style.Id]
+		if previous then previous:Destroy() end
+		print(string.format("[DunkAnimationBuilder] %s: %d keyframes, %.2fs, Gather/Slam/Release/Recover.",
+			style.Id, #Poses[style.Id], style.Duration))
+	end
+	stage:Destroy()
+	print("[DunkAnimationBuilder] Generated editable R15 clips at " .. folder:GetFullName() .. ". No animations were published.")
+	return folder
+end
+
+function Build.CopyToRig(rig: Model)
+	assert(RunService:IsStudio() and not RunService:IsRunning(), "DunkAnimationBuilder is Studio EDIT MODE only; stop Play first.")
+	assert(typeof(rig) == "Instance" and rig:IsA("Model") and rig:IsDescendantOf(Workspace),
+		"Pass an R15 preview rig from Workspace.")
+	local humanoid = rig:FindFirstChildOfClass("Humanoid")
+	assert(humanoid and humanoid.RigType == Enum.HumanoidRigType.R15, "Preview rig must use R15.")
+	local animationSaves = rig:FindFirstChild("AnimSaves")
+	-- Current Studio stores Clip Editor saves under ServerStorage.RBX_ANIMSAVES.<RigName>,
+	-- which may be a Folder or an ObjectValue depending on the Studio version.
+	assert(animationSaves and animationSaves:IsA("ObjectValue") and animationSaves.Value
+		and (animationSaves.Value:IsA("Folder") or animationSaves.Value:IsA("ObjectValue"))
+		and animationSaves.Value:IsDescendantOf(ServerStorage),
+		"Save a blank clip in Clip Editor first to initialize this rig's AnimSaves folder.")
+	local folder = assert(findUnique(ServerStorage, Config.OutputName), "Run Build.Run() to generate clips first.")
+	assert(folder:IsA("Folder"), "GeneratedDunkAnimations must be a Folder.")
+	local copies = {}
+	for _, style in Config.Styles do
+		local source = assert(findUnique(folder, style.Id), "Missing generated clip " .. style.Id)
+		assert(source:IsA("KeyframeSequence") and source:GetAttribute("BuilderOwner") == Config.Owner,
+			"Refusing to copy an unowned generated clip " .. style.Id)
+		if not findUnique(animationSaves.Value, style.Id) then
+			table.insert(copies, source:Clone())
+		end
+	end
+	for _, copy in copies do
+		copy.Parent = animationSaves.Value
+	end
+	print(string.format("[DunkAnimationBuilder] Copied %d clips to %s; existing preview saves preserved.",
+		#copies, rig:GetFullName()))
+	return animationSaves.Value
+end
+
+return Build
+]]></string>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript" referent="2">
+      <Properties>
+        <string name="Name">Config</string>
+        <string name="Source"><![CDATA[-- Clip timing matches DunkStyles: Slam = GatherSeconds, Release = Gather + Finish.
+-- Each clip ends with the arm reaching up so the client rim grab takes over.
+local Config = {
+	Owner = "DunkAnimationBuilderV1",
+	OutputName = "GeneratedDunkAnimations",
+	Styles = {
+		{
+			Id = "BasicOneHand",
+			Duration = 0.52,
+			Markers = { Gather = 0, Slam = 0.30, Release = 0.42, Recover = 0.48 },
+		},
+		{
+			Id = "TwoHandPower",
+			Duration = 0.64,
+			Markers = { Gather = 0, Slam = 0.42, Release = 0.54, Recover = 0.60 },
+		},
+		{
+			Id = "Tomahawk",
+			Duration = 0.76,
+			Markers = { Gather = 0, Slam = 0.55, Release = 0.66, Recover = 0.72 },
+		},
+		{
+			Id = "Windmill",
+			Duration = 0.92,
+			Markers = { Gather = 0, Slam = 0.70, Release = 0.82, Recover = 0.88 },
+		},
+	},
+}
+
+return Config
+]]></string>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript" referent="3">
+      <Properties>
+        <string name="Name">Poses</string>
+        <string name="Source"><![CDATA[-- R15 dunk poses in degrees (pitch, yaw, roll) per joint. Signs, measured in Studio:
+--   LowerTorso/UpperTorso/Head pitch: + leans back, - leans forward
+--   UpperArm/UpperLeg pitch: + swings the limb forward/up (over 90 is overhead)
+--   LowerArm pitch: + bends the elbow; LowerLeg pitch: - bends the knee
+--   Foot pitch: - points the toes; UpperArm roll: right + / left - moves the arm outward
+-- Values beyond +/-180 are written as the equivalent angle (e.g. -165 = arm cocked
+-- behind the head). Joints omitted from a frame keep their previous angle.
+local function degrees(pitch, yaw, roll)
+	return Vector3.new(pitch, yaw, roll)
+end
+
+local function frame(time, joints, easingDirection)
+	return {
+		Time = time,
+		Joints = joints,
+		EasingDirection = easingDirection or Enum.PoseEasingDirection.InOut,
+	}
+end
+
+local IN = Enum.PoseEasingDirection.In
+local OUT = Enum.PoseEasingDirection.Out
+
+return {
+	-- Quick one-hand rise, cock high over the head, snap down, reach for the rim.
+	BasicOneHand = {
+		frame(0, {
+			LowerTorso = degrees(-8, 0, 0), UpperTorso = degrees(-10, 0, 0), Head = degrees(6, 0, 0),
+			RightUpperArm = degrees(40, 0, 10), RightLowerArm = degrees(85, 0, 0), RightHand = degrees(-10, 0, 0),
+			LeftUpperArm = degrees(30, 0, -20), LeftLowerArm = degrees(40, 0, 0), LeftHand = degrees(-5, 0, 0),
+			RightUpperLeg = degrees(35, 0, 4), RightLowerLeg = degrees(-55, 0, 0), RightFoot = degrees(-15, 0, 0),
+			LeftUpperLeg = degrees(55, 0, -4), LeftLowerLeg = degrees(-80, 0, 0), LeftFoot = degrees(-20, 0, 0),
+		}),
+		frame(0.12, {
+			LowerTorso = degrees(-2, 0, 0), UpperTorso = degrees(2, 0, 0), Head = degrees(8, 0, 0),
+			RightUpperArm = degrees(120, 0, 15), RightLowerArm = degrees(60, 0, 0),
+			LeftUpperArm = degrees(70, 0, -35), LeftLowerArm = degrees(30, 0, 0),
+			RightUpperLeg = degrees(20, 0, 4), RightLowerLeg = degrees(-35, 0, 0), RightFoot = degrees(-25, 0, 0),
+			LeftUpperLeg = degrees(75, 0, -4), LeftLowerLeg = degrees(-100, 0, 0), LeftFoot = degrees(-25, 0, 0),
+		}, OUT),
+		frame(0.26, {
+			LowerTorso = degrees(4, 0, 0), UpperTorso = degrees(14, 0, 0), Head = degrees(12, 0, 0),
+			RightUpperArm = degrees(170, 0, 10), RightLowerArm = degrees(35, 0, 0), RightHand = degrees(-25, 0, 0),
+			LeftUpperArm = degrees(95, 0, -50), LeftLowerArm = degrees(20, 0, 0),
+			RightUpperLeg = degrees(-10, 0, 4), RightLowerLeg = degrees(-70, 0, 0),
+			LeftUpperLeg = degrees(60, 0, -4), LeftLowerLeg = degrees(-90, 0, 0),
+		}),
+		frame(0.30, {
+			UpperTorso = degrees(10, 0, 0),
+			RightUpperArm = degrees(178, 0, 6), RightLowerArm = degrees(15, 0, 0),
+		}),
+		frame(0.36, {
+			LowerTorso = degrees(-6, 0, 0), UpperTorso = degrees(-18, 0, 0), Head = degrees(-5, 0, 0),
+			RightUpperArm = degrees(140, 0, 8), RightLowerArm = degrees(8, 0, 0), RightHand = degrees(35, 0, 0),
+			LeftUpperArm = degrees(60, 0, -40), LeftLowerArm = degrees(30, 0, 0),
+			RightUpperLeg = degrees(45, 0, 4), RightLowerLeg = degrees(-40, 0, 0),
+			LeftUpperLeg = degrees(50, 0, -4), LeftLowerLeg = degrees(-60, 0, 0),
+		}, IN),
+		frame(0.42, {
+			UpperTorso = degrees(-12, 0, 0),
+			RightUpperArm = degrees(155, 0, 6), RightLowerArm = degrees(10, 0, 0), RightHand = degrees(10, 0, 0),
+			LeftUpperArm = degrees(40, 0, -45), LeftLowerArm = degrees(25, 0, 0),
+			RightUpperLeg = degrees(30, 0, 4), RightLowerLeg = degrees(-50, 0, 0),
+			LeftUpperLeg = degrees(40, 0, -4), LeftLowerLeg = degrees(-55, 0, 0),
+		}, OUT),
+		frame(0.48, {
+			LowerTorso = degrees(-2, 0, 0), UpperTorso = degrees(-8, 0, 0), Head = degrees(4, 0, 0),
+			RightUpperArm = degrees(165, 0, 4), RightLowerArm = degrees(8, 0, 0),
+			LeftUpperArm = degrees(32, 0, -40), LeftLowerArm = degrees(20, 0, 0),
+		}),
+		frame(0.52, {
+			UpperTorso = degrees(-6, 0, 0),
+			RightUpperArm = degrees(168, 0, 4),
+			RightUpperLeg = degrees(25, 0, 4), RightLowerLeg = degrees(-40, 0, 0), RightFoot = degrees(-20, 0, 0),
+			LeftUpperLeg = degrees(30, 0, -4), LeftLowerLeg = degrees(-45, 0, 0), LeftFoot = degrees(-20, 0, 0),
+		}),
+	},
+
+	-- Deep two-hand load behind the head, heels to the back, violent crunch.
+	TwoHandPower = {
+		frame(0, {
+			LowerTorso = degrees(-12, 0, 0), UpperTorso = degrees(-15, 0, 0), Head = degrees(10, 0, 0),
+			RightUpperArm = degrees(45, 0, -15), RightLowerArm = degrees(95, 0, 0), RightHand = degrees(-10, 0, 0),
+			LeftUpperArm = degrees(45, 0, 15), LeftLowerArm = degrees(95, 0, 0), LeftHand = degrees(-10, 0, 0),
+			RightUpperLeg = degrees(45, 0, 5), RightLowerLeg = degrees(-75, 0, 0), RightFoot = degrees(-15, 0, 0),
+			LeftUpperLeg = degrees(45, 0, -5), LeftLowerLeg = degrees(-75, 0, 0), LeftFoot = degrees(-15, 0, 0),
+		}),
+		frame(0.14, {
+			LowerTorso = degrees(-4, 0, 0), UpperTorso = degrees(0, 0, 0), Head = degrees(8, 0, 0),
+			RightUpperArm = degrees(110, 0, -10), RightLowerArm = degrees(70, 0, 0),
+			LeftUpperArm = degrees(110, 0, 10), LeftLowerArm = degrees(70, 0, 0),
+			RightUpperLeg = degrees(60, 0, 5), RightLowerLeg = degrees(-95, 0, 0),
+			LeftUpperLeg = degrees(60, 0, -5), LeftLowerLeg = degrees(-95, 0, 0),
+		}, OUT),
+		frame(0.30, {
+			LowerTorso = degrees(8, 0, 0), UpperTorso = degrees(22, 0, 0), Head = degrees(14, 0, 0),
+			RightUpperArm = degrees(180, 0, -5), RightLowerArm = degrees(80, 0, 0), RightHand = degrees(-25, 0, 0),
+			LeftUpperArm = degrees(180, 0, 5), LeftLowerArm = degrees(80, 0, 0), LeftHand = degrees(-25, 0, 0),
+			RightUpperLeg = degrees(10, 0, 6), RightLowerLeg = degrees(-120, 0, 0), RightFoot = degrees(-30, 0, 0),
+			LeftUpperLeg = degrees(10, 0, -6), LeftLowerLeg = degrees(-120, 0, 0), LeftFoot = degrees(-30, 0, 0),
+		}),
+		frame(0.42, {
+			UpperTorso = degrees(15, 0, 0),
+			RightUpperArm = degrees(175, 0, -4), RightLowerArm = degrees(25, 0, 0),
+			LeftUpperArm = degrees(175, 0, 4), LeftLowerArm = degrees(25, 0, 0),
+		}),
+		frame(0.48, {
+			LowerTorso = degrees(-12, 0, 0), UpperTorso = degrees(-28, 0, 0), Head = degrees(-8, 0, 0),
+			RightUpperArm = degrees(130, 0, -4), RightLowerArm = degrees(5, 0, 0), RightHand = degrees(40, 0, 0),
+			LeftUpperArm = degrees(130, 0, 4), LeftLowerArm = degrees(5, 0, 0), LeftHand = degrees(40, 0, 0),
+			RightUpperLeg = degrees(70, 0, 5), RightLowerLeg = degrees(-50, 0, 0),
+			LeftUpperLeg = degrees(70, 0, -5), LeftLowerLeg = degrees(-50, 0, 0),
+		}, IN),
+		frame(0.54, {
+			UpperTorso = degrees(-20, 0, 0),
+			RightUpperArm = degrees(150, 0, -4), RightLowerArm = degrees(10, 0, 0), RightHand = degrees(10, 0, 0),
+			LeftUpperArm = degrees(150, 0, 4), LeftLowerArm = degrees(10, 0, 0), LeftHand = degrees(10, 0, 0),
+			RightUpperLeg = degrees(50, 0, 5), RightLowerLeg = degrees(-60, 0, 0),
+			LeftUpperLeg = degrees(50, 0, -5), LeftLowerLeg = degrees(-60, 0, 0),
+		}, OUT),
+		frame(0.60, {
+			LowerTorso = degrees(-4, 0, 0), UpperTorso = degrees(-10, 0, 0), Head = degrees(4, 0, 0),
+			RightUpperArm = degrees(165, 0, -4), LeftUpperArm = degrees(165, 0, 4),
+			RightUpperLeg = degrees(35, 0, 5), RightLowerLeg = degrees(-50, 0, 0),
+			LeftUpperLeg = degrees(35, 0, -5), LeftLowerLeg = degrees(-50, 0, 0),
+		}),
+		frame(0.64, {
+			UpperTorso = degrees(-8, 0, 0),
+			RightUpperArm = degrees(168, 0, -4), LeftUpperArm = degrees(168, 0, 4),
+		}),
+	},
+
+	-- Ball cocked far behind the head with a big back arch, then a whip down.
+	Tomahawk = {
+		frame(0, {
+			LowerTorso = degrees(-10, 0, 0), UpperTorso = degrees(-12, 0, 0), Head = degrees(8, 0, 0),
+			RightUpperArm = degrees(50, 0, 10), RightLowerArm = degrees(90, 0, 0), RightHand = degrees(-10, 0, 0),
+			LeftUpperArm = degrees(45, 0, -15), LeftLowerArm = degrees(80, 0, 0), LeftHand = degrees(-5, 0, 0),
+			RightUpperLeg = degrees(40, 0, 4), RightLowerLeg = degrees(-65, 0, 0), RightFoot = degrees(-15, 0, 0),
+			LeftUpperLeg = degrees(55, 0, -4), LeftLowerLeg = degrees(-85, 0, 0), LeftFoot = degrees(-20, 0, 0),
+		}),
+		frame(0.15, {
+			LowerTorso = degrees(-2, 0, 0), UpperTorso = degrees(0, 0, 0),
+			RightUpperArm = degrees(130, 0, 15), RightLowerArm = degrees(70, 0, 0),
+			LeftUpperArm = degrees(100, 0, -25), LeftLowerArm = degrees(40, 0, 0),
+			RightUpperLeg = degrees(20, 0, 4), RightLowerLeg = degrees(-40, 0, 0),
+			LeftUpperLeg = degrees(80, 0, -4), LeftLowerLeg = degrees(-105, 0, 0),
+		}, OUT),
+		frame(0.32, {
+			LowerTorso = degrees(6, -6, 0), UpperTorso = degrees(20, -12, 4), Head = degrees(10, 6, 0),
+			RightUpperArm = degrees(180, 0, 20), RightLowerArm = degrees(95, 0, 0), RightHand = degrees(-30, 0, 0),
+			LeftUpperArm = degrees(120, 0, -40), LeftLowerArm = degrees(15, 0, 0),
+			RightUpperLeg = degrees(-15, 0, 4), RightLowerLeg = degrees(-95, 0, 0), RightFoot = degrees(-30, 0, 0),
+			LeftUpperLeg = degrees(70, 0, -4), LeftLowerLeg = degrees(-95, 0, 0),
+		}),
+		frame(0.46, {
+			LowerTorso = degrees(10, -8, 0), UpperTorso = degrees(30, -16, 5), Head = degrees(14, 8, 0),
+			RightUpperArm = degrees(-165, 0, 25), RightLowerArm = degrees(110, 0, 0), RightHand = degrees(-35, 0, 0),
+			LeftUpperArm = degrees(130, 0, -50), LeftLowerArm = degrees(10, 0, 0),
+			RightUpperLeg = degrees(-25, 0, 4), RightLowerLeg = degrees(-110, 0, 0),
+			LeftUpperLeg = degrees(60, 0, -4), LeftLowerLeg = degrees(-80, 0, 0),
+		}),
+		frame(0.55, {
+			UpperTorso = degrees(10, -6, 2),
+			RightUpperArm = degrees(175, 0, 15), RightLowerArm = degrees(60, 0, 0),
+		}, IN),
+		frame(0.60, {
+			LowerTorso = degrees(-12, 4, 0), UpperTorso = degrees(-25, 8, -2), Head = degrees(-10, -4, 0),
+			RightUpperArm = degrees(130, 0, 10), RightLowerArm = degrees(10, 0, 0), RightHand = degrees(45, 0, 0),
+			LeftUpperArm = degrees(40, 0, -60), LeftLowerArm = degrees(30, 0, 0),
+			RightUpperLeg = degrees(55, 0, 4), RightLowerLeg = degrees(-45, 0, 0),
+			LeftUpperLeg = degrees(40, 0, -4), LeftLowerLeg = degrees(-50, 0, 0),
+		}, IN),
+		frame(0.66, {
+			LowerTorso = degrees(-6, 0, 0), UpperTorso = degrees(-18, 0, 0), Head = degrees(-4, 0, 0),
+			RightUpperArm = degrees(150, 0, 8), RightLowerArm = degrees(10, 0, 0), RightHand = degrees(10, 0, 0),
+		}, OUT),
+		frame(0.72, {
+			LowerTorso = degrees(-2, 0, 0), UpperTorso = degrees(-8, 0, 0), Head = degrees(4, 0, 0),
+			RightUpperArm = degrees(165, 0, 6), RightLowerArm = degrees(8, 0, 0),
+			LeftUpperArm = degrees(35, 0, -45), LeftLowerArm = degrees(20, 0, 0),
+			RightUpperLeg = degrees(30, 0, 4), RightLowerLeg = degrees(-45, 0, 0),
+			LeftUpperLeg = degrees(30, 0, -4), LeftLowerLeg = degrees(-45, 0, 0),
+		}),
+		frame(0.76, {
+			UpperTorso = degrees(-6, 0, 0),
+			RightUpperArm = degrees(168, 0, 4),
+		}),
+	},
+
+	-- Full backward arm circle (front, hip, behind, over the top) with a split kick.
+	Windmill = {
+		frame(0, {
+			LowerTorso = degrees(-10, 0, 0), UpperTorso = degrees(-10, 0, 0), Head = degrees(6, 0, 0),
+			RightUpperArm = degrees(50, 0, 10), RightLowerArm = degrees(80, 0, 0), RightHand = degrees(-10, 0, 0),
+			LeftUpperArm = degrees(45, 0, -15), LeftLowerArm = degrees(80, 0, 0), LeftHand = degrees(-5, 0, 0),
+			RightUpperLeg = degrees(45, 0, 4), RightLowerLeg = degrees(-70, 0, 0), RightFoot = degrees(-15, 0, 0),
+			LeftUpperLeg = degrees(50, 0, -4), LeftLowerLeg = degrees(-80, 0, 0), LeftFoot = degrees(-20, 0, 0),
+		}),
+		frame(0.12, {
+			UpperTorso = degrees(-15, 8, 0),
+			RightUpperArm = degrees(30, 0, 25), RightLowerArm = degrees(15, 0, 0),
+			LeftUpperArm = degrees(60, 0, -30), LeftLowerArm = degrees(30, 0, 0),
+			RightUpperLeg = degrees(70, 0, 4), RightLowerLeg = degrees(-100, 0, 0),
+			LeftUpperLeg = degrees(60, 0, -4), LeftLowerLeg = degrees(-100, 0, 0),
+		}, OUT),
+		frame(0.26, {
+			LowerTorso = degrees(0, -4, 0), UpperTorso = degrees(-5, -8, 0),
+			RightUpperArm = degrees(-40, 0, 30), RightLowerArm = degrees(10, 0, 0),
+			LeftUpperArm = degrees(90, 0, -40), LeftLowerArm = degrees(20, 0, 0),
+		}),
+		frame(0.40, {
+			LowerTorso = degrees(3, -6, 0), UpperTorso = degrees(8, -14, 3), Head = degrees(8, 6, 0),
+			RightUpperArm = degrees(-110, 0, 35), RightLowerArm = degrees(10, 0, 0),
+			LeftUpperArm = degrees(120, 0, -45), LeftLowerArm = degrees(15, 0, 0),
+			RightUpperLeg = degrees(20, 0, 4), RightLowerLeg = degrees(-110, 0, 0), RightFoot = degrees(-30, 0, 0),
+			LeftUpperLeg = degrees(80, 0, -4), LeftLowerLeg = degrees(-90, 0, 0),
+		}),
+		frame(0.54, {
+			LowerTorso = degrees(6, -4, 0), UpperTorso = degrees(18, -10, 3), Head = degrees(12, 4, 0),
+			RightUpperArm = degrees(-160, 0, 25), RightLowerArm = degrees(15, 0, 0), RightHand = degrees(-25, 0, 0),
+			LeftUpperArm = degrees(110, 0, -55), LeftLowerArm = degrees(15, 0, 0),
+		}),
+		frame(0.64, {
+			UpperTorso = degrees(15, -4, 0),
+			RightUpperArm = degrees(180, 0, 15), RightLowerArm = degrees(15, 0, 0),
+		}),
+		frame(0.70, {
+			UpperTorso = degrees(10, 0, 0),
+			RightUpperArm = degrees(165, 0, 10), RightLowerArm = degrees(10, 0, 0),
+		}, IN),
+		frame(0.76, {
+			LowerTorso = degrees(-12, 0, 0), UpperTorso = degrees(-26, 4, 0), Head = degrees(-8, 0, 0),
+			RightUpperArm = degrees(125, 0, 8), RightLowerArm = degrees(5, 0, 0), RightHand = degrees(45, 0, 0),
+			LeftUpperArm = degrees(35, 0, -55), LeftLowerArm = degrees(30, 0, 0),
+			RightUpperLeg = degrees(60, 0, 4), RightLowerLeg = degrees(-45, 0, 0),
+			LeftUpperLeg = degrees(45, 0, -4), LeftLowerLeg = degrees(-55, 0, 0),
+		}, IN),
+		frame(0.82, {
+			LowerTorso = degrees(-6, 0, 0), UpperTorso = degrees(-18, 0, 0), Head = degrees(-4, 0, 0),
+			RightUpperArm = degrees(150, 0, 8), RightLowerArm = degrees(10, 0, 0), RightHand = degrees(10, 0, 0),
+		}, OUT),
+		frame(0.88, {
+			LowerTorso = degrees(-2, 0, 0), UpperTorso = degrees(-8, 0, 0), Head = degrees(4, 0, 0),
+			RightUpperArm = degrees(165, 0, 6), RightLowerArm = degrees(8, 0, 0),
+			LeftUpperArm = degrees(32, 0, -45), LeftLowerArm = degrees(20, 0, 0),
+			RightUpperLeg = degrees(30, 0, 4), RightLowerLeg = degrees(-45, 0, 0),
+			LeftUpperLeg = degrees(30, 0, -4), LeftLowerLeg = degrees(-45, 0, 0),
+		}),
+		frame(0.92, {
+			UpperTorso = degrees(-6, 0, 0),
+			RightUpperArm = degrees(168, 0, 4),
+		}),
+	},
+}
+]]></string>
+      </Properties>
+    </Item>
+  </Item>
+</roblox>

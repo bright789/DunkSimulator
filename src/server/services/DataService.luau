@@ -178,6 +178,7 @@ local function addPlayer(player: Player)
 		warn(string.format("[DataService] Repaired missing/invalid fields for player %d; valid fields retained.", player.UserId))
 	end
 	print(string.format("[DataService] Player %d data ready.", player.UserId))
+	if adapter.Ready then task.defer(adapter.Ready, player) end
 end
 
 function DataService.IsReady(player: Player): boolean
@@ -226,6 +227,16 @@ function DataService.Init(playerAdapter)
 			end
 		end
 	end)
+end
+
+function DataService.RequestSave(player: Player): boolean
+	local session = sessions[player.UserId]
+	if not DataService.IsReady(player) or os.clock() < (session.NextPrioritySave or 0) then
+		return false
+	end
+	session.NextPrioritySave = os.clock() + Config.PrioritySaveCooldownSeconds
+	queueSnapshot(session)
+	return true
 end
 
 return DataService

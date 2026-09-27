@@ -18,31 +18,33 @@ Status: jump curve implemented using existing Roblox movement controls; Studio p
 
 Build one server-validated dunk interaction on one court, including clear success and failure feedback.
 
-Status: Dunk v0.1 entry detection and v0.2 execution are playtested. Dunk v0.3 adds smooth approach-facing, hand-follow gather, and optional BasicOneHand animation/marker architecture with a scripted fallback. Presentation testing and authoring/publishing the first real asset remain; see `DUNK_PRESENTATION.md`. Multiple dunk types and physical rim/net interactions remain deferred.
+Status: core dunk, forgiving assist and high-Vertical normalization are playtested. Dunk Styles v0.1 implementation/local validation is complete: Basic One-Hand (35), Two-Hand Power (50), Tomahawk (75) and Windmill (110), persistent selection, derived unlocks and distinct procedural paths/temporary R15 IK. Rojo build, 31 Luau compilations and 88 isolated mocked checks pass. The new Studio matrix remains; visual/physics acceptance is not claimed from local checks. See `DUNK_STYLES.md`. Uploaded animation polish, further styles and physical rim/net interactions remain deferred.
 
 ## 4. Training and Progression
 
 Add a small training loop and server-owned attribute progression that improves dunk capability.
 
-Status: continuous hold-to-train and its jump curve are playtested. Upgrade v0.1 selects +1 through +10 Vertical per existing 0.5-second tick from private TrainingLevel, and removes training Cash. Level 1/2 gains and no-training-Cash behavior are confirmed by playtesting. Sessions still end on release or invalid conditions; see `VERTICAL_PROTOTYPE.md` and `TRAINING_UPGRADES.md`.
+Status: continuous hold-to-train and its jump curve are playtested. Upgrade v0.1 applies 1.00 base progress times private TrainingLevel efficiency (1.00x–2.00x) and removes training Cash. Court Bonuses v0.1 now multiplies that base gain by the validated court bonus, carrying/persisting fractions. The older hold/no-training-Cash behavior is playtested; the new Level 2 efficiency and overall pacing require a fresh-player test. Sessions still end on release or invalid conditions; see `VERTICAL_PROTOTYPE.md`, `TRAINING_UPGRADES.md` and `COURT_BONUSES.md`.
 
 ## 5. Economy and Shop
 
 Introduce validated cash rewards, upgrade pricing, and a simple server-authoritative shop flow.
 
-Status: Training Level v0.1 is implemented and its core flow is playtested: station/UI, $100 Level 2 purchase, Cash deduction, improved training gains, insufficient-Cash rejection, and exactly +$25 per completed dunk. Levels 1-10 retain configured prices, authoritative atomic deductions, validated sessions, and replay/spam protection; persistence now saves the existing level and Cash. Broader security/max-level testing and economy balancing remain. No generic shop, inventory, or other upgrade categories are implemented. See `TRAINING_UPGRADES.md`.
+Status: Training Level v0.1 is implemented with a previously playtested functional purchase/training flow; the new $250 Level 2 price, 1.10x efficiency and $20 Neighborhood Basic payout require fresh balance playtesting. The style base rewards are Two-Hand $35, Tomahawk $60 and Windmill $100; Court Bonuses v0.1 now multiplies completed rewards at High School while keeping these base values unchanged. Levels 1-10 retain configured prices, authoritative atomic deductions, validated sessions, and replay/spam protection; persistence saves the level and Cash. Broader security/max-level testing and economy balancing remain. No generic shop, inventory, or other upgrade categories are implemented. See `TRAINING_UPGRADES.md` and `COURT_BONUSES.md`.
+
+Early-Game Progression Rebalance v0.1 updates the config-driven efficiency, prices, style thresholds/rewards, High School gate and seven challenge targets/rewards after a fresh-player run cleared current content in about three minutes. The new tables build locally, but **pacing is not verified**. A fresh DEV reset and an unassisted, timed Studio playtest are required before accepting any 1–50 minute target; see `PROGRESSION_PLAYTEST.md`. That rebalance added no timers or tick-speed changes; court-specific training limits were added later as a separate milestone.
 
 ## 6. Multiple Courts
 
-Current prerequisite: Court #1, The Neighborhood, its entrance cleanup, Workspace.Gameplay migration, and UpgradeStation integration are working and playtested. The builder optionally dresses the separate Studio-owned UpgradeStation. Normal Workspace Rojo ownership and the logical Rim remain unchanged; see `NEIGHBORHOOD_V01.md`. No second court or unlock system is implemented.
+Status: Court Progression v0.1 and High School Gym are playtested. High School now requires 75 Vertical and a permanent one-time $6,000 purchase, aligning its gate with the Neighborhood training cap. Court Bonuses v0.1 adds configured 1.25x dunk Cash and 1.15x fractional Vertical training there; Neighborhood remains 1.00x. The COURTS menu presents both bonuses. Explicit per-court resolution still shares gameplay services and the editor-only builder leaves Workspace outside Rojo ownership. Court Training Caps v0.1 limits gains to 75/150 in the two courts without lowering existing stats; live Studio acceptance and a fresh timed progression run remain. See `COURT_TRAINING_CAPS.md` and `PROGRESSION_PLAYTEST.md`. Further courts remain deferred.
 
-Add unlockable courts with distinct requirements, reward structures, and difficulty.
+Environment rule for future indoor courts (College, Pro Arena and beyond): visual roofs and overhead dressing must not cap superhuman Vertical. High School's builder now makes its ceiling and doorway header non-collidable while preserving its indoor appearance; live Vertical 60/100/150/200+ and above-roof camera checks are still required after rebuilding in Studio. Do not change jump progression to compensate for map collision.
 
 ## 7. Player Data Persistence
 
 Implement versioned player profiles, DataStore save/load behavior, migration strategy, and recovery handling.
 
-Status: Data Persistence v0.1 implementation and local validation complete: native server-only schema-v1 Cash/Vertical/TrainingLevel, canonical defaults, readiness gating, safe load failure, serialized retryable saves, autosave/leave/shutdown lifecycle, isolated DEV store, and guarded Studio reset. Rojo packaging, Luau compilation, and isolated mocked lifecycle/failure checks pass. **Live Roblox DataStore acceptance tests A-H remain required; this is not yet marked fully playtested.** Revision conflict detection is not full session locking; see `DATA_PERSISTENCE.md` for limits and follow-up work.
+Status: core persistence, Dunk Styles and Court Progression are playtested. Court Bonuses introduced schema v4's fractional training remainder; Dunk Challenges v0.1 extends it to v5 with seven bounded one-time progress/claim entries. v4 profiles migrate without resetting existing progression. Vertical objectives evaluate loaded Vertical; historical dunk counts start at zero. Court unlocks and challenge claims request throttled priority saves through the existing worker; ordinary progress uses autosave/leave/shutdown. Store namespaces and conflict handling remain unchanged, without full session locks. Studio challenge persistence/claim-spam tests are still required before release. See `DATA_PERSISTENCE.md`, `COURT_BONUSES.md`, and `DUNK_CHALLENGES.md`.
 
 ## 8. Competitive Events
 
@@ -54,9 +56,27 @@ Polish onboarding, progression visibility, menus, feedback, accessibility, and p
 
 Status: Custom HUD v0.1 is playtested with replicated Cash/Vertical/Training Level, Basic Dunk progress, reusable gain feedback, contextual dunk hint, and matching dunk/upgrade presentation. PlayerList is hidden locally without removing leaderstats. The current high-Vertical dunk validation/execution improvements are preserved, not retuned. Persistence adds only a lightweight loading/status label and late-data binding; its integration needs the new acceptance tests. See `CUSTOM_HUD.md`. Mobile controls and a full menu framework remain deferred.
 
+Dunk Challenges v0.1 implementation adds a compact CHALLENGES panel, claimable badge, locked-style/court previews, and separate completion/claimed-reward presentations. Local build/syntax validation is complete; seven-objective playtests, saved-state migration, and claim-spam testing remain in Studio. Daily/repeatable challenges and a general quest framework remain deferred. See `DUNK_CHALLENGES.md`.
+
 ## 10. Audio, VFX, and Polish
 
 Add impactful animation, sound, VFX, court presentation, and performance-focused polish.
+
+Status: Game Feel & Juice v0.1 code adds server-confirmed, style-weighted dunk impact; brief client camera/FOV response; restrained local rim burst; reusable stat, unlock, arrival, and interaction feedback. Audio categories/volumes are configured but silent until real, licensed IDs are supplied. Local Luau/Rojo validation passes; Studio visual/comfort/performance testing and actual audio authoring remain. See `GAME_FEEL.md`. Uploaded animation assets, music, and advanced VFX remain deferred.
+
+Game Feel & Juice v0.2 implementation adds style-specific post-validation gather/slam/recovery timing, larger Tomahawk/Windmill ball paths, transient R15 torso/arm IK, gentle root lift/dip, per-style local camera anticipation, and a restrained rim burst. The server retains the old eligibility/reward path. Local build/mocked regression checks pass; the 20-dunk Vertical-100 HUD-hidden Studio comparison, multiplayer IK visibility, and live reset/physics checks are required before calling the visual pass playtested. See `GAME_FEEL.md`.
+
+**Current — Dunk Animation System v1:** Optional real R15 tracks for all four styles have empty legitimate-ID slots, per-character client caches, server-created Animators, marker/presentation hooks, and protected procedural IK fallback. Server ball/root execution and reward authority remain unchanged. Generated editable clips exist, but publication requires the experience owner's Studio account; sync/timing, high-Vertical, and multiplayer acceptance remain. See `DUNK_ANIMATIONS.md`.
+
+**Studio authoring tool — R15 Dunk Animation Builder v1:** Generates four editable, differentiated R15 KeyframeSequences with Gather/Slam/Release/Recover markers in edit mode only. Clips are not published or configured; Clip Editor preview, polishing, legitimate asset publication, and in-game acceptance remain manual. The empty-ID procedural fallback remains in place. See `DUNK_ANIMATIONS.md`.
+
+**Implemented in code — Dribbling v0.1:** One existing server-owned ball bounces through idle/walk/run cadences, gathers on jump or dunk attempt, and resumes after recovery. Temporary R15 IK is removed before dunk posing. Live Studio feel, replication, and interruption tests remain. See `DRIBBLING.md`.
+
+**Implemented in code — Court Vertical Training Caps:** Server-owned 75/150 training limits, a 75-Vertical High School gate, and contextual cap feedback. Existing Vertical is never reduced. Live Studio checks remain. See `COURT_TRAINING_CAPS.md`.
+
+**Next — Progression Playtest:** Reset the isolated DEV profile, time a fresh-player run, and re-evaluate economy/content pacing using `PROGRESSION_PLAYTEST.md`. Targets are not yet verified.
+
+**Later — College Court preparation:** The extension plan is recorded in `COLLEGE_PREPARATION.md`; its proposed 250 training cap and all economy values require playtest review. Do not implement Court #3 yet.
 
 ## 11. Monetization
 

@@ -15,12 +15,12 @@ local nextRequest = {}
 local nextPurchase = {}
 local initialized = false
 
-local function diagnoseStation(station: BasePart, prompt: ProximityPrompt)
+local function diagnoseStation(station: BasePart, prompt: ProximityPrompt, courtId: string)
 	if not RunService:IsStudio() or Workspace:GetAttribute("DiagnoseUpgradeStation") ~= true then
 		return
 	end
 	local originalFrame = station.CFrame
-	local originalGameplay = Workspace:FindFirstChild("Gameplay")
+	local originalGameplay = station.Parent
 	local destroyed = false
 	local connection = station.Destroying:Connect(function()
 		destroyed = true
@@ -34,8 +34,8 @@ local function diagnoseStation(station: BasePart, prompt: ProximityPrompt)
 			"Prompt exists:", station:FindFirstChildOfClass("ProximityPrompt") ~= nil,
 			"Same prompt:", prompt.Parent == station, "Prompt enabled:", prompt.Enabled,
 			"Destroyed:", destroyed, "In Workspace:", station:IsDescendantOf(Workspace),
-			"Same resolved station:", GameplayObjects.Find(Config.StationName) == station,
-			"Same Gameplay:", originalGameplay ~= nil and Workspace:FindFirstChild("Gameplay") == originalGameplay,
+			"Same resolved station:", GameplayObjects.Find(Config.StationName, courtId) == station,
+			"Gameplay in Workspace:", originalGameplay ~= nil and originalGameplay:IsDescendantOf(Workspace),
 			"Parent is original Gameplay:", originalGameplay ~= nil and station.Parent == originalGameplay,
 			"Same CFrame:", station.CFrame == originalFrame)
 	end
@@ -55,7 +55,7 @@ end
 
 local function validCharacter(player: Player, station: BasePart, prompt: ProximityPrompt): Model?
 	if not PlayerService.IsReady(player) or PlayerService.GetDunkState(player) == "Executing"
-		or GameplayObjects.Find(Config.StationName) ~= station or not station.Anchored
+		or GameplayObjects.Find(Config.StationName, PlayerService.GetCurrentCourt(player)) ~= station or not station.Anchored
 		or prompt.Parent ~= station or not prompt.Enabled then
 		return nil
 	end
@@ -100,38 +100,37 @@ function UpgradeService.Init()
 		return
 	end
 	initialized = true
-	local station = GameplayObjects.Find(Config.StationName)
-	local prompt = station and station:FindFirstChildOfClass("ProximityPrompt")
-	if not station or not station:IsA("BasePart") or not station.Anchored or not prompt then
-		warn("[UpgradeService] Upgrades unavailable: create Workspace.Gameplay.UpgradeStation (anchored Part) with a direct ProximityPrompt, then restart Play. See docs/TRAINING_UPGRADES.md.")
-		return
-	end
-	prompt.ActionText = "Upgrades"
-	prompt.ObjectText = "Training Upgrades"
-	prompt.HoldDuration = 0
-	prompt.MaxActivationDistance = Config.MaxDistance
-	diagnoseStation(station, prompt)
-	prompt.Triggered:Connect(function(player)
-		local now = os.clock()
-		if now < (nextRequest[player] or 0) then
-			return
-		end
-		nextRequest[player] = now + Config.RequestCooldownSeconds
-		local character = validCharacter(player, station, prompt)
-		if not character then
-			return
-		end
-		if sessions[player] and sessions[player].Character ~= character then
-			sessions[player] = nil
-		end
-		if not sessions[player] then
-			sessions[player] = {
-				Character = character,
-				OfferId = HttpService:GenerateGUID(false),
-				Processing = false,
-			}
-		end
-		publish(player, "Open")
+	GameplayObjects.BindStations(Config.StationName, function(station, prompt, courtId)
+		prompt.ActionText = "Upgrades"
+		prompt.ObjectText = "Training Upgrades"
+		prompt.HoldDuration = 0
+		prompt.MaxActivationDistance = Config.MaxDistance
+		diagnoseStation(station, prompt, courtId)
+		prompt.Triggered:Connect(function(player)
+			local now = os.clock()
+			if now < (nextRequest[player] or 0) then
+				return
+			end
+			nextRequest[player] = now + Config.RequestCooldownSeconds
+			local character = validCharacter(player, station, prompt)
+			if not character then
+				return
+			end
+			if sessions[player] and (sessions[player].Character ~= character or sessions[player].Station ~= station) then
+				sessions[player] = nil
+			end
+			if not sessions[player] then
+				sessions[player] = {
+					Character = character,
+					Station = station,
+					Prompt = prompt,
+					OfferId = HttpService:GenerateGUID(false),
+					Processing = false,
+				}
+			end
+			publish(player, "Open")
+		end)
+		print("[UpgradeService] Training upgrades ready at " .. station:GetFullName())
 	end)
 	remotes.TrainingUpgradeRequest.OnServerEvent:Connect(function(player, action, offerId, ...)
 		local session = sessions[player]
@@ -147,7 +146,7 @@ function UpgradeService.Init()
 			return
 		end
 		nextPurchase[player] = now + Config.RequestCooldownSeconds
-		if validCharacter(player, station, prompt) ~= session.Character then
+		if validCharacter(player, session.Station, session.Prompt) ~= session.Character then
 			close(player)
 			return
 		end
@@ -174,7 +173,7 @@ function UpgradeService.Init()
 		end
 		nextCheck = now + Config.SessionCheckSeconds
 		for player, session in sessions do
-			if validCharacter(player, station, prompt) ~= session.Character then
+			if validCharacter(player, session.Station, session.Prompt) ~= session.Character then
 				close(player)
 			else
 				local snapshot = PlayerService.GetTrainingUpgradeSnapshot(player)
@@ -192,7 +191,8 @@ function UpgradeService.Init()
 		nextRequest[player] = nil
 		nextPurchase[player] = nil
 	end)
-	print("[UpgradeService] Training upgrades ready at " .. station:GetFullName())
 end
+
+UpgradeService.Close = close
 
 return UpgradeService

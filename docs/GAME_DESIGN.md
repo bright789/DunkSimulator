@@ -27,40 +27,60 @@ Vertical is a marquee stat. It increases a player's reachable height and broaden
 
 ## Cash and Economy Concept
 
-The prototype starts genuinely new players at Vertical 30, Cash 0, and TrainingLevel 1. Holding the trainer interaction grants Vertical based on TrainingLevel every approximately 0.5 seconds after an initial full interval. Releasing stops training. Training no longer gives Cash. Completed basic dunks give exactly $25, which can buy the next Training Level. Purchases do not directly grant Vertical or change tick timing. Cash, Vertical, and TrainingLevel now persist across sessions; gameplay waits for safe loading. The jump curve remains `7.2 * (Vertical / 30)^1.7` studs; Basic Dunk now explicitly unlocks at server Vertical 35 and uses a progression-scaled airborne engagement window plus height normalization. Higher jumps in the 35-100 prototype range no longer have to pass through a fixed tiny rim-height band; ordinary jump progression remains unchanged. See `BASIC_DUNK_ASSIST.md`.
+The prototype starts genuinely new players at Vertical 30, Cash 0, and TrainingLevel 1. Each valid training tick (approximately every 0.5 seconds after an initial full interval) generates 1.00 base Vertical progress multiplied by Training Level efficiency and the current court bonus. Fractional progress carries; only whole points update Vertical and jump height. Releasing stops training. Training gives no Cash. At Neighborhood, completed Basic One-Hand dunks pay $20; High School Basic pays $25. Purchases do not directly grant Vertical or change tick timing. Cash, Vertical, TrainingLevel and fractional progress persist across sessions; gameplay waits for safe loading. The unchanged jump curve is `7.2 * (Vertical / 30)^1.7` studs. Basic Dunk unlocks at server Vertical 35 and retains its forgiving airborne engagement/height normalization. See `BASIC_DUNK_ASSIST.md`.
 
-Cash is the primary progression currency. Currently only server-validated completed dunks award Cash. The first spend is Training Level: TRAIN -> DUNK -> CASH -> UPGRADE -> TRAIN FASTER. Future court access, events, and cosmetic spending are deferred.
+Cash is the primary progression currency. Currently only server-validated completed dunks award Cash. Training Level accelerates training; High School access is the first permanent court purchase. Events and cosmetic spending remain deferred.
 
-### Training Level v0.1 (Prototype Balance)
+### Training Level (Early-Game Rebalance v0.1)
 
-| Level | Vertical per tick | Cost to reach level |
+| Level | Training efficiency | Cost to reach level |
 | --- | --- | --- |
-| 1 | +1 | Starting level |
-| 2 | +2 | $100 |
-| 3 | +3 | $300 |
-| 4 | +4 | $750 |
-| 5 | +5 | $1,500 |
-| 6 | +6 | $3,000 |
-| 7 | +7 | $6,000 |
-| 8 | +8 | $12,000 |
-| 9 | +9 | $25,000 |
-| 10 | +10 | $50,000 (maximum) |
+| 1 | 1.00x | Starting level |
+| 2 | 1.10x | $250 |
+| 3 | 1.20x | $600 |
+| 4 | 1.30x | $1,200 |
+| 5 | 1.40x | $2,000 |
+| 6 | 1.50x | $3,500 |
+| 7 | 1.60x | $5,500 |
+| 8 | 1.70x | $8,000 |
+| 9 | 1.80x | $12,000 |
+| 10 | 2.00x | $18,000 (maximum) |
 
-All prices/gains and the starting level live in UpgradeConfig. Server state owns TrainingLevel and Cash; the station panel displays confirmed current/next values and purchase feedback. TrainingLevel does not add another leaderboard column. See `TRAINING_UPGRADES.md` for setup and tests. These values require playtesting and are not final economy balance.
+All prices/multipliers and the starting level live in UpgradeConfig; ProgressionConfig owns the 1.00 base progress. Server state owns TrainingLevel and Cash; the station panel displays confirmed current/next efficiency and price. TrainingLevel does not add another leaderboard column. See `TRAINING_UPGRADES.md` for setup and tests. These prototype values require a fresh-player pacing playtest.
 
 ## Courts
 
-Court #1, **The Neighborhood**, is a compact Studio-built outdoor half-court with one existing hoop, entrance spawn, nearby basketball pickup, sideline VerticalTrainer, and non-interactive neighborhood scenery. Its playtested 60 x 55 stud playing surface and 130 x 120 park retain the tested floor-to-rim height: Vertical 30 remains below normal dunk capability, around 35 is the first basic dunk milestone, and 40+ is increasingly comfortable. The v0.1 editor builder creates permanent court markings, visual hoop, stations, fencing and a lightweight neighborhood backdrop; see `NEIGHBORHOOD_V01.md`. Reserve space for future stations and Court #2 without implementing either. This environment changes presentation and organization, not progression, rewards, or dunk rules.
+Court #1, **The Neighborhood**, remains the starting outdoor half-court. Its playtested 60 x 55 stud surface, 130 x 120 park, logical Rim and existing gameplay objects remain unchanged. See `NEIGHBORHOOD_V01.md` for the existing environment builder.
 
-Courts provide distinct progression spaces with different hoop heights, access requirements, rewards, presentation, and challenge. The first court will support the MVP. Additional courts should create aspirational goals rather than duplicate the same activity with only different visuals.
+Court #2, **High School Gym**, requires at least 75 Vertical and costs $6,000 once. Vertical is not deducted. Purchased access persists permanently. The DUNK HIGH gym has hardwood, markings, bleachers, banners, scoreboard, lights and local versions of the same gameplay stations. Its logical floor-to-rim height matches Neighborhood; the jump curve and gameplay objects are unchanged. High School grants 1.25x Cash from completed dunks and 1.15x Vertical training progress. Neighborhood remains 1.00x for both. Neighborhood training ends at 75 Vertical and High School training ends at 150; these limits never reduce an existing player's stat. These prototype values live in CourtConfig.
+
+**Vertical clearance rule:** Superhuman jump progression must not be capped by indoor court scenery. High School keeps its visual roof, but the ceiling and overhead doorway header are non-collidable; overhead beams, lights and signs are decorative too. Future College, Pro Arena and other indoor courts should keep presentation-only overhead geometry non-collidable/non-queryable above gameplay, without changing the Vertical jump curve.
+
+Physical portals are the primary unlock/discovery flow. After purchasing, E or the COURTS menu travels freely to unlocked courts. Travel clears basketball possession and incompatible station sessions, and waits for any dunk to finish. The selected court persists and determines rejoin/respawn placement, with safe Neighborhood fallback. Both environments share one Place but are separated by 2,400 studs. See `COURT_PROGRESSION.md` for setup and `COURT_BONUSES.md` for bonus math/tests. Further courts remain deferred.
 
 ## Dunk System
 
 The dunk system should combine player movement, jump timing, proximity to the basket, and eligible dunk styles. It should feel physical and satisfying, while the server validates every attempt and determines success, rewards, and competition scoring. The first prototype will deliberately keep this system narrow.
 
-Dunk v0.2 preserves the playtested airborne entry zone and input buffer. Players acquire one visible basketball from BasketballPickup, jump near DunkHoop.Rim, and press F. A valid entry starts a roughly 0.75-second server-owned sequence: subtle horizontal alignment, scripted ball motion above and down through the rim, then restoration to the hand. Only completed execution awards +25 Cash and confirms success to the UI. Vertical is unchanged; actual jumping determines entry capability. Possession remains after success but is lost on death. Training is suspended during execution. Dribbling, shooting, physical rim/net simulation, uploaded dunk animations, and competition scoring remain deferred.
+Dunk v0.2 preserves the playtested airborne entry zone and input buffer. Players acquire one visible basketball from BasketballPickup, jump near DunkHoop.Rim, and press F. Automatic dribbling moves that ball between hand and floor while grounded; jumping gathers it into the hand before dunk execution takes control. A valid entry starts server-owned alignment and a style-specific ball-through-rim sequence, then restores the ball to the hand. Only completed execution awards Cash and confirms success to the UI; Basic pays $20 at Neighborhood or $25 at High School. Vertical is unchanged; actual jumping determines entry capability. Possession remains after success but is lost on death. Training is suspended during execution. Shooting, physical rim/net simulation, and competition scoring remain deferred.
 
 Dunk v0.3 adds presentation to this same basic dunk: smooth server-side facing toward the basket from the player's approach side, hand-follow gather motion, and an optional BasicOneHand animation definition. No asset is supplied; the scripted execution remains the fallback. Markers support presentation hooks but do not determine success or rewards. Entry requirements and the playtested Vertical progression remain unchanged.
+
+### Dunk Styles v0.1
+
+The current playable content includes Basic One-Hand at 35 Vertical, Two-Hand Power at 50, Tomahawk at 75, and Windmill at 110. Unlocks derive from whole Vertical; players select any unlocked style through DUNKS. Base rewards are $20/$35/$60/$100 respectively. On confirmed completion the server multiplies the base by the validated current court's Dunk Cash bonus and rounds to whole Cash. The menu and equipped HUD label **base** rewards; completion feedback displays the actual court-adjusted payout. Rewards are read from centralized DunkStyles/CourtConfig, never saved as a redundant field. Selection is saved as a stable EquippedDunkStyle ID. Basic is the initial intended selection, but remains locked at the new player's Vertical 30. New unlocks do not automatically change the equipped style.
+
+All styles retain the same forgiving entry/assist and high-Vertical normalization. Their differences are procedural ball paths and temporary R15 arm posing, not tighter input windows: direct one-hand, centered two-hand power, up/back tomahawk, and a full windmill ball circle. No uploaded animations are needed. See `DUNK_STYLES.md` for tuning, migration and tests.
+
+Game Feel v0.2 separates the styles through post-validation rhythm and physical presentation: Basic is quick/direct, Two-Hand has a centered load and forceful pass, Tomahawk has a pronounced behind-the-body wind-up, and Windmill has a larger circular sweep/brief hang. Temporary R15 torso and arm IK follows the server-driven ball; the same entry validation and high-Vertical normalization still apply. Local anticipation/impact cues are secondary to observable motion and never determine success.
+
+### Dunk Animation System v1
+
+All four styles now have optional R15 AnimationTrack slots. None has a published asset ID bundled with the repository; the v0.2 procedural pose/ball presentation remains the default. When a legitimate accessible R15 clip is configured, it controls avatar pose only while the server still drives root alignment, style-specific ball path, Rim contact, success, rewards, and challenges. Client-readiness reports and Gather/Slam/Release/Recover markers are presentation signals, never eligibility or Cash authority. The server-observed ball crossing is the impact hook; completed `DunkResult` is the reward/celebration hook. Tracks are cached per character and stopped on interruption, while fallback IK is disabled during a real track to avoid competing poses. `DUNK_ANIMATIONS.md` documents authoring and mixed-mode tests. BasketballService now owns hand possession, grounded dribble, jump gather, dunk handoff, and recovery transitions; see `DRIBBLING.md`.
+
+### Game Feel & Juice v0.1
+
+Completed dunks now use a short style-weighted impact: Basic One-Hand 0.7, Two-Hand Power 0.9, Tomahawk 1.1, and Windmill 1.3 relative presentation intensity. The camera pulse, rim-local flash, style name, and Cash popup occur only after the server confirms completion; the popup uses the actual court-adjusted payout, not the style's base reward. The HUD gives small, reusable gain/pulse feedback from replicated whole-number stats. Training feedback remains light enough for a half-second tick and shows only actual whole Vertical gained. Confirmed upgrades, threshold crossings, court purchases/travel, possession, and button interactions have brief feedback rather than large cinematics. Audio categories are prepared but silent until approved assets are supplied. These effects do not change eligibility, physics, rewards, or progression; see `GAME_FEEL.md` for tuning and comfort limits.
 
 ## Competitive Events
 
@@ -74,15 +94,21 @@ Leaderboards will surface durable achievements such as event wins, seasonal perf
 
 The Neighborhood HUD presents Cash, Vertical, and Training Level in compact left-side cards with charcoal panels, white numbers, muted labels, and restrained blue/green accents. The default Roblox PlayerList is hidden locally; its server-owned leaderstats are retained as display mirrors. Training Level has a separate replicated display attribute, not a new leaderboard column.
 
-The compact Basic Dunk progress bar uses the existing configured unlock threshold (currently 35). Below it, the HUD shows NEXT GOAL and current/required Vertical; at or above it, the HUD shows UNLOCKED. This describes progression eligibility, not a guaranteed successful attempt: possession, airborne approach, and all current server validation still apply. NEXT STYLE / Coming Soon explicitly distinguishes future content; no additional usable dunk styles are claimed or implemented.
+The compact dunk progress area shows the actual equipped style and next locked milestone from the four-style configuration. Below 35 it shows NEXT DUNK / Basic One-Hand; after all four unlock it says ALL CURRENT DUNKS UNLOCKED. Bars remain bounded. These are progression gates, not guaranteed success: possession, airborne approach and server validation still apply. DUNKS opens selection, and a one-time toast announces thresholds crossed in-session, never historical unlocks on load.
 
-Stat gains briefly rise/fade in their own cards, and confirmed Training Level increases show LEVEL UP! A contextual F keycap/DUNK hint appears only with possession and is hidden during execution. DUNK! / +$25 appears only after the existing server-confirmed completion event. The upgrade panel shares the HUD styling without changing purchases. No gameplay, high-Vertical dunk assist, economy, or map behavior changes. See `CUSTOM_HUD.md` for sync and resolution/regression tests.
+Stat gains briefly rise/fade in their own cards, and confirmed Training Level increases show LEVEL UP! A contextual F keycap/DUNK hint appears only with possession and is hidden during execution. Completion feedback uses the **actual** server-confirmed payout: Neighborhood Basic/Two-Hand/Tomahawk/Windmill show +$20/+$35/+$60/+$100; High School shows +$25/+$44/+$75/+$125. Training feedback uses the actual whole Vertical gained per tick. COURTS displays each court's bonuses. The upgrade panel shows current/next efficiency multipliers from server snapshots. No high-Vertical dunk assist or map behavior changes. See `CUSTOM_HUD.md` for UI history and `COURT_BONUSES.md` for current bonus rules.
 
 ## Data Persistence v0.1
 
-Only Cash, Vertical, and TrainingLevel persist. The server loads, migrates/validates, then initializes the existing private player state; the HUD, actual jump height, upgrade affordability, and training gain use those restored values. Character respawn retains loaded progression. Ball possession, current dunk state, and the session dunk counter are not persisted.
+Cash, Vertical, TrainingLevel, EquippedDunkStyle, UnlockedCourts, CurrentCourt and VerticalTrainingRemainder persist. The server loads, migrates/validates, then initializes the existing private player state; the HUD, actual jump height, equipped style, upgrade affordability, training gain and court spawn use those restored values. The remainder is private, bounded fractional training progress that stays with the player across court travel and rejoin; only whole Vertical unlocks styles. Character respawn retains loaded progression. Ball possession, current dunk state, court-transition state and the session dunk counter are not persisted.
 
-Native DataStoreService uses schema version 1, separate Studio/production stores, periodic autosaves, and leave/shutdown saves. A failed load never grants a writable fallback profile. Revision-checked saves reduce stale-write risk but are not a full session lock; crashes/outages or concurrent sessions can still lose unsaved progress. See `DATA_PERSISTENCE.md` for safety boundaries and tests. No new progression fields, prices, rewards, or dunk rules are introduced.
+Native DataStoreService uses schema version 5 in the same separate Studio/production stores. Existing migrations are retained; v3 -> v4 initializes VerticalTrainingRemainder and v4 -> v5 initializes challenge progress without resetting any existing progression. Invalid court selections fall back safely; significant court purchases and challenge claims request a serialized priority save alongside periodic/leave/shutdown saves. Failed loads never grant writable fallback profiles. Revision checks are not full session locks; outages/crashes or concurrent sessions can still lose unsaved progress. See `DATA_PERSISTENCE.md`, `COURT_BONUSES.md`, and `DUNK_CHALLENGES.md`.
+
+## Dunk Challenges v0.1
+
+Seven configured, one-time objectives add goals without new currencies: 10 completed Basic One-Hand dunks ($150), 15 Two-Hand Power ($350), 15 Tomahawk ($600), 20 Windmill ($1,000), 60 Vertical ($300), 120 Vertical ($800), and 25 completed High School dunks of any style ($1,500). The total optional one-time claim pool is **$4,700**. Requirements and rewards are prototype balance values, not confirmed pacing results.
+
+The server records progress only from a completed rewarded dunk or authoritative Vertical. One High School dunk can advance its style objective and the High School objective together. Progress caps at the configured target. Reaching a target makes the reward **Ready to Claim**, not paid; an explicit validated CLAIM pays Cash once and marks it **Completed**. Existing saved Vertical can satisfy Vertical goals on join, but historical dunk counts do not exist and start at zero after migration. The CHALLENGES menu previews locked styles/courts, displays progress/rewards, and highlights claimable objectives. Completion and claim use distinct client-only feedback. See `DUNK_CHALLENGES.md` for the state flow and acceptance matrix.
 
 ## Cosmetics
 
@@ -94,14 +120,14 @@ Potential monetization includes cosmetic items, optional convenience products, g
 
 ## MVP Scope
 
-The MVP focuses on one court, basic movement and jumping, one reliable dunk interaction, a small training and progression loop, server-owned cash, a simple upgrade path, and readable UI. Persistence v0.1 now covers the three core progression fields; live persistence acceptance testing remains. Events, advanced cosmetics, and monetization remain later milestones.
+The playable foundation includes two courts, four dunk progression styles, training, server-owned Cash, Training Level upgrades, custom HUD and persistence. Court Bonuses v0.1 adds High School earning/training advantages and schema-v4 fractional carry. Automatic dribbling and court-specific 75/150 Vertical training limits are implemented in code; their Studio acceptance and fresh-player pacing run remain. Events, advanced cosmetics, further courts and monetization remain later milestones.
 
 ## Explicitly Deferred
 
-- Multiple courts and court-specific rule sets.
+- Courts beyond High School and court-specific rules beyond the current bonuses and training limits.
 - Full dunk contest formats and seasonal events.
 - Additional persistent progression categories and cross-server leaderboard systems.
 - Cosmetic inventory, trading, and extensive avatar customization.
 - Game passes, developer products, and other monetization.
 - Advanced social systems, clans, matchmaking, and spectating.
-- Rich audio, VFX, replay, and cinematic presentation.
+- Uploaded audio assets, advanced VFX, replay, and cinematic presentation beyond the restrained v0.1 feedback.

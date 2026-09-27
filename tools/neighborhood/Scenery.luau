@@ -1,6 +1,16 @@
 local Config = require(script.Parent.Config)
 local Geometry = require(script.Parent.Geometry)
+local Props = require(script.Parent.Props)
+local Crowd = require(script.Parent.Crowd)
 local Colors = Config.Colors
+
+-- Palettes handed to the shared props.
+local SHOP = { Wood = Colors.Wood, Accent = Colors.Paint, Light = Colors.Line, Metal = Colors.Metal, Dark = Colors.Dark,
+	Rubber = Colors.Rubber, Glass = Colors.Glass, Yellow = Colors.Yellow }
+local GYM = table.clone(SHOP)
+GYM.Accent = Colors.Court
+local LAB = table.clone(SHOP)
+LAB.Accent = Colors.Lab
 
 local Scenery = {}
 
@@ -31,19 +41,12 @@ function Scenery.Court(parent, context)
 end
 
 function Scenery.Hoop(parent, context)
+	-- Court frame +Z points past the rim to the baseline, so the backboard sits at local +Z.
 	local frame = CFrame.new(context.Rim.Position) * context.Frame.Rotation
-	local height = context.Rim.Position.Y - context.FloorY
-	Geometry.Arc(parent, "VisibleRim", frame, Config.RimRadius, 0, math.pi * 2,
-		Config.RimSegments, 0.22, 0.22, Colors.Orange)
-	Geometry.Part(parent, "Backboard", Vector3.new(14, 8, 0.4), frame * CFrame.new(0, 3, 3.6), Colors.Line)
-	Geometry.Part(parent, "Pole", Vector3.new(1, height + 6, 1), frame * CFrame.new(0, (6 - height) / 2, 6), Colors.Metal, Enum.Material.Metal)
-	Geometry.Part(parent, "Base", Vector3.new(4, 0.4, 4), frame * CFrame.new(0, -height + 0.2, 6), Colors.Metal)
-	Geometry.Part(parent, "Support", Vector3.new(0.7, 0.7, 3), frame * CFrame.new(0, 3, 5), Colors.Metal, Enum.Material.Metal)
-	Geometry.Part(parent, "RimBracket", Vector3.new(0.5, 0.3, 1.3), frame * CFrame.new(0, 0, 2.9), Colors.Orange)
-	for _, side in { -1, 1 } do
-		Geometry.Part(parent, "TargetSide" .. side, Vector3.new(0.15, 3.5, 0.04), frame * CFrame.new(side * 2.5, 1.8, 3.37), Colors.Orange)
-		Geometry.Part(parent, "TargetEdge" .. side, Vector3.new(5, 0.15, 0.04), frame * CFrame.new(0, 1.8 + side * 1.75, 3.37), Colors.Orange)
-	end
+	Props.Hoop(parent, frame, context.Rim.Position.Y - context.FloorY, {
+		Rim = Colors.Orange, Target = Colors.Court, Metal = Colors.Metal, Net = Colors.Line, Pad = Colors.Court,
+		Backboard = Colors.Backboard, BackboardTransparency = Colors.BackboardTransparency,
+	})
 end
 
 function Scenery.Stations(parent, context)
@@ -51,30 +54,13 @@ function Scenery.Stations(parent, context)
 	local pickup = Geometry.Folder(parent, "BallStand")
 	local trainingFrame = context.TrainerFrame
 	local pickupFrame = context.PickupFrame
-	Geometry.Part(trainer, "RubberPad", Vector3.new(12, 0.04, 12), trainingFrame, Colors.Metal)
-	Geometry.Sign(trainer, "TrainingSign", trainingFrame * CFrame.new(0, 5, 6), "VERTICAL TRAINING", Colors.Paint, 12)
-	Geometry.Part(trainer, "SignPost", Vector3.new(0.3, 5, 0.3), trainingFrame * CFrame.new(0, 2.5, 6), Colors.Metal)
-	for index = 1, 3 do
-		Geometry.Part(trainer, "JumpMark" .. index, Vector3.new(4, 0.02, 0.3), trainingFrame * CFrame.new(0, 0.04, -2 - index), Colors.Line)
-	end
-	Geometry.Part(pickup, "StandShelf", Vector3.new(6, 0.3, 3), pickupFrame * CFrame.new(0, 2.2, 3), Colors.Wood, Enum.Material.Wood)
-	for _, side in { -1, 1 } do
-		Geometry.Part(pickup, "Leg" .. side, Vector3.new(0.4, 2.2, 2.5), pickupFrame * CFrame.new(side * 2.5, 1.1, 3), Colors.Metal)
-		local ball = Geometry.Part(pickup, "DisplayBall" .. side, Vector3.new(1.8, 1.8, 1.8), pickupFrame * CFrame.new(side * 1.3, 3.2, 3), Colors.Orange)
-		ball.Shape = Enum.PartType.Ball
-	end
-	Geometry.Sign(pickup, "PickupSign", pickupFrame * CFrame.new(0, 5, 4), "BASKETBALL  /  PICK UP", Colors.Metal, 10)
+	Props.LegGym(trainer, trainingFrame, GYM)
+	Props.BallShop(pickup, pickupFrame, SHOP)
 	if context.UpgradeStation then
 		local station = context.UpgradeStation
 		local upgrade = Geometry.Folder(parent, "UpgradeArea")
 		local upgradeFrame = station.CFrame * CFrame.new(0, -station.Size.Y / 2, 0)
-		Geometry.Part(upgrade, "Pad", Vector3.new(10, 0.03, 8), upgradeFrame, Colors.Paint)
-		Geometry.Part(upgrade, "EquipmentShelf", Vector3.new(8, 0.3, 2), upgradeFrame * CFrame.new(0, 2.5, 3), Colors.Wood, Enum.Material.Wood)
-		for _, side in { -1, 1 } do
-			Geometry.Part(upgrade, "Support" .. side, Vector3.new(0.4, 5, 0.4), upgradeFrame * CFrame.new(side * 3.5, 2.5, 3), Colors.Metal)
-			Geometry.Part(upgrade, "Equipment" .. side, Vector3.new(2, 0.6, 1), upgradeFrame * CFrame.new(side * 1.7, 3, 3), Colors.Orange)
-		end
-		Geometry.Sign(upgrade, "UpgradeSign", upgradeFrame * CFrame.new(0, 5.5, 3), "UPGRADES", Colors.Metal, 10)
+		Props.UpgradeLab(upgrade, upgradeFrame, "TRAINING UPGRADES", LAB)
 	else
 		warn("[Neighborhood] UpgradeStation is absent; skipping upgrade dressing. Run SetupUpgradeStation.Run once if needed.")
 	end
@@ -97,13 +83,19 @@ function Scenery.Environment(parent, props, boundaries, context)
 	for index = -1, 1 do
 		local house = Geometry.Folder(houses, "House" .. index)
 		local center = Vector3.new(index * 38, 0, -halfDepth - 49)
-		part(house, "Facade", Vector3.new(24, 17 + index * 2, 16), center + Vector3.new(0, (17 + index * 2) / 2, 0), Color3.fromRGB(158 + index * 12, 143, 122), Enum.Material.Brick)
+		part(house, "Facade", Vector3.new(24, 17 + index * 2, 16), center + Vector3.new(0, (17 + index * 2) / 2, 0), Colors.Brick:Lerp(Colors.Orange, (index + 1) * 0.15), Enum.Material.Brick)
 		part(house, "Roof", Vector3.new(26, 1.2, 18), center + Vector3.new(0, 17.6 + index * 2, 0), Colors.Metal)
 		part(house, "Door", Vector3.new(3, 6, 0.15), center + Vector3.new(0, 3, 8.1), Colors.Wood)
 		for _, side in { -1, 1 } do
-			part(house, "Window" .. side, Vector3.new(4, 4, 0.15), center + Vector3.new(side * 7, 10, 8.1), Colors.Paint)
+			part(house, "Window" .. side, Vector3.new(4, 4, 0.15), center + Vector3.new(side * 7, 10, 8.1), Colors.Glass)
 		end
 	end
+	local watcherSpot = frame * CFrame.new(38, 0, 14)
+	Crowd.Spectator(Geometry.Folder(props, "Watcher"), "CourtsideFan",
+		CFrame.lookAt(watcherSpot.Position, (frame * CFrame.new(0, 0, 12)).Position), "StandCrossed", {
+			Skin = Color3.fromRGB(234, 184, 146), Shirt = Color3.fromRGB(255, 196, 24), Pants = Color3.fromRGB(60, 60, 66),
+			Shoes = Color3.fromRGB(34, 104, 190), Hat = "ShortHair", HairColor = Color3.fromRGB(58, 38, 24),
+		})
 	local benches = Geometry.Folder(props, "Benches")
 	local trees = Geometry.Folder(props, "Trees")
 	local lights = Geometry.Folder(props, "Lights")
@@ -116,6 +108,13 @@ function Scenery.Environment(parent, props, boundaries, context)
 			part(bench, "Leg" .. leg, Vector3.new(0.4, 2, 2), center + Vector3.new(leg * 3, 1, 0), Colors.Metal)
 		end
 		part(props, "TrashCan" .. side, Vector3.new(2, 3, 2), center + Vector3.new(7, 1.5, 0), Colors.Metal, Enum.Material.Metal)
+		if side == 1 then
+			-- A local sits on this bench watching the court.
+			Crowd.Spectator(Geometry.Folder(props, "Crowd"), "BenchFan", frame * CFrame.new(center + Vector3.new(1.8, 2.2, -0.2)), "SitLean", {
+				Skin = Color3.fromRGB(141, 85, 54), Shirt = Color3.fromRGB(230, 60, 60), Pants = Color3.fromRGB(46, 62, 110),
+				Shoes = Color3.fromRGB(245, 245, 245), Hat = "Cap", HatColor = Color3.fromRGB(28, 32, 44),
+			})
+		end
 		for _, depth in { -25, 40 } do
 			local tree = Geometry.Folder(trees, "Tree" .. side .. "_" .. depth)
 			local treeCenter = Vector3.new(side * (halfWidth - 10), 0, depth)

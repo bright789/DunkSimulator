@@ -41,7 +41,7 @@ All settings remain in DunkConfig.
 | Execution.AlignmentSettleSpeed | No readiness speed check | <= 3 studs/second during settling, not jump eligibility |
 | Execution.TimeoutSeconds | 1.2 seconds total | Same 1.2 seconds after preparation; overall budget 3.30 seconds |
 
-Unchanged: horizontal range 8, buffer 0.5 seconds, extra buffer-only height allowance 3, facing 110 degrees or inward movement, retreat limit 3 studs/second, cooldown 1 second, horizontal correction 5 studs, stand-off 2, horizontal speed 20, force 60000, responsiveness 40, position tolerance 1.5, rim movement tolerance 0.25, and orientation settings. Original gather/pass/return remain 0.30/0.25/0.20 seconds. Reward stays **+25 after completion and cleanup**.
+Unchanged: horizontal range 8, buffer 0.5 seconds, extra buffer-only height allowance 3, facing 110 degrees or inward movement, retreat limit 3 studs/second, cooldown 1 second, horizontal correction 5 studs, stand-off 2, horizontal speed 20, force 60000, responsiveness 40, position tolerance 1.5, rim movement tolerance 0.25, and orientation settings. Original gather/pass/return baseline is 0.30/0.25/0.20 seconds; current style timings live in DunkStyles. The early-game rebalance changes Neighborhood Basic to **+$20 after completion and cleanup**, without changing assist.
 
 ## Server Rules
 
@@ -59,7 +59,7 @@ Only BasicOneHand exists. Its unlock, bounds and execution target are configurab
 
 After validation, execution acquires server network ownership, saves movement/jump settings and Jumping-enabled state, disables movement/jumping, switches to Freefall, and clears residual momentum throughout the bounded handoff. It captures the controlled pose and rechecks horizontal engagement range. AlignPosition first corrects Y toward Rim.Y - 3 while holding captured X/Z; the ball remains welded to the hand. AlignOrientation smoothly faces the hoop. No character CFrame teleport is used.
 
-After stable height alignment, residual normalization velocity is cleared. AlignPosition returns to the original horizontal speed/correction limits and waits for full 3D position/speed stability. Only then does the optional animation start, followed by the existing gather, downward rim pass, hand return, cleanup, and one +25 reward. High entry adds bounded correction time rather than demanding an exact input frame.
+After stable height alignment, residual normalization velocity is cleared. AlignPosition returns to the original horizontal speed/correction limits and waits for full 3D position/speed stability. Only then does the optional animation start, followed by the existing gather, downward rim pass, hand return, cleanup, and one configured reward (+$20 for Neighborhood Basic). High entry adds bounded correction time rather than demanding an exact input frame.
 
 Every frame checks character/life/possession/hoop, server ownership, displacement bounds, and deadlines. Obstruction, reset/death, lost ball, moved/replaced hoop, excessive motion or timeout cancels without reward. Cleanup restores humanoid properties, Jumping-enabled state, ball presentation, network ownership and movement. It does not replay the original upward launch velocity. Subsequent ordinary jumps retain full Vertical power.
 
@@ -98,7 +98,7 @@ This uses existing authoritative training, gives no Cash, adds no production set
 | 100 | 55.75 | 54.39 | Same rules; no fixed-window overshoot penalty |
 
 4. At each level first jump without F: 50/75/100 must remain dramatically stronger. Then approach inside eight horizontal studs and try F just after takeoff, mid-ascent, apex and descent, five times each. Stop horizontal input for apex tests so leaving range/retreating does not masquerade as height failure. Record successes and rejection codes.
-5. Test diagonal/off-center approaches and slightly early airborne F. Verify ball remains held during normalization, then travels through the rim and returns. Exactly +25 Cash only after cleanup; Vertical unchanged; next ordinary jump retains original strength.
+5. Test diagonal/off-center approaches and slightly early airborne F. Verify ball remains held during normalization, then travels through the rim and returns. Exactly +$20 Neighborhood Basic Cash only after cleanup; Vertical unchanged; next ordinary jump retains original strength.
 6. At each level test grounded F, no ball, farther than eight studs, obvious retreat, fake client stats/possession, and extra remote arguments: no reward. Very low, beyond the scaled upper bound/buffer, or absurdly high positions remain invalid.
 7. Spam during buffer/normalization/ball phases/cooldown: no overlap, extended deadline or duplicate Cash. Reset/die, lose the ball, or move/remove/replace the rim during normalization and return: no delayed reward or stuck controls. Check two players independently.
 8. Regress training timing/gains, zero training Cash, upgrades/prices, pickup, Neighborhood and UpgradeStation.

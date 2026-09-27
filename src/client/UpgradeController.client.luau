@@ -1,13 +1,15 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local request = remotes:WaitForChild("TrainingUpgradeRequest")
 local stateRemote = remotes:WaitForChild("TrainingUpgradeState")
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("UpgradeConfig"))
 local HUDConfig = require(ReplicatedStorage.Shared.Config:WaitForChild("HUDConfig"))
+local Feel = require(ReplicatedStorage.Shared.Config.FeedbackConfig)
+local Feedback = require(script.Parent.FeedbackController)
 local UI = require(script.Parent:WaitForChild("ui"):WaitForChild("UIComponents"))
 local colors = HUDConfig.Colors
 
@@ -25,6 +27,8 @@ panel.Parent = screen
 local limits = Instance.new("UISizeConstraint")
 limits.MaxSize = Vector2.new(440, 480)
 limits.Parent = panel
+local panelScale = Instance.new("UIScale")
+panelScale.Parent = panel
 
 local function label(name, position, height, textSize)
 	local text = Instance.new("TextLabel")
@@ -66,6 +70,7 @@ buy.TextColor3 = colors.Text
 buy.BorderSizePixel = 0
 UI.Round(buy)
 buy.Parent = panel
+UI.Interactive(buy)
 
 local closeButton = Instance.new("TextButton")
 closeButton.Name = "Close"
@@ -80,12 +85,22 @@ closeButton.TextSize = 18
 UI.Round(closeButton, 8)
 closeButton.Text = "X"
 closeButton.Parent = panel
+UI.Interactive(closeButton)
 screen.Parent = player:WaitForChild("PlayerGui")
 
 local snapshot = nil
 local pending = false
 local feedbackVersion = 0
 local connections = {}
+local panelPulse = nil
+
+local function pulsePurchase()
+	if panelPulse then panelPulse:Cancel(); panelPulse:Destroy() end
+	panelScale.Scale = Feel.Unlock.UpgradePulseScale
+	panelPulse = TweenService:Create(panelScale,
+		TweenInfo.new(Feel.Stats.PulseSeconds, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1 })
+	panelPulse:Play()
+end
 
 local function money(amount)
 	return "$" .. UI.Number(amount)
@@ -97,14 +112,14 @@ local function render()
 	end
 	cash.Text = "Cash: " .. money(snapshot.Cash)
 	current.Text = "Training Level\nLevel " .. snapshot.TrainingLevel
-	gain.Text = "+" .. snapshot.VerticalGain .. " Vertical / Tick"
+	gain.Text = string.format("Current: %.2fx Training", snapshot.TrainingMultiplier)
 	if not snapshot.NextLevel then
 		nextLevel.Text = "MAX LEVEL"
 		cost.Text = ""
 		buy.Visible = false
 		return
 	end
-	nextLevel.Text = "Next: Level " .. snapshot.NextLevel .. "\n+" .. snapshot.NextGain .. " Vertical / Tick"
+	nextLevel.Text = string.format("Next: Level %d\n%.2fx Training", snapshot.NextLevel, snapshot.NextMultiplier)
 	cost.Text = "Cost: " .. money(snapshot.Price)
 	buy.Visible = true
 	local available = snapshot.CanAfford and snapshot.CanPurchase and not pending
@@ -117,6 +132,8 @@ end
 
 local function close()
 	screen.Enabled = false
+	if panelPulse then panelPulse:Cancel(); panelPulse:Destroy(); panelPulse = nil end
+	panelScale.Scale = 1
 	snapshot = nil
 	pending = false
 	feedbackVersion += 1
@@ -168,9 +185,14 @@ table.insert(connections, stateRemote.OnClientEvent:Connect(function(kind, updat
 	if kind == "Result" then
 		feedbackVersion += 1
 		local version = feedbackVersion
-		feedback.Text = message or "Invalid request."
+		feedback.Text = purchased and updated and ("TRAINING LEVEL UP!  LEVEL " .. tostring(updated.TrainingLevel))
+			or (message or "Invalid request.")
 		feedback.TextColor3 = purchased and colors.Gain or colors.Warning
-		task.delay(Config.FeedbackSeconds, function()
+		if purchased then
+			pulsePurchase()
+			Feedback.Upgrade()
+		end
+		task.delay(Feel.Unlock.UpgradeHoldSeconds, function()
 			if feedbackVersion == version then
 				feedback.Text = ""
 			end
@@ -180,6 +202,7 @@ end))
 
 script.Destroying:Connect(function()
 	feedbackVersion += 1
+	if panelPulse then panelPulse:Cancel(); panelPulse:Destroy() end
 	for _, connection in connections do
 		connection:Disconnect()
 	end
