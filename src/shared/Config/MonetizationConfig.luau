@@ -4,15 +4,16 @@
 -- MonetizationService checks ownership on the server; clients only open Roblox's prompt.
 local MonetizationConfig = {
 	Passes = {
-		{ Key = "DoubleCash", Id = 0, Name = "2x Cash", Icon = "2x",
+		{ Key = "DoubleCash", Id = 1999521068, Name = "2x Cash", Icon = "2x",
 			Description = "Double Cash from every dunk and air trick, forever. Stacks with Cash Boosts.", SuggestedRobux = 249 },
-		{ Key = "VIP", Id = 0, Name = "VIP", Icon = "VIP",
+		{ Key = "VIP", Id = 1999029049, Name = "VIP", Icon = "VIP",
 			Description = "Diamond Kicks and the Diamond ball in your Locker, plus a VIP tag.", SuggestedRobux = 149 },
-		{ Key = "DoubleDaily", Id = 0, Name = "2x Daily Rewards", Icon = "2x\nDAILY",
+		{ Key = "DoubleDaily", Id = 1998489062, Name = "2x Daily Rewards", Icon = "2x\nDAILY",
 			Description = "Double Cash from daily login rewards and daily challenges.", SuggestedRobux = 99 },
 	},
+	-- Must be a Developer Product (repeatable), not a game pass.
 	Products = {
-		{ Key = "CashBoost", Id = 0, Name = "Cash Boost", Icon = "15\nMIN",
+		{ Key = "CashBoost", Id = 3715129560, Name = "Cash Boost", Icon = "15\nMIN",
 			Description = "2x Cash for 15 minutes (stacks up to 60).", BoostMinutes = 15, SuggestedRobux = 25 },
 	},
 	-- Players with the 2x Cash pass earn this multiplier on dunk and trick Cash.

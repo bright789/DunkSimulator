@@ -8,8 +8,16 @@ Goal: a bright, saturated, high-contrast look in the spirit of popular Roblox ac
 
 | Court | Look |
 | --- | --- |
-| Neighborhood | Sunny 14:00, clear blue Atmosphere (no grey haze), +32% saturation, contrast, gentle bloom and sun rays |
-| HighSchool | Bright indoor arena: warm ambient fill, +26% saturation, contrast, highlight bloom, no haze |
+| Neighborhood | Sunny 14:00, clear blue Atmosphere (no grey haze), +30% saturation, contrast, light bloom (threshold 1.6) and sun rays. Brightness 2.6, exposure −0.2 |
+| HighSchool | Well-lit indoor gym: warm ambient fill (100,96,92), +28% saturation, contrast, light bloom (threshold 1.5), no haze. Brightness 1.6, exposure −0.35 |
+
+**Brightness pass (2026-09-27).** Both presets were toned down after playtesting showed them washed out. Measured on a mid-court view with the HUD hidden (mean brightness out of 255, and the share of near-white pixels):
+
+| Court | Mean before → after | Near-white (≥200) | Blown out (≥245) |
+| --- | --- | --- | --- |
+| Neighborhood | 164 → 129 | 15% → 2% | 1.2% → 0.7% |
+| High School | 190 → 139 | 53% → 20% | 31% → 1% |
+| College (unchanged, reference) | 126 | 8% | 3% |
 
 Tune any Lighting or effect property per court in `LightingConfig`; omitted properties are left alone.
 

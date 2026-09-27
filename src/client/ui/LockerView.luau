@@ -221,14 +221,15 @@ function LockerView.new(playerGui: PlayerGui)
 		end
 	end
 
-	-- `owned[key]` = pass owned; `prices[key]` = Robux price (nil until known).
-	function view.RenderOffers(owned: { [string]: boolean }, prices: { [string]: number })
+	-- `owned[key]` = pass owned; `prices[key]` = Robux price (nil until known);
+	-- `offSale[key]` = created on Roblox but not on sale.
+	function view.RenderOffers(owned: { [string]: boolean }, prices: { [string]: number }, offSale: { [string]: boolean })
 		for key, entry in offers do
 			local control = entry.Button
-			local onSale = entry.Offer.Id ~= 0
+			local onSale = entry.Offer.Id ~= 0 and not offSale[key]
 			local has = entry.Kind == "Pass" and owned[key] == true
-			control.Text = has and "OWNED" or (not onSale and "COMING SOON"
-				or (prices[key] and ("R$ " .. UI.Number(prices[key])) or "BUY"))
+			control.Text = has and "OWNED" or (entry.Offer.Id == 0 and "COMING SOON" or (offSale[key] and "OFF SALE"
+				or (prices[key] and ("R$ " .. UI.Number(prices[key])) or "BUY")))
 			local usable = onSale and not has
 			control.Active = usable
 			control.AutoButtonColor = usable

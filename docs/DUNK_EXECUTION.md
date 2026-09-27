@@ -26,6 +26,15 @@ Holding the normalized height is part of the committed dunk; gravity resumes whe
 
 BasketballService retains private possession while temporarily disabling the hand weld and anchoring only the detached ball. The character is not anchored. DunkExecution interpolates the ball on the server, visible to all clients:
 
+A dunk pressed right after jumping can start while the ball is still gathering into the hand (about 0.12 s on the server). The gather used to finish mid-handoff: welding the ball on merged it into the character assembly, which handed ownership back to the client and cancelled the dunk ("Character server ownership lost"). This happened most at high Vertical, where the fast rise also makes the server's copy of the character lag. `BasketballService.SecureForDunk` now snaps a still-gathering ball into the hand **before** DunkExecution takes ownership, so the weld happens first.
+
+A press can also reach the server before the server has seen the jump. That caused "Jump first" for presses under about 0.15 s after the jump in Studio, and longer with real ping. `DunkService` now keeps a NOT_AIRBORNE attempt waiting for up to `DunkTakeoffGraceSeconds` (0.35 s) instead of rejecting it. The attempt still only runs once the server itself sees the player airborne, and a press with no jump is still rejected.
+
+**Tested in Studio (QA store, College, 200 Vertical):**
+- Presses at 0, 0.05, 0.12, 0.2 and 0.3 s after the jump: all 8 completed.
+- A press with no jump: still rejected with "Jump first".
+- No "server ownership lost" cancellations.
+
 The assembly split can reset character network ownership. DunkExecution explicitly reapplies server ownership immediately after detaching the ball and once on the next Heartbeat before ball movement, clearing residual momentum. The one-shot refresh is limited to this deliberate transition; subsequent unexpected ownership loss still cancels. Cleanup restores the policy captured before the dunk, not the intermediate split policy.
 
 1. Gather from its hand position to two studs above the rim in 0.30 seconds.

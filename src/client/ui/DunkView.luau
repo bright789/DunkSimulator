@@ -26,6 +26,27 @@ function DunkView.new(playerGui: PlayerGui)
 	UI.Round(key, 5)
 	local action = UI.Label(hint, "Action", "DUNK", UDim2.fromOffset(88, 26), UDim2.fromOffset(44, 7), 15)
 	action.Font = Config.BoldFont
+	-- Touch screens: a round DUNK button beside Roblox's jump button (it reads SLAM! during
+	-- the slam meter). The controller decides when it shows; nothing here sends requests.
+	local dunkButton = Instance.new("TextButton")
+	dunkButton.Name = "DunkButton"
+	dunkButton.AnchorPoint = Vector2.new(1, 0.5)
+	dunkButton.BackgroundColor3 = Config.Colors.Warning
+	dunkButton.AutoButtonColor = true
+	dunkButton.Text = ""
+	dunkButton.Visible = false
+	dunkButton.ZIndex = 6
+	UI.Round(dunkButton, 999)
+	local buttonTitle = UI.Label(dunkButton, "Title", "DUNK", UDim2.fromScale(0.78, 0.42), UDim2.fromScale(0.11, 0.29), 40)
+	buttonTitle.Font = Config.BoldFont
+	buttonTitle.TextXAlignment = Enum.TextXAlignment.Center
+	buttonTitle.ZIndex = 7
+	local buttonRing = Instance.new("UIStroke")
+	buttonRing.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	buttonRing.Color = Config.Colors.Gold
+	buttonRing.Thickness = 3
+	buttonRing.Parent = dunkButton
+	dunkButton.Parent = screen
 	local panel = Instance.new("CanvasGroup")
 	panel.Name = "DunkResult"
 	panel.Size = UDim2.fromScale(0.64, 0.17)
@@ -73,7 +94,7 @@ function DunkView.new(playerGui: PlayerGui)
 	local trickDetail = UI.Label(trickPanel, "Detail", "", UDim2.fromScale(0.92, 0.34), UDim2.fromScale(0.04, 0.6), 16)
 	trickDetail.TextXAlignment = Enum.TextXAlignment.Center
 	trickDetail.TextColor3 = Config.Colors.Gain
-	-- Perfect-slam meter: the needle sweeps toward the slam line; press (F / click / tap)
+	-- Perfect-slam meter: the needle sweeps toward the slam line; press (F / RT / click / tap)
 	-- when it is inside the gold zone. Zones are sized from DunkRewards.Timing.
 	local meter = Instance.new("CanvasGroup")
 	meter.Name = "SlamMeter"
@@ -143,7 +164,29 @@ function DunkView.new(playerGui: PlayerGui)
 	local callScale = Instance.new("UIScale")
 	callScale.Parent = call
 	screen.Parent = playerGui
-	local view = { Hint = hint, Result = panel, MeterButton = meterButton }
+	local view = { Hint = hint, Result = panel, MeterButton = meterButton, DunkButton = dunkButton }
+
+	-- Mirrors Roblox's touch jump button layout (small phones vs. bigger screens) so the
+	-- DUNK button sits just left of it, level with its centre.
+	local function placeDunkButton()
+		local size = screen.AbsoluteSize
+		local small = math.min(size.X, size.Y) <= 500
+		local diameter = small and 64 or 96
+		dunkButton.Size = UDim2.fromOffset(diameter, diameter)
+		dunkButton.Position = small and UDim2.new(1, -105, 1, -55) or UDim2.new(1, -185, 1, -150)
+	end
+	placeDunkButton()
+	screen:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeDunkButton)
+
+	function view.SetDunkButton(visible: boolean, title: string)
+		buttonTitle.Text = title
+		dunkButton.Visible = visible
+	end
+
+	-- The key shown in the "F  DUNK" hint (F on keyboard, RT on a gamepad).
+	function view.SetHintKey(text: string)
+		key.Text = text
+	end
 	local hintTween = nil
 	local resultTween = nil
 	local scaleTween = nil
@@ -209,9 +252,9 @@ function DunkView.new(playerGui: PlayerGui)
 		place(perfectZone, timing.PerfectEarlySeconds, timing.PerfectLateSeconds)
 	end
 
-	function view.StartMeter(totalSeconds: number, timing, touch: boolean)
+	function view.StartMeter(totalSeconds: number, timing, caption: string)
 		view.SetMeterTotal(totalSeconds, timing)
-		meterCaption.Text = touch and "TAP TO SLAM!" or "PRESS F TO SLAM!"
+		meterCaption.Text = caption
 		meterCaption.TextColor3 = Config.Colors.Text
 		needle.BackgroundColor3 = Config.Colors.Text
 		needle.Position = UDim2.fromScale(0, 0.5)

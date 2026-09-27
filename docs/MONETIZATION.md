@@ -13,6 +13,17 @@ Everything is built and tested, but **nothing is on sale** until you create the 
 
 "2x Daily Rewards" replaces the earlier "second daily claim" idea. It gives the same value without adding more saved data.
 
+## Current status
+
+| Offer | Roblox id | Status |
+| --- | --- | --- |
+| 2x Cash (game pass) | 1999521068 | Created, in config. Not on sale yet (no price). |
+| VIP (game pass) | 1999029049 | Created, in config. Not on sale yet. |
+| 2x Daily Rewards (game pass) | 1998489062 | Created, in config. Not on sale yet. |
+| Cash Boost (developer product) | 3715129560 | **On sale at 25 R$.** Tested end to end with a free Studio test purchase: the receipt was recorded, the boost applied (HUD `2x CASH 14:5x`), and the save was confirmed before Roblox showed "Purchase completed". The game pass 1999779066 of the same name was a mistake; keep it off sale. |
+
+Passes that exist but aren't for sale show **OFF SALE** in the PASSES tab. The experience's creator automatically owns every pass they made, so the creator's own sessions have all pass effects (verified: all three showed OWNED). To balance without them, test with Studio's Server & Clients players or an alt account.
+
 ## Icons
 
 Ready-made 512×512 PNG icons are in `assets/pass-icons/`:
@@ -55,7 +66,7 @@ Set `StudioOwnedPasses = { "DoubleCash", "VIP", "DoubleDaily" }` in `Monetizatio
 - With the setting cleared, all four offers showed COMING SOON.
 - No errors on the client or server.
 
-Not tested yet (needs real ids): the Robux prompts themselves, live price display, and a Cash Boost receipt.
+With the real ids, Studio showed the live price (R$ 25), and a test purchase of Cash Boost completed successfully. Pass prompts will show once the passes are on sale.
 
 ## Files
 

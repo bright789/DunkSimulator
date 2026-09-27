@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
@@ -41,8 +42,30 @@ Animation.Init(function(styleId, marker)
 	end
 end)
 
+-- One dunk control for every device: F on a keyboard, RT on a gamepad (the X button
+-- is left to the E-style ProximityPrompts), and an on-screen DUNK button on touch screens.
+-- During the slam meter the same press is the slam-timing press.
+local DUNK_ACTION = "Dunk"
+local HINT_KEYS = { Keyboard = "F", Gamepad = "RT" }
+local SLAM_CAPTIONS = { Keyboard = "PRESS F TO SLAM!", Gamepad = "PRESS RT TO SLAM!", Touch = "TAP TO SLAM!" }
+
+local function readInputMode(): string
+	local lastInput = UserInputService:GetLastInputType()
+	if lastInput == Enum.UserInputType.Touch then return "Touch" end
+	if string.find(lastInput.Name, "^Gamepad") then return "Gamepad" end
+	if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then return "Touch" end
+	return "Keyboard"
+end
+
+local inputMode = readInputMode()
+local actionBound = false
+local refreshControls -- defined once the slam meter exists (below)
+
 local function updateHint()
-	view.SetHint(player:GetAttribute("HasBasketball") == true and player:GetAttribute("DunkState") ~= "Executing")
+	view.SetHintKey(HINT_KEYS[inputMode] or "F")
+	view.SetHint(inputMode ~= "Touch" and player:GetAttribute("HasBasketball") == true
+		and player:GetAttribute("DunkState") ~= "Executing")
+	refreshControls()
 end
 
 table.insert(connections, player:GetAttributeChangedSignal("HasBasketball"):Connect(function()
@@ -52,7 +75,13 @@ table.insert(connections, player:GetAttributeChangedSignal("HasBasketball"):Conn
 	updateHint()
 end))
 table.insert(connections, player:GetAttributeChangedSignal("DunkState"):Connect(updateHint))
-updateHint()
+table.insert(connections, UserInputService.LastInputTypeChanged:Connect(function()
+	local mode = readInputMode()
+	if mode ~= inputMode then
+		inputMode = mode
+		updateHint()
+	end
+end))
 
 -- Perfect-slam meter for this player's dunk. The client only predicts when the slam
 -- lands (to draw the needle); the server times the press itself and decides the rating.
@@ -91,7 +120,8 @@ table.insert(connections, player:GetAttributeChangedSignal("DunkPhase"):Connect(
 		meter.Active, meter.Pressed, meter.Start = true, false, now
 		meter.Total = (tonumber(player:GetAttribute("DunkDescentSeconds")) or 0.3) + Feel.SlamMeter.SettleSeconds
 			+ gatherSeconds() - latency()
-		view.StartMeter(meter.Total, DunkRewards.Timing, UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled)
+		view.StartMeter(meter.Total, DunkRewards.Timing, SLAM_CAPTIONS[inputMode] or SLAM_CAPTIONS.Keyboard)
+		refreshControls()
 	elseif meter.Active and phase == "Gather" then
 		meter.Total = (now - meter.Start) + gatherSeconds() - latency()
 		view.SetMeterTotal(meter.Total, DunkRewards.Timing)
@@ -100,6 +130,7 @@ table.insert(connections, player:GetAttributeChangedSignal("DunkPhase"):Connect(
 		view.SetMeterTotal(meter.Total, DunkRewards.Timing)
 	elseif phase == nil and meter.Active then
 		meter.Active = false
+		refreshControls()
 		local started = meter.Start
 		task.delay(Feel.SlamMeter.HideDelaySeconds, function()
 			if not meter.Active or meter.Start ~= started then view.HideMeter() end
@@ -112,11 +143,9 @@ table.insert(connections, RunService.RenderStepped:Connect(function()
 end))
 table.insert(connections, view.MeterButton.Activated:Connect(pressSlam))
 
-table.insert(connections, UserInputService.InputBegan:Connect(function(input, processed)
-	if processed or UserInputService:GetFocusedTextBox() or input.KeyCode ~= Enum.KeyCode.F then
-		return
-	end
-	-- During a dunk, F is the slam-timing press.
+-- The dunk press from any device. The server still checks the ball, the rim distance,
+-- being airborne and the cooldown; this only avoids sending requests that can't work.
+local function pressDunk()
 	if meter.Active then
 		pressSlam()
 		return
@@ -129,7 +158,32 @@ table.insert(connections, UserInputService.InputBegan:Connect(function(input, pr
 	end
 	nextRequest = os.clock() + Config.DunkCooldown
 	requestDunk:FireServer()
-end))
+end
+
+local function onDunkAction(_actionName: string, inputState: Enum.UserInputState): Enum.ContextActionResult
+	if inputState == Enum.UserInputState.Begin then
+		pressDunk()
+	end
+	return Enum.ContextActionResult.Sink
+end
+
+-- F / RT are only bound while holding a ball or during the slam meter, so they don't
+-- swallow those keys the rest of the time. The touch button follows the same rule.
+function refreshControls()
+	local wanted = meter.Active or player:GetAttribute("HasBasketball") == true
+	if wanted ~= actionBound then
+		actionBound = wanted
+		if wanted then
+			ContextActionService:BindAction(DUNK_ACTION, onDunkAction, false, Enum.KeyCode.F, Enum.KeyCode.ButtonR2)
+		else
+			ContextActionService:UnbindAction(DUNK_ACTION)
+		end
+	end
+	view.SetDunkButton(wanted and inputMode == "Touch", meter.Active and "SLAM!" or "DUNK")
+end
+
+table.insert(connections, view.DunkButton.Activated:Connect(pressDunk))
+updateHint()
 
 -- Server-paid air tricks while dropping into the dunk (display only).
 table.insert(connections, dunkTrick.OnClientEvent:Connect(function(trickId, comboIndex, cash, comboSize)
@@ -174,7 +228,7 @@ table.insert(connections, dunkPresentation.OnClientEvent:Connect(function(styleI
 end))
 
 if RunService:IsStudio() then
-	print("[DunkController] Ready: pick up a ball, jump near the rim, and press F.")
+	print("[DunkController] Ready: pick up a ball, jump near the rim, and press F (RT on a gamepad, DUNK on touch).")
 end
 
 table.insert(connections, player.CharacterRemoving:Connect(function()
@@ -188,6 +242,7 @@ end))
 
 script.Destroying:Connect(function()
 	feedbackVersion += 1
+	ContextActionService:UnbindAction(DUNK_ACTION)
 	Feedback.StopCamera()
 	Animation.Destroy()
 	for _, connection in connections do

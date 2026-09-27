@@ -1,5 +1,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("HUDConfig"))
 local UI = require(script.Parent:WaitForChild("UIComponents"))
 local StatFeedback = require(script.Parent:WaitForChild("StatFeedback"))
@@ -23,7 +24,7 @@ local function makeCard(parent: Instance, name: string, prefix: string, order: n
 	local caption = UI.Label(card, "Caption", name:upper(), UDim2.new(1, 0, 0, 18), UDim2.fromOffset(0, 44), 13)
 	caption.TextColor3 = Config.Colors.Muted
 	-- Gain badge pops in at the right end of the value row (value is 34 tall at y 6).
-	return { Value = value, Prefix = prefix, Feedback = StatFeedback.new(card, accent, pulseScale, 23) }
+	return { Card = card, Value = value, Prefix = prefix, Feedback = StatFeedback.new(card, accent, pulseScale, 23) }
 end
 
 function HUDView.new(playerGui: PlayerGui)
@@ -61,13 +62,9 @@ function HUDView.new(playerGui: PlayerGui)
 	capDetail.TextXAlignment = Enum.TextXAlignment.Center
 	local capTween = nil
 	local capTask = nil
-	local columnHeight = Config.Layout.CardHeight * 3 + Config.Layout.ProgressHeight
-		+ Config.Layout.DunksButtonHeight * 3 + Config.Layout.CourtHeaderHeight + Config.Layout.BoostHeight
-		+ Config.Layout.Gap * 9
 	local column = Instance.new("Frame")
 	column.Name = "Stats"
 	column.BackgroundTransparency = 1
-	column.Size = UDim2.fromOffset(Config.Layout.ColumnWidth, columnHeight)
 	column.Position = UDim2.new(0.018, 4, 0.18, 0)
 	column.Parent = bounds
 	local scale = Instance.new("UIScale")
@@ -174,13 +171,54 @@ function HUDView.new(playerGui: PlayerGui)
 	UI.Interactive(rebirthButton)
 	UI.Interactive(dailyButton)
 	UI.Interactive(lockerButton)
+
+	-- Touch devices: Roblox's movement thumbstick takes touches in the lower-left of the
+	-- screen, and buttons there block it, so the menu buttons move to the top-right corner.
+	-- Small screens (phones) also drop the Training and dunk-progress cards and pin the
+	-- stats to the top-left, above the thumbstick area.
+	local touchLayout = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	local navigationScale = nil
+	if touchLayout then
+		navigation.Parent = bounds
+		navigation.AnchorPoint = Vector2.new(1, 0)
+		navigation.Position = UDim2.new(1, -10, 0, 8)
+		navigation.Size = UDim2.fromOffset(Config.Layout.ColumnWidth, navigation.Size.Y.Offset)
+		navigationScale = Instance.new("UIScale")
+		navigationScale.Parent = navigation
+	end
 	screen.Parent = playerGui
+
+	-- Height of everything stacked in the column (the boost pill's space is always kept).
+	local function columnHeight(): number
+		local total, count = 0, 0
+		for _, child in column:GetChildren() do
+			if child:IsA("GuiObject") and (child.Visible or child == boost) then
+				total += child.Size.Y.Offset
+				count += 1
+			end
+		end
+		return total + Config.Layout.Gap * math.max(count - 1, 0)
+	end
 
 	local function resize()
 		local size = bounds.AbsoluteSize
-		local desired = math.clamp(math.min(size.X / Config.Layout.ReferenceSize.X,
-			size.Y / Config.Layout.ReferenceSize.Y), Config.Layout.MinimumScale, 1)
-		scale.Scale = math.min(desired, math.max(0.1, size.Y * 0.76 / columnHeight))
+		local compact = touchLayout and math.min(size.X, size.Y) <= Config.Layout.CompactMaxSize
+		cards.TrainingLevel.Card.Visible = not compact
+		progress.Visible = not compact
+		local height = columnHeight()
+		column.Size = UDim2.fromOffset(Config.Layout.ColumnWidth, height)
+		if compact then
+			column.Position = UDim2.new(0.018, 4, 0, 6)
+			scale.Scale = math.clamp(size.Y * Config.Layout.CompactStatsHeight / height, 0.4, 0.85)
+		else
+			column.Position = UDim2.new(0.018, 4, 0.18, 0)
+			local desired = math.clamp(math.min(size.X / Config.Layout.ReferenceSize.X,
+				size.Y / Config.Layout.ReferenceSize.Y), Config.Layout.MinimumScale, 1)
+			scale.Scale = math.min(desired, math.max(0.1, size.Y * 0.76 / height))
+		end
+		if navigationScale then
+			navigationScale.Scale = math.clamp(size.Y * Config.Layout.TouchMenuHeight / navigation.Size.Y.Offset, 0.6, 1.1)
+		end
 	end
 	local resizeConnection = bounds:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
 	resize()

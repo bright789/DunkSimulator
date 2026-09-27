@@ -41,7 +41,12 @@ Dunk Styles v0.1 extends the progression card: DUNKS opens four usable style row
 
 UI instances are created once per controller session and survive character respawn. Stat changes update only the relevant labels and, for Vertical, progress properties. Positive changes reuse a card's gain label; one short tween is cancelled/destroyed before replacement, with no accumulating GUI objects or tween completion subscriptions. Feedback lasts 0.45 seconds by default (0.1 hold + 0.35 fade), shorter than a normal training interval. Deductions update Cash immediately without falsely showing a positive gain. Initial hydration does not animate as a reward. Controller teardown disconnects listeners and cancels owned startup work/tweens.
 
-Layout uses the core safe area, UIListLayout, UIPadding, UIScale, UISizeConstraint, and bounded text scaling. HUD scaling reacts to safe-area size changes, not a per-frame loop; large numbers use comma grouping and shrink within their label. The upgrade panel remains centered and takes precedence over feedback. This is desktop responsive UI, not new mobile input support.
+Layout uses the core safe area, UIListLayout, UIPadding, UIScale, UISizeConstraint, and bounded text scaling. HUD scaling reacts to safe-area size changes, not a per-frame loop; large numbers use comma grouping and shrink within their label. The upgrade panel remains centered and takes precedence over feedback. **Touch layout:**
+- Touch-only devices move the six menu buttons (DUNKS through LOCKER) to a 2×3 block in the top-right corner. Roblox's movement thumbstick takes touches in the lower-left of the screen, and buttons there block it.
+- On phones (shortest side ≤ `Layout.CompactMaxSize`, 500 px), the Training card and dunk-progress panel are also hidden, and Court / Cash / Vertical are pinned to the top-left above the thumbstick.
+- `CompactStatsHeight` and `TouchMenuHeight` in `HUDConfig.Layout` set how much of the screen height each block uses.
+- Desktop and keyboard devices keep the original column.
+- Checked in Studio's Device Emulator: iPhone XR (896×414) and iPad 6th gen (1024×768).
 
 ## Manual Studio Checklist
 

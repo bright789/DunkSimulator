@@ -23,11 +23,12 @@ function LockerController.new(player: Player, hud)
 	local controller = {}
 
 	local prices = {}
+	local offSale = {}
 	local function render()
 		view.Render(snapshot, pending)
 		local owned = {}
 		for _, pass in Monetization.Passes do owned[pass.Key] = player:GetAttribute("Pass_" .. pass.Key) == true end
-		view.RenderOffers(owned, prices)
+		view.RenderOffers(owned, prices, offSale)
 	end
 	-- Opens Roblox's own purchase prompt; the server verifies and applies the purchase.
 	local function promptPass(key: string)
@@ -41,7 +42,13 @@ function LockerController.new(player: Player, hud)
 			for _, offer in list.Items do
 				if offer.Id ~= 0 then
 					local ok, info = pcall(MarketplaceService.GetProductInfo, MarketplaceService, offer.Id, list.Type)
-					if ok and type(info) == "table" and type(info.PriceInRobux) == "number" then prices[offer.Key] = info.PriceInRobux end
+					if ok and type(info) == "table" then
+						if info.IsForSale == false then
+							offSale[offer.Key] = true
+						elseif type(info.PriceInRobux) == "number" then
+							prices[offer.Key] = info.PriceInRobux
+						end
+					end
 				end
 			end
 		end

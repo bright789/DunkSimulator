@@ -138,6 +138,7 @@ function DunkExecution.Run(player: Player, character: Model, rim: BasePart, styl
 		ensureValid()
 		assert(startingPosition.Y >= rimPosition.Y - DunkConfig.DunkMaxBelowRim
 			and startingPosition.Y <= rimPosition.Y + DunkConfig.DunkMaxEngagementAboveRim, "Outside height normalization bounds")
+		BasketballService.SecureForDunk(player)
 		local canSetOwnership = root:CanSetNetworkOwnership()
 		assert(canSetOwnership, "Character network ownership unavailable")
 		automaticOwnership = root:GetNetworkOwnershipAuto()

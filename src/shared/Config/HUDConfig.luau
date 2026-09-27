@@ -35,6 +35,12 @@ return {
 		Gap = 8,
 		ReferenceSize = Vector2.new(1100, 700),
 		MinimumScale = 0.85,
+		-- Touch layout: screens whose short side is at most this many pixels count as phones.
+		CompactMaxSize = 500,
+		-- Share of the screen height used by the phone stats (top-left) and the touch menu
+		-- buttons (top-right).
+		CompactStatsHeight = 0.36,
+		TouchMenuHeight = 0.26,
 	},
 	Progression = {
 		LockedHeading = "NEXT DUNK",

@@ -25,6 +25,9 @@ local DunkConfig = {
 	-- leaves top players "too high" (250 Vertical: about 285).
 	DunkMaxEngagementAboveRim = math.ceil(ProgressionConfig.GetJumpHeight(highestTrainingCap()) + 20),
 	DunkInputBufferSeconds = 0.5,
+	-- A press that reaches the server before it has seen the player's jump waits this long
+	-- for takeoff (covers network delay; stays under DunkInputBufferSeconds).
+	DunkTakeoffGraceSeconds = 0.35,
 	DunkBufferVerticalAllowance = 3,
 	-- Presses this far above the allowed height keep buffering while the player falls.
 	DunkHighBufferStuds = 45,

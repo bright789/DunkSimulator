@@ -163,6 +163,17 @@ local function updatePossessions(deltaTime: number)
 	end
 end
 
+-- Called by DunkExecution just before it takes the character's network ownership. A ball
+-- still gathering into the hand (a dunk pressed right after jumping) is snapped there now:
+-- welding it on later would merge it into the character assembly, which hands ownership
+-- back to the client and cancels the dunk.
+function BasketballService.SecureForDunk(player: Player)
+	local possession = possessions[player]
+	if possession then
+		attachBall(possession)
+	end
+end
+
 function BasketballService.BeginDunkMotion(player: Player)
 	assert(BasketballService.HasBall(player), "Basketball possession was lost")
 	local possession = possessions[player]

@@ -65,7 +65,7 @@ local function validateAttempt(player: Player, expectedCharacter: Model?, expect
 	local state = humanoid:GetState()
 	if humanoid.FloorMaterial ~= Enum.Material.Air
 		or (state ~= Enum.HumanoidStateType.Jumping and state ~= Enum.HumanoidStateType.Freefall) then
-		return "Jump first, then press F while airborne.", false, "NOT_AIRBORNE"
+		return "Jump first, then dunk while airborne.", false, "NOT_AIRBORNE"
 	end
 	if horizontalDistance > Config.DunkApproachDirectionEpsilon then
 		local towardRim = Vector3.new(-offset.X, 0, -offset.Z).Unit
@@ -97,7 +97,7 @@ local function attemptDunk(player: Player): (string?, string?)
 	local requestedAt = os.clock()
 	local expiresAt = requestedAt + Config.DunkInputBufferSeconds
 	local styleId = PlayerService.GetEquippedDunkStyle(player)
-	local lastReason = "Dunk request expired. Press F again near the rim."
+	local lastReason = "Dunk request expired. Dunk again near the rim."
 	local lastCode = "BUFFER_EXPIRED"
 	repeat
 		local reason, canBuffer, code = validateAttempt(player, character, rim, styleId)
@@ -128,6 +128,12 @@ local function attemptDunk(player: Player): (string?, string?)
 		end
 		lastReason = reason or lastReason
 		lastCode = code or lastCode
+		-- A dunk tapped right after jumping can arrive before the server has seen the jump
+		-- (network delay). Wait briefly for takeoff instead of rejecting; the attempt still
+		-- only runs once the server itself sees the player airborne.
+		if code == "NOT_AIRBORNE" and os.clock() - requestedAt <= Config.DunkTakeoffGraceSeconds then
+			canBuffer = true
+		end
 		if not canBuffer then
 			return reason, code
 		end
