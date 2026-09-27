@@ -2,7 +2,7 @@
 
 ## What Is Saved
 
-Cash, Vertical, TrainingLevel, EquippedDunkStyle, UnlockedCourts, CurrentCourt, VerticalTrainingRemainder and one-time Challenges persist. Existing private PlayerService state remains authoritative; leaderstats, display attributes and HUD are mirrors only. Ball possession, dunk execution/state, court-transition state, session dunk count and map objects are not saved. Court Bonuses and Dunk Challenges extend the existing lifecycle without bypassing its safety rules; see `COURT_BONUSES.md` and `DUNK_CHALLENGES.md`.
+Cash, Vertical, TrainingLevel, EquippedDunkStyle, UnlockedCourts, CurrentCourt, VerticalTrainingRemainder, one-time Challenges, the Rebirths count (see `REBIRTH.md`), the Daily record (see `DAILY_REWARDS.md`) lifetime Stats for the leaderboards and Dunk Contest (see `LEADERBOARDS.md` and `DUNK_CONTEST.md`) and the Locker's owned/equipped shoes and ball skins (schema v10, see `LOCKER.md`) persist. Existing private PlayerService state remains authoritative; leaderstats, display attributes and HUD are mirrors only. Ball possession, dunk execution/state, court-transition state, session dunk count and map objects are not saved. Court Bonuses and Dunk Challenges extend the existing lifecycle without bypassing its safety rules; see `COURT_BONUSES.md` and `DUNK_CHALLENGES.md`.
 
 New-player defaults come from ProgressionConfig, UpgradeConfig, DunkStyles, CourtConfig and ChallengeConfig: Cash 0, Vertical 30, TrainingLevel 1, intended BasicOneHand selection, Neighborhood unlocked/selected, fractional training remainder 0, and seven unclaimed challenge entries. Basic remains locked until 35. A successful read returning no record creates a new profile; a failed read never does.
 
@@ -10,7 +10,7 @@ Example record after its first successful save (field order is irrelevant):
 
 ```lua
 {
-    SchemaVersion = 5,
+    SchemaVersion = 10,
     Cash = 425,
     Vertical = 63,
     TrainingLevel = 4,
@@ -18,6 +18,10 @@ Example record after its first successful save (field order is irrelevant):
     UnlockedCourts = { Neighborhood = true },
     CurrentCourt = "Neighborhood",
     VerticalTrainingRemainder = 0.45,
+    Rebirths = 0,
+    Daily = { Streak = 0, LastClaimDay = -1, BoostUntil = 0, ChallengeDay = -1, Challenges = {} },
+    Stats = { BestVertical = 63, TotalDunks = 0, BestDunkCash = 0, BestContestScore = 0, ContestWins = 0 },
+    Locker = { Shoes = { Owned = { classic = true }, Equipped = "classic" }, Balls = { Owned = { classic = true }, Equipped = "classic" } },
     Challenges = {
         basic_dunker_1 = { Progress = 3, Completed = false },
         -- The other six configured challenge IDs are also present.
@@ -27,7 +31,7 @@ Example record after its first successful save (field order is irrelevant):
 }
 ```
 
-Revision/WriteId are persistence bookkeeping. There are no speculative inventory/rebirth fields or redundant style-unlock booleans. Court unlocks are different: they persist a purchase entitlement, not a Vertical-derived style. Existing unknown unrelated fields, key metadata and UserIds are retained on update.
+Revision/WriteId are persistence bookkeeping. Rebirths is an integer clamped to 0..RebirthConfig.MaxRebirths. There are no speculative inventory fields or redundant style-unlock booleans. Court unlocks are different: they persist a purchase entitlement, not a Vertical-derived style. Existing unknown unrelated fields, key metadata and UserIds are retained on update.
 
 ## Configuration and Names
 
@@ -38,7 +42,7 @@ All persistence settings are in `src/server/Config/DataConfig.luau`, which is no
 | ProductionStoreName | `DunkSimulator_PlayerData_v1` |
 | StudioStoreName | `DunkSimulator_PlayerData_DEV_v1` |
 | KeyPrefix | `Player_` followed by immutable UserId |
-| SchemaVersion | 5 (same existing store names/keys) |
+| SchemaVersion | 10 (same existing store names/keys) |
 | PrioritySaveCooldownSeconds | 10 (court unlock/claim requests share the existing worker) |
 | AutosaveSeconds / jitter | 90 + random 0-10 seconds per player |
 | MaxAttempts | 4 per pending operation |
@@ -55,7 +59,7 @@ Studio always selects the DEV name with RunService:IsStudio(); live servers sele
 
 1. DataService registers a private Loading session and a display-only DataStatus attribute. There is no writable default runtime state or leaderstats yet.
 2. PlayerDataStore requests the UserId key using uncached GetAsync, protected by pcall, bounded retries, and backoff.
-3. PlayerDataSchema inspects root/schema/revision. Legacy records migrate through v1 -> v2 (intended BasicOneHand selection) -> v3 (Neighborhood-only unlocks/selection) -> v4 (fractional training remainder 0) -> v5 (default challenge records). Cash/Vertical/TrainingLevel, style selection and court state are preserved. Invalid styles recover to highest unlocked style or Basic if none; Basic remains unusable below 35. Court sanitation retains known IDs with exact true values, always restores Neighborhood and falls back there for invalid/locked CurrentCourt. Unsupported future schemas, non-table roots and corrupt revisions still fail closed.
+3. PlayerDataSchema inspects root/schema/revision. Legacy records migrate through v1 -> v2 (intended BasicOneHand selection) -> v3 (Neighborhood-only unlocks/selection) -> v4 (fractional training remainder 0) -> v5 (default challenge records) -> v6 (Rebirths 0) -> v7 (empty Daily record) -> v8 (Stats: BestVertical = current Vertical, counters 0) -> v9 (contest stats 0) -> v10 (free Classic shoes and ball). Cash/Vertical/TrainingLevel, style selection and court state are preserved. Invalid styles recover to highest unlocked style or Basic if none; Basic remains unusable below 35. Court sanitation retains known IDs with exact true values, always restores Neighborhood and falls back there for invalid/locked CurrentCourt. Unsupported future schemas, non-table roots and corrupt revisions still fail closed.
 4. Missing/non-finite/non-numeric individual progression fields use canonical defaults. Finite numbers are floored and clamped: Cash to 0..MaxCash; Vertical to StartingVertical..MaxVertical; TrainingLevel to StartingLevel..the configured upgrade table length. Fractional carry must be finite and in `[0, 1)`; it is normalized to millionths, with malformed values repaired to zero. Challenge progress is integer and capped at each configured target; claim flags require exact `true`. Other valid fields are preserved. A single concise repair warning is emitted.
 5. PlayerService initializes private state and display mirrors. DataService marks Ready and defers the court-placement callback. Its private status, not the attribute, controls data readiness; progression also waits for CourtTransition to finish.
 6. Existing/later characters receive the unchanged loaded-Vertical jump calculation. CourtTravel places each living character at saved CurrentCourt after readiness checks, and restores that court on respawn. Training reads private TrainingLevel; affordability reads private Cash.

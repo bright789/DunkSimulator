@@ -1,4 +1,14 @@
 local ProgressionConfig = require(script.Parent.ProgressionConfig)
+local CourtConfig = require(script.Parent.CourtConfig)
+
+-- The most Vertical anyone can train to: the highest court training cap.
+local function highestTrainingCap(): number
+	local highest = 0
+	for _, court in CourtConfig.Definitions do
+		highest = math.max(highest, court.TrainingVerticalCap or 0)
+	end
+	return highest
+end
 
 local DunkConfig = {
 	PickupDistance = 10,
@@ -10,8 +20,10 @@ local DunkConfig = {
 	DunkMaxBelowRim = 8,
 	DunkMaxAboveRim = 8,
 	-- Hard cap on how far above the rim a dunk may start. High-Vertical players can start
-	-- at their apex; the Descent phase brings them down into the wind-up.
-	DunkMaxEngagementAboveRim = 120,
+	-- at their apex; the Descent phase brings them down into the wind-up. It follows the
+	-- peak of a jump at the highest court cap (+20 studs of room), so raising a cap never
+	-- leaves top players "too high" (250 Vertical: about 285).
+	DunkMaxEngagementAboveRim = math.ceil(ProgressionConfig.GetJumpHeight(highestTrainingCap()) + 20),
 	DunkInputBufferSeconds = 0.5,
 	DunkBufferVerticalAllowance = 3,
 	-- Presses this far above the allowed height keep buffering while the player falls.

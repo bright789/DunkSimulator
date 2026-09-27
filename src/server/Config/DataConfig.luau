@@ -1,8 +1,15 @@
 return {
-	SchemaVersion = 5,
+	SchemaVersion = 10,
 	PrioritySaveCooldownSeconds = 10,
 	ProductionStoreName = "DunkSimulator_PlayerData_v1",
 	StudioStoreName = "DunkSimulator_PlayerData_DEV_v1",
+	-- Leaderboard OrderedDataStores are named prefix .. board Id (see LeaderboardConfig).
+	ProductionLeaderboardPrefix = "DunkSimulator_Leaderboard_v1_",
+	StudioLeaderboardPrefix = "DunkSimulator_Leaderboard_DEV_v1_",
+	-- Developer-product receipts already granted (keyed by PurchaseId) so a retried
+	-- ProcessReceipt call never pays twice.
+	ProductionReceiptStoreName = "DunkSimulator_Receipts_v1",
+	StudioReceiptStoreName = "DunkSimulator_Receipts_DEV_v1",
 	KeyPrefix = "Player_",
 	AutosaveSeconds = 90,
 	AutosaveJitterSeconds = 10,

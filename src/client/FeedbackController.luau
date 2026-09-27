@@ -116,6 +116,7 @@ function FeedbackController.Pickup() Audio.Play("BasketballPickup") end
 -- Each trick in a combo rings a little higher.
 function FeedbackController.AirTrick(comboIndex: number) Audio.Play("AirTrick", 1, 1 + 0.12 * (comboIndex - 1)) end
 function FeedbackController.PerfectSlam() Audio.Play("PerfectSlam") end
+function FeedbackController.Rebirth() Audio.Play("Rebirth") end
 function FeedbackController.Training() Audio.Play("TrainingTick") end
 function FeedbackController.Upgrade() Audio.Play("UpgradePurchase") end
 function FeedbackController.DunkUnlock() Audio.Play("DunkUnlock") end

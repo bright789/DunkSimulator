@@ -5,6 +5,10 @@ local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local DunkStyles = require(ReplicatedStorage.Shared.Config.DunkStyles)
 local Courts = require(ReplicatedStorage.Shared.Config.CourtConfig)
 local Challenges = require(ReplicatedStorage.Shared.Config.ChallengeConfig)
+local Rebirths = require(ReplicatedStorage.Shared.Config.RebirthConfig)
+local Daily = require(ReplicatedStorage.Shared.Config.DailyConfig)
+local Leaderboards = require(ReplicatedStorage.Shared.Config.LeaderboardConfig)
+local Locker = require(ReplicatedStorage.Shared.Config.LockerConfig)
 
 local Schema = {}
 
@@ -23,6 +27,10 @@ function Schema.Defaults()
 		CurrentCourt = Courts.StartingId,
 		VerticalTrainingRemainder = 0,
 		Challenges = Challenges.DefaultState(),
+		Rebirths = 0,
+		Daily = Daily.DefaultState(),
+		Stats = Leaderboards.DefaultStats(ProgressionConfig.StartingVertical),
+		Locker = Locker.DefaultState(),
 	}
 end
 
@@ -68,6 +76,33 @@ function Schema.Decode(stored)
 		migrated.Challenges = Challenges.DefaultState()
 		migrated.SchemaVersion = 5
 	end
+	if migrated.SchemaVersion == 5 then
+		migrated.Rebirths = 0
+		migrated.SchemaVersion = 6
+	end
+	if migrated.SchemaVersion == 6 then
+		migrated.Daily = Daily.DefaultState()
+		migrated.SchemaVersion = 7
+	end
+	if migrated.SchemaVersion == 7 then
+		-- Lifetime stats start now; the best Vertical so far is the current one.
+		migrated.Stats = Leaderboards.DefaultStats(migrated.Vertical)
+		migrated.SchemaVersion = 8
+	end
+	if migrated.SchemaVersion == 8 then
+		-- Dunk Contest stats start at zero.
+		if type(migrated.Stats) == "table" then
+			migrated.Stats = table.clone(migrated.Stats)
+			migrated.Stats.BestContestScore = 0
+			migrated.Stats.ContestWins = 0
+		end
+		migrated.SchemaVersion = 9
+	end
+	if migrated.SchemaVersion == 9 then
+		-- Locker: everyone starts with the free Classic shoes and ball.
+		migrated.Locker = Locker.DefaultState()
+		migrated.SchemaVersion = 10
+	end
 	if migrated.SchemaVersion ~= Config.SchemaVersion then
 		return nil, nil, "No migration for this schema version"
 	end
@@ -87,6 +122,7 @@ function Schema.Decode(stored)
 	readInteger("Cash", 0, Config.MaxCash)
 	readInteger("Vertical", ProgressionConfig.StartingVertical, Config.MaxVertical)
 	readInteger("TrainingLevel", UpgradeConfig.StartingLevel, #UpgradeConfig.Levels)
+	readInteger("Rebirths", 0, Rebirths.MaxRebirths)
 	profile.EquippedDunkStyle = DunkStyles.ResolveEquipped(migrated.EquippedDunkStyle, profile.Vertical)
 	repaired = repaired or migrated.EquippedDunkStyle ~= profile.EquippedDunkStyle
 	profile.UnlockedCourts = Courts.SanitizeUnlocks(migrated.UnlockedCourts)
@@ -114,13 +150,23 @@ function Schema.Decode(stored)
 		if type(original) ~= "table" or progress ~= normalized or completed ~= claimed then repaired = true end
 	end
 	repaired = repaired or not Challenges.SameState(storedChallenges, profile.Challenges)
+	local daily, dailyRepaired = Daily.Sanitize(migrated.Daily)
+	profile.Daily = daily
+	repaired = repaired or dailyRepaired
+	local stats, statsRepaired = Leaderboards.SanitizeStats(migrated.Stats, ProgressionConfig.StartingVertical, Config.MaxVertical)
+	profile.Stats = stats
+	repaired = repaired or statsRepaired
+	local locker, lockerRepaired = Locker.Sanitize(migrated.Locker)
+	profile.Locker = locker
+	repaired = repaired or lockerRepaired
 	return profile, revision, nil, repaired
 end
 
 function Schema.Snapshot(values)
 	if type(values) ~= "table" or values.Cash == nil or values.Vertical == nil or values.TrainingLevel == nil
 		or values.EquippedDunkStyle == nil or values.UnlockedCourts == nil or values.CurrentCourt == nil
-		or values.VerticalTrainingRemainder == nil or values.Challenges == nil then
+		or values.VerticalTrainingRemainder == nil or values.Challenges == nil or values.Rebirths == nil
+		or values.Daily == nil or values.Stats == nil or values.Locker == nil then
 		return nil, "Runtime snapshot is missing progression"
 	end
 	local current = table.clone(values)
@@ -139,6 +185,10 @@ function Schema.SameProgress(first, second): boolean
 		and first.CurrentCourt == second.CurrentCourt and Courts.SameUnlocks(first.UnlockedCourts, second.UnlockedCourts)
 		and first.VerticalTrainingRemainder == second.VerticalTrainingRemainder
 		and Challenges.SameState(first.Challenges, second.Challenges)
+		and first.Rebirths == second.Rebirths
+		and Daily.SameState(first.Daily, second.Daily)
+		and Leaderboards.SameStats(first.Stats, second.Stats)
+		and Locker.SameState(first.Locker, second.Locker)
 end
 
 return Schema

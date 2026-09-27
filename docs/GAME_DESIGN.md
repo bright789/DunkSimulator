@@ -54,7 +54,7 @@ Court #1, **The Neighborhood**, remains the starting outdoor half-court. Its pla
 
 Court #2, **High School Gym**, requires at least 75 Vertical and costs $6,000 once. Vertical is not deducted. Purchased access persists permanently. The DUNK HIGH gym has hardwood, markings, bleachers, banners, scoreboard, lights and local versions of the same gameplay stations. Its logical floor-to-rim height matches Neighborhood; the jump curve and gameplay objects are unchanged. High School grants 1.25x Cash from completed dunks and 1.15x Vertical training progress. Neighborhood remains 1.00x for both. Neighborhood training ends at 75 Vertical and High School training ends at 150; these limits never reduce an existing player's stat. These prototype values live in CourtConfig.
 
-**Vertical clearance rule:** Superhuman jump progression must not be capped by indoor court scenery. High School keeps its visual roof, but the ceiling and overhead doorway header are non-collidable; overhead beams, lights and signs are decorative too. Future College, Pro Arena and other indoor courts should keep presentation-only overhead geometry non-collidable/non-queryable above gameplay, without changing the Vertical jump curve.
+**Vertical clearance rule:** Superhuman jump progression must not be capped by indoor court scenery. Indoor courts are built tall enough that a jump at the court's training cap stays indoors (High School 150-stud roof, College 300-stud roof), and their roofs, doorway headers, beams, lights and signs stay non-collidable anyway. Future College, Pro Arena and other indoor courts should keep presentation-only overhead geometry non-collidable/non-queryable above gameplay, without changing the Vertical jump curve.
 
 Physical portals are the primary unlock/discovery flow. After purchasing, E or the COURTS menu travels freely to unlocked courts. Travel clears basketball possession and incompatible station sessions, and waits for any dunk to finish. The selected court persists and determines rejoin/respawn placement, with safe Neighborhood fallback. Both environments share one Place but are separated by 2,400 studs. See `COURT_PROGRESSION.md` for setup and `COURT_BONUSES.md` for bonus math/tests. Further courts remain deferred.
 
@@ -102,7 +102,7 @@ Stat gains briefly rise/fade in their own cards, and confirmed Training Level in
 
 Cash, Vertical, TrainingLevel, EquippedDunkStyle, UnlockedCourts, CurrentCourt and VerticalTrainingRemainder persist. The server loads, migrates/validates, then initializes the existing private player state; the HUD, actual jump height, equipped style, upgrade affordability, training gain and court spawn use those restored values. The remainder is private, bounded fractional training progress that stays with the player across court travel and rejoin; only whole Vertical unlocks styles. Character respawn retains loaded progression. Ball possession, current dunk state, court-transition state and the session dunk counter are not persisted.
 
-Native DataStoreService uses schema version 5 in the same separate Studio/production stores. Existing migrations are retained; v3 -> v4 initializes VerticalTrainingRemainder and v4 -> v5 initializes challenge progress without resetting any existing progression. Invalid court selections fall back safely; significant court purchases and challenge claims request a serialized priority save alongside periodic/leave/shutdown saves. Failed loads never grant writable fallback profiles. Revision checks are not full session locks; outages/crashes or concurrent sessions can still lose unsaved progress. See `DATA_PERSISTENCE.md`, `COURT_BONUSES.md`, and `DUNK_CHALLENGES.md`.
+Native DataStoreService uses schema version 10 in the same separate Studio/production stores. Existing migrations are retained; v3 -> v4 initializes VerticalTrainingRemainder, v4 -> v5 initializes challenge progress v5 -> v6 adds the Rebirths count v6 -> v7 adds the Daily rewards record v7 -> v8 adds lifetime leaderboard Stats v8 -> v9 adds Dunk Contest stats and v9 -> v10 adds the Locker, without resetting any existing progression. Invalid court selections fall back safely; significant court purchases and challenge claims request a serialized priority save alongside periodic/leave/shutdown saves. Failed loads never grant writable fallback profiles. Revision checks are not full session locks; outages/crashes or concurrent sessions can still lose unsaved progress. See `DATA_PERSISTENCE.md`, `COURT_BONUSES.md`, and `DUNK_CHALLENGES.md`.
 
 ## Dunk Challenges v0.1
 
@@ -120,12 +120,12 @@ Potential monetization includes cosmetic items, optional convenience products, g
 
 ## MVP Scope
 
-The playable foundation includes two courts, four dunk progression styles, training, server-owned Cash, Training Level upgrades, custom HUD and persistence. Court Bonuses v0.1 adds High School earning/training advantages and schema-v4 fractional carry. Automatic dribbling and court-specific 75/150 Vertical training limits are implemented in code; their Studio acceptance and fresh-player pacing run remain. Events, advanced cosmetics, further courts and monetization remain later milestones.
+The playable foundation includes two courts, four dunk progression styles, training, server-owned Cash, Training Level upgrades, custom HUD and persistence. Court Bonuses v0.1 adds High School earning/training advantages and schema-v4 fractional carry. Automatic dribbling and court-specific 75/150 Vertical training limits are implemented in code; their Studio acceptance and fresh-player pacing run remain. College Arena (Court #3), Rebirth, Daily rewards/streaks/challenges, global leaderboards, the timed Dunk Contest and the Locker (shoes and ball skins) are implemented and play-tested with starting values; see `COLLEGE_ARENA.md`, `REBIRTH.md`, `DAILY_REWARDS.md`, `LEADERBOARDS.md`, `DUNK_CONTEST.md` and `LOCKER.md`. Events, advanced cosmetics, courts beyond College and monetization remain later milestones.
 
 ## Explicitly Deferred
 
-- Courts beyond High School and court-specific rules beyond the current bonuses and training limits.
-- Full dunk contest formats and seasonal events.
+- Courts beyond College Arena and court-specific rules beyond the current bonuses and training limits.
+- Bracketed/seasonal dunk contest formats beyond the timed server-wide rounds, and seasonal events.
 - Additional persistent progression categories and cross-server leaderboard systems.
 - Cosmetic inventory, trading, and extensive avatar customization.
 - Game passes, developer products, and other monetization.

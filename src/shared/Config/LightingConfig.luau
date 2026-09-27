@@ -59,5 +59,32 @@ return {
 					NearIntensity = 0 },
 			},
 		},
+		-- Big-game arena: cooler ambient, purple-gold tint, stronger glow on the neon.
+		College = {
+			Lighting = {
+				ClockTime = 13,
+				GeographicLatitude = 28,
+				Brightness = 2.2,
+				ExposureCompensation = 0,
+				Ambient = Color3.fromRGB(140, 132, 158),
+				OutdoorAmbient = Color3.fromRGB(150, 146, 168),
+				ColorShift_Top = Color3.fromRGB(255, 232, 200),
+				ColorShift_Bottom = Color3.fromRGB(110, 80, 170),
+				EnvironmentDiffuseScale = 1,
+				EnvironmentSpecularScale = 1,
+				ShadowSoftness = 0.2,
+				GlobalShadows = true,
+			},
+			Effects = {
+				ColorCorrection = { Enabled = true, Saturation = 0.3, Contrast = 0.18, Brightness = 0.02,
+					TintColor = Color3.fromRGB(252, 248, 255) },
+				Bloom = { Enabled = true, Intensity = 0.55, Size = 28, Threshold = 1.25 },
+				SunRays = { Enabled = true, Intensity = 0.02, Spread = 0.6 },
+				Atmosphere = { Density = 0.14, Offset = 0, Color = Color3.fromRGB(226, 220, 236),
+					Decay = Color3.fromRGB(170, 150, 190), Glare = 0, Haze = 0 },
+				DepthOfField = { Enabled = true, FarIntensity = 0.04, FocusDistance = 40, InFocusRadius = 80,
+					NearIntensity = 0 },
+			},
+		},
 	},
 }

@@ -10,6 +10,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("PresentationConfig")).Crowd
 local AudioConfig = require(ReplicatedStorage.Shared.Config.FeedbackConfig).Audio.World
+local ContestConfig = require(ReplicatedStorage.Shared.Config.ContestConfig)
 local WorldAudio = require(script.Parent:WaitForChild("WorldAudio"))
 
 local localPlayer = Players.LocalPlayer
@@ -146,6 +147,13 @@ local function watchPlayer(player: Player)
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		if root then cheerNear(root.Position, Config.PerfectHype) end
 	end)
+	-- Dunk Contest: the crowd erupts for a big judged score ("sequence:total").
+	player:GetAttributeChangedSignal("ContestJudged"):Connect(function()
+		local total = tonumber(string.match(tostring(player:GetAttribute("ContestJudged")), ":(%d+)$"))
+		if not total or total < ContestConfig.HypeScore then return end
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if root then cheerNear(root.Position, Config.PerfectHype) end
+	end)
 end
 for _, player in Players:GetPlayers() do watchPlayer(player) end
 Players.PlayerAdded:Connect(watchPlayer)
@@ -233,9 +241,10 @@ local function poseSpectator(state, now: number, deltaTime: number, focus: Vecto
 	Workspace:BulkMoveTo(parts, cframes, Enum.BulkMoveMode.FireCFrameChanged)
 end
 
--- Stadium crowd bed while this player is in the High School gym.
+-- Stadium crowd bed while this player is in an indoor gym (High School or College).
 local function updateAmbience()
-	WorldAudio.SetLoop("GymAmbience", localPlayer:GetAttribute("CurrentCourt") == "HighSchool")
+	local court = localPlayer:GetAttribute("CurrentCourt")
+	WorldAudio.SetLoop("GymAmbience", court == "HighSchool" or court == "College")
 end
 localPlayer:GetAttributeChangedSignal("CurrentCourt"):Connect(updateAmbience)
 updateAmbience()

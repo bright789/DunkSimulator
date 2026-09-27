@@ -9,6 +9,11 @@ local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local DataService = require(script.Parent.DataService)
 local Courts = require(ReplicatedStorage.Shared.Config.CourtConfig)
 local Challenges = require(ReplicatedStorage.Shared.Config.ChallengeConfig)
+local Rebirths = require(ReplicatedStorage.Shared.Config.RebirthConfig)
+local Daily = require(ReplicatedStorage.Shared.Config.DailyConfig)
+local Leaderboards = require(ReplicatedStorage.Shared.Config.LeaderboardConfig)
+local Locker = require(ReplicatedStorage.Shared.Config.LockerConfig)
+local Monetization = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local DataConfig = require(script.Parent.Parent.Config.DataConfig)
 
 type PlayerState = {
@@ -20,6 +25,15 @@ type PlayerState = {
 	UnlockedCourts: { [string]: boolean },
 	CurrentCourt: string,
 	Challenges: { [string]: { Progress: number, Completed: boolean } },
+	Rebirths: number,
+	-- Daily rewards/challenges record; DailyService is its only writer.
+	Daily: { [string]: any },
+	-- Lifetime leaderboard stats (BestVertical, TotalDunks, BestDunkCash).
+	Stats: { [string]: number },
+	-- Owned/equipped shoes and ball skins; LockerService is its only writer.
+	Locker: { [string]: any },
+	-- Robux passes this player owns (checked by MonetizationService each join; not saved).
+	Passes: { [string]: boolean },
 	CourtTransition: boolean,
 	Dunks: number,
 	DunkState: string,
@@ -75,6 +89,11 @@ local function addPlayer(player: Player, profile)
 		UnlockedCourts = table.clone(profile.UnlockedCourts),
 		CurrentCourt = profile.CurrentCourt,
 		Challenges = Challenges.CopyState(profile.Challenges),
+		Rebirths = profile.Rebirths,
+		Daily = Daily.CopyState(profile.Daily),
+		Stats = Leaderboards.CopyStats(profile.Stats),
+		Locker = Locker.CopyState(profile.Locker),
+		Passes = {},
 		CourtTransition = placeCharacter ~= nil,
 		Dunks = 0,
 		DunkState = "Idle",
@@ -89,6 +108,16 @@ local function addPlayer(player: Player, profile)
 	player:SetAttribute("EquippedDunkStyle", state.EquippedDunkStyle)
 	player:SetAttribute("CurrentCourt", state.CurrentCourt)
 	player:SetAttribute("CourtTransition", state.CourtTransition)
+	player:SetAttribute("Rebirths", state.Rebirths)
+	player:SetAttribute("CashBoostUntil", state.Daily.BoostUntil)
+	state.Stats.BestVertical = math.max(state.Stats.BestVertical, state.Vertical)
+	for _, board in Leaderboards.Boards do
+		player:SetAttribute(board.Stat, state.Stats[board.Stat])
+	end
+	player:SetAttribute("BestContestScore", state.Stats.BestContestScore)
+	player:SetAttribute("ContestWins", state.Stats.ContestWins)
+	player:SetAttribute("EquippedShoe", state.Locker.Shoes.Equipped)
+	player:SetAttribute("BallSkin", state.Locker.Balls.Equipped)
 	leaderstats.Parent = player
 
 	state.CharacterConnection = player.CharacterAdded:Connect(function(character)
@@ -277,7 +306,7 @@ function PlayerService.AwardTraining(player: Player): boolean
 	local scale = Courts.TrainingProgressScale
 	local bonuses = Courts.GetBonuses(state.CurrentCourt, state.UnlockedCourts)
 	local earnedUnits = math.floor(Config.Training.BaseProgressPerTick * level.TrainingMultiplier
-		* bonuses.TrainingMultiplier * scale + 0.5)
+		* bonuses.TrainingMultiplier * Rebirths.TrainingMultiplier(state.Rebirths) * scale + 0.5)
 	local remainderUnits = math.floor(state.VerticalTrainingRemainder * scale + 0.5)
 	local totalUnits = earnedUnits + remainderUnits
 	local wholeGain = math.floor(totalUnits / scale)
@@ -288,6 +317,10 @@ function PlayerService.AwardTraining(player: Player): boolean
 	if wholeGain > 0 then
 		state.Vertical += wholeGain
 		state.VerticalDisplay.Value = state.Vertical
+		if state.Vertical > state.Stats.BestVertical then
+			state.Stats.BestVertical = state.Vertical
+			player:SetAttribute("BestVertical", state.Vertical)
+		end
 		humanoid.UseJumpPower = false
 		humanoid.JumpHeight = Config.GetJumpHeight(state.Vertical)
 	end
@@ -335,7 +368,8 @@ function PlayerService.BuyNextTrainingLevel(player: Player): (boolean, string)
 	return true, "TRAINING LEVEL UP!\nLevel " .. tostring(state.TrainingLevel)
 end
 
-function PlayerService.RegisterDunk(player: Player, styleId: string, rating: string?): (boolean, number?)
+-- `trickCash` is the air-trick Cash DunkExecution already paid during this dunk (server value).
+function PlayerService.RegisterDunk(player: Player, styleId: string, rating: string?, trickCash: number?): (boolean, number?)
 	local state = states[player]
 	if not PlayerService.IsReady(player) or not state or state.DunkState ~= "Completed" then
 		return false
@@ -345,11 +379,21 @@ function PlayerService.RegisterDunk(player: Player, styleId: string, rating: str
 		return false
 	end
 	local bonuses = Courts.GetBonuses(state.CurrentCourt, state.UnlockedCourts)
-	local cashReward = DunkRewards.DunkCash(style.Reward, bonuses.DunkCashMultiplier, state.Vertical, rating)
+	local cashReward = DunkRewards.DunkCash(style.Reward, bonuses.DunkCashMultiplier * Rebirths.CashMultiplier(state.Rebirths)
+		* Daily.BoostMultiplier(state.Daily.BoostUntil, os.time())
+		* (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1), state.Vertical, rating)
 	state.Cash = math.min(state.Cash + cashReward, DataConfig.MaxCash)
 	state.Dunks += 1
 	state.CashDisplay.Value = state.Cash
 	player:SetAttribute("Dunks", state.Dunks)
+	local stats = state.Stats
+	stats.TotalDunks = math.min(stats.TotalDunks + 1, Leaderboards.MaxStat)
+	player:SetAttribute("TotalDunks", stats.TotalDunks)
+	local payout = cashReward + (type(trickCash) == "number" and trickCash >= 0 and math.floor(trickCash) or 0)
+	if payout > stats.BestDunkCash then
+		stats.BestDunkCash = math.min(payout, Leaderboards.MaxStat)
+		player:SetAttribute("BestDunkCash", stats.BestDunkCash)
+	end
 	PlayerService.SetDunkState(player, "Idle")
 	return true, cashReward
 end
@@ -364,11 +408,162 @@ function PlayerService.AwardDunkTrick(player: Player, trickId: string, comboInde
 		return nil
 	end
 	local bonuses = Courts.GetBonuses(state.CurrentCourt, state.UnlockedCourts)
-	local cash = DunkRewards.TrickCash(trickId, comboIndex, bonuses.DunkCashMultiplier)
+	local shoe = Locker.Get("Shoes", state.Locker.Shoes.Equipped)
+	local cash = DunkRewards.TrickCash(trickId, comboIndex, bonuses.DunkCashMultiplier
+		* Rebirths.CashMultiplier(state.Rebirths) * Daily.BoostMultiplier(state.Daily.BoostUntil, os.time())
+		* (1 + (shoe and shoe.TrickBonus or 0)) * (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1))
 	if cash <= 0 or state.Cash > DataConfig.MaxCash - cash then return nil end
 	state.Cash += cash
 	state.CashDisplay.Value = state.Cash
 	return cash
+end
+
+-- Lifetime leaderboard stats (a copy) for LeaderboardService.
+function PlayerService.GetStats(player: Player)
+	local state = states[player]
+	if not PlayerService.IsDataReady(player) or not state then return nil end
+	return Leaderboards.CopyStats(state.Stats)
+end
+
+-- Pass ownership from MonetizationService (server-verified). Mirrored to "Pass_<Key>"
+-- attributes for the client's store and HUD.
+function PlayerService.SetPasses(player: Player, owned: { [string]: boolean })
+	local state = states[player]
+	if not state then return end
+	for _, pass in Monetization.Passes do
+		state.Passes[pass.Key] = owned[pass.Key] == true
+		player:SetAttribute("Pass_" .. pass.Key, state.Passes[pass.Key])
+	end
+end
+
+function PlayerService.HasPass(player: Player, key: string): boolean
+	local state = states[player]
+	return state ~= nil and state.Passes[key] == true
+end
+
+-- The live locker record. Only LockerService may change it, and only without yielding.
+function PlayerService.GetLocker(player: Player)
+	local state = states[player]
+	if not PlayerService.IsDataReady(player) or not state then return nil end
+	return state.Locker
+end
+
+function PlayerService.GetCash(player: Player): number?
+	local state = states[player]
+	return state and state.Cash or nil
+end
+
+-- Takes a price the server already decided (Locker purchases). Returns false and changes
+-- nothing when the amount is invalid or the player can't afford it.
+function PlayerService.SpendCash(player: Player, amount: number): boolean
+	local state = states[player]
+	if not PlayerService.IsReady(player) or not state or type(amount) ~= "number" or amount ~= amount
+		or amount % 1 ~= 0 or amount < 0 or state.Cash < amount then
+		return false
+	end
+	state.Cash -= amount
+	state.CashDisplay.Value = state.Cash
+	return true
+end
+
+-- Records a finished Dunk Contest round for this player (ContestService only).
+function PlayerService.RecordContest(player: Player, score: number, won: boolean)
+	local state = states[player]
+	if not PlayerService.IsDataReady(player) or not state or type(score) ~= "number" then return end
+	local stats = state.Stats
+	stats.BestContestScore = math.max(stats.BestContestScore, math.clamp(math.floor(score), 0, 50))
+	if won then stats.ContestWins = math.min(stats.ContestWins + 1, Leaderboards.MaxStat) end
+	player:SetAttribute("BestContestScore", stats.BestContestScore)
+	player:SetAttribute("ContestWins", stats.ContestWins)
+end
+
+-- The live daily record. Only DailyService may change it, and only without yielding.
+function PlayerService.GetDaily(player: Player)
+	local state = states[player]
+	if not PlayerService.IsDataReady(player) or not state then return nil end
+	return state.Daily
+end
+
+-- What DailyService needs to roll challenges this player can finish.
+function PlayerService.GetDailyContext(player: Player)
+	local state = states[player]
+	if not PlayerService.IsDataReady(player) or not state then return nil end
+	local highestCap = 0
+	for courtId in state.UnlockedCourts do
+		local court = Courts.Get(courtId)
+		if court then highestCap = math.max(highestCap, court.TrainingVerticalCap) end
+	end
+	return { Vertical = state.Vertical, UnlockedCourts = table.clone(state.UnlockedCourts), HighestTrainingCap = highestCap }
+end
+
+-- Adds a reward amount the server already decided (daily rewards). Refuses anything that
+-- is not a whole non-negative number or would pass the Cash limit.
+function PlayerService.GrantCash(player: Player, amount: number): boolean
+	local state = states[player]
+	if not PlayerService.IsDataReady(player) or not state or type(amount) ~= "number" or amount ~= amount
+		or amount % 1 ~= 0 or amount < 0 or state.Cash > DataConfig.MaxCash - amount then
+		return false
+	end
+	state.Cash += amount
+	state.CashDisplay.Value = state.Cash
+	return true
+end
+
+-- What the Rebirth menu shows; `CanRebirth` is advisory (ApplyRebirth re-checks everything).
+function PlayerService.GetRebirthSnapshot(player: Player)
+	local state = states[player]
+	if not PlayerService.IsDataReady(player) or not state then return nil end
+	local requirement = Rebirths.Requirement(state.Rebirths)
+	return {
+		Rebirths = state.Rebirths,
+		MaxRebirths = Rebirths.MaxRebirths,
+		Vertical = state.Vertical,
+		Cash = state.Cash,
+		RequiredVertical = requirement.Vertical,
+		RequiredCash = requirement.Cash,
+		CashMultiplier = Rebirths.CashMultiplier(state.Rebirths),
+		NextCashMultiplier = Rebirths.CashMultiplier(state.Rebirths + 1),
+		TrainingMultiplier = Rebirths.TrainingMultiplier(state.Rebirths),
+		NextTrainingMultiplier = Rebirths.TrainingMultiplier(state.Rebirths + 1),
+		CanRebirth = state.Rebirths < Rebirths.MaxRebirths and state.Vertical >= requirement.Vertical
+			and state.Cash >= requirement.Cash,
+	}
+end
+
+-- Starts the player over (RebirthService has already moved them to the Neighborhood).
+-- Validates and applies atomically; nothing yields.
+function PlayerService.ApplyRebirth(player: Player): (boolean, string)
+	local state = states[player]
+	if not PlayerService.IsReady(player) or not state or state.DunkState ~= "Idle" then
+		return false, "Finish what you're doing first."
+	end
+	if state.CurrentCourt ~= Courts.StartingId then return false, "Travel unavailable." end
+	if state.Rebirths >= Rebirths.MaxRebirths then return false, "Max rebirths reached." end
+	local requirement = Rebirths.Requirement(state.Rebirths)
+	if state.Vertical < requirement.Vertical then
+		return false, string.format("Requires %d Vertical.", requirement.Vertical)
+	end
+	if state.Cash < requirement.Cash then return false, "Not enough Cash." end
+	state.Rebirths += 1
+	state.Cash = Config.StartingCash
+	state.Vertical = Config.StartingVertical
+	state.TrainingLevel = UpgradeConfig.StartingLevel
+	state.VerticalTrainingRemainder = 0
+	state.UnlockedCourts = Courts.DefaultUnlocks()
+	state.CurrentCourt = Courts.StartingId
+	state.EquippedDunkStyle = DunkStyles.ResolveEquipped(state.EquippedDunkStyle, state.Vertical)
+	state.CashDisplay.Value = state.Cash
+	state.VerticalDisplay.Value = state.Vertical
+	player:SetAttribute("Rebirths", state.Rebirths)
+	player:SetAttribute("TrainingLevel", state.TrainingLevel)
+	player:SetAttribute("EquippedDunkStyle", state.EquippedDunkStyle)
+	player:SetAttribute("CurrentCourt", state.CurrentCourt)
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.UseJumpPower = false
+		humanoid.JumpHeight = Config.GetJumpHeight(state.Vertical)
+	end
+	return true, string.format("REBIRTH %d!", state.Rebirths)
 end
 
 function PlayerService.Init(onReady, onDataReady)
@@ -401,6 +596,10 @@ function PlayerService.Init(onReady, onDataReady)
 				UnlockedCourts = table.clone(state.UnlockedCourts),
 				CurrentCourt = state.CurrentCourt,
 				Challenges = Challenges.CopyState(state.Challenges),
+				Rebirths = state.Rebirths,
+				Daily = Daily.CopyState(state.Daily),
+				Stats = Leaderboards.CopyStats(state.Stats),
+				Locker = Locker.CopyState(state.Locker),
 			}
 		end,
 		Cleanup = function(player: Player)

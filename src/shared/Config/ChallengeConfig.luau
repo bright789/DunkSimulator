@@ -44,6 +44,18 @@ local Challenges = {
 			Requirements = { Court = "HighSchool", Count = 25 },
 			Reward = { Cash = 1500 }, Order = 7,
 		},
+		college_dunks_25 = {
+			Id = "college_dunks_25", DisplayName = "College Highlights",
+			Description = "Perform 25 dunks at College Arena.", Type = "CourtDunkCount",
+			Requirements = { Court = "College", Count = 25 },
+			Reward = { Cash = 6000 }, Order = 8,
+		},
+		vertical_250 = {
+			Id = "vertical_250", DisplayName = "Sky Walker",
+			Description = "Reach 250 Vertical.", Type = "VerticalReached",
+			Requirements = { Vertical = 250 },
+			Reward = { Cash = 12000 }, Order = 9,
+		},
 	},
 }
 

@@ -3,13 +3,26 @@ return {
 	GeneratedName = "HighSchoolV01",
 	GateName = "HighSchoolGateV01",
 	Offset = Vector3.new(2400, 0, 0),
-	RoomWidth = 110,
-	RoomDepth = 140,
-	CeilingHeight = 82,
+	-- Gym walls (gym frame). The entrance wall stays at FrontZ because the bus stops sit on
+	-- the sidewalk just outside it; the gym grows sideways, backward and up.
+	RoomWidth = 130,
+	BackZ = -84,
+	FrontZ = 70,
+	-- Tall enough that a max High School jump (TrainingVerticalCap) plus JumpHeadroom for
+	-- the head and camera stays indoors. Build.Run checks this against the jump formula.
+	CeilingHeight = 150,
+	JumpHeadroom = 25,
+	-- Lines on the back wall at the height your feet reach with this much Vertical.
+	VerticalMarks = { 75, 100, 125, 150 },
+	-- Running-track balcony along both side walls (overhead, so it never collides).
+	Balcony = { Height = 30, Width = 11 },
+	LightHeight = 40,
+	-- Leaderboard stand (gym frame): right side behind the baseline, near the hoop, facing the court (-X).
+	Leaderboard = { Position = Vector3.new(52, 0, -61), Facing = Vector3.new(-1, 0, 0) },
 	CourtWidth = 60,
 	CourtDepth = 104,
 	RimDepth = -45,
-	MaxParts = 1000,
+	MaxParts = 1400,
 	-- Bleacher fans: PerSide per bleacher, seated at Spacing-stud slots between FirstZ and
 	-- LastZ (gym frame) on random rows. Seed keeps rebuilds identical.
 	Crowd = { PerSide = 10, FirstZ = -31, LastZ = 23, Spacing = 4.5, Seed = 213, FoamFingerChance = 0.2 },

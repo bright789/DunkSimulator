@@ -12,6 +12,14 @@ local CourtsController = require(script.Parent:WaitForChild("CourtsController"))
 local courts = CourtsController.new(player, view)
 local ChallengesController = require(script.Parent:WaitForChild("ChallengesController"))
 local challenges = ChallengesController.new(player, view)
+local RebirthController = require(script.Parent:WaitForChild("RebirthController"))
+local rebirth = RebirthController.new(player, view)
+local DailyController = require(script.Parent:WaitForChild("DailyController"))
+local daily = DailyController.new(player, view)
+local ContestController = require(script.Parent:WaitForChild("ContestController"))
+local contest = ContestController.new(player)
+local LockerController = require(script.Parent:WaitForChild("LockerController"))
+local locker = LockerController.new(player, view)
 local connections = {}
 local previous = {}
 local destroyed = false
@@ -32,6 +40,8 @@ local function update(name: string, value)
 	end
 	courts.SetStat(name, value)
 	challenges.SetStat(name, value)
+	rebirth.SetStat(name, value)
+	locker.SetStat(name, value)
 	if name == "Vertical" then
 		styles.SetVertical(value, previous[name])
 	end
@@ -97,5 +107,9 @@ script.Destroying:Connect(function()
 	styles.Destroy()
 	courts.Destroy()
 	challenges.Destroy()
+	rebirth.Destroy()
+	daily.Destroy()
+	contest.Destroy()
+	locker.Destroy()
 	view.Destroy()
 end)

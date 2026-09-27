@@ -10,6 +10,8 @@ local BasketballService = require(script.Parent.BasketballService)
 local DunkExecution = require(script.Parent.DunkExecution)
 local GameplayObjects = require(script.Parent.GameplayObjects)
 local ChallengeService = require(script.Parent.ChallengeService)
+local DailyService = require(script.Parent.DailyService)
+local ContestService = require(script.Parent.ContestService)
 local remotes = ReplicatedStorage.Remotes
 
 local DunkService = {}
@@ -102,18 +104,24 @@ local function attemptDunk(player: Player): (string?, string?)
 		if not reason and character and rim and styleId then
 			local courtId = PlayerService.GetCurrentCourt(player)
 			PlayerService.SetDunkState(player, "Executing")
-			local completed, cancellation, trickCash, rating = DunkExecution.Run(player, character, rim, styleId)
+			local completed, cancellation, trickCash, rating, tricks, landedTricks = DunkExecution.Run(player, character, rim, styleId)
 			if not completed then
 				return cancellation, "EXECUTION_CANCELLED"
 			end
 			PlayerService.SetDunkState(player, "Completed")
-			local registered, cashReward = PlayerService.RegisterDunk(player, styleId, rating)
+			local registered, cashReward = PlayerService.RegisterDunk(player, styleId, rating, trickCash)
 			if not registered then
 				return "Player data is not ready.", "PLAYER_NOT_READY"
 			end
 			nextAttempt[player] = os.clock() + Config.DunkCooldown
 			local tracked, trackingProblem = pcall(ChallengeService.OnSuccessfulDunk, player, styleId, courtId)
 			if not tracked then warn("[DunkService] Challenge tracking failed: " .. tostring(trackingProblem)) end
+			local dailyTracked, dailyProblem = pcall(DailyService.OnDunk, player, {
+				StyleId = styleId, CourtId = courtId, Rating = rating, Tricks = tricks or 0, Cash = (cashReward or 0) + (trickCash or 0),
+			})
+			if not dailyTracked then warn("[DunkService] Daily tracking failed: " .. tostring(dailyProblem)) end
+			local judged, contestProblem = pcall(ContestService.OnDunk, player, styleId, rating, landedTricks or {})
+			if not judged then warn("[DunkService] Contest judging failed: " .. tostring(contestProblem)) end
 			print("[DunkService] " .. player.Name .. " completed " .. styleId)
 			remotes.DunkResult:FireClient(player, cashReward, nil, styleId, trickCash, rating)
 			return nil, nil

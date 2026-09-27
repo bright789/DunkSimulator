@@ -62,7 +62,8 @@ function HUDView.new(playerGui: PlayerGui)
 	local capTween = nil
 	local capTask = nil
 	local columnHeight = Config.Layout.CardHeight * 3 + Config.Layout.ProgressHeight
-		+ Config.Layout.DunksButtonHeight * 2 + Config.Layout.CourtHeaderHeight + Config.Layout.Gap * 6
+		+ Config.Layout.DunksButtonHeight * 3 + Config.Layout.CourtHeaderHeight + Config.Layout.BoostHeight
+		+ Config.Layout.Gap * 9
 	local column = Instance.new("Frame")
 	column.Name = "Stats"
 	column.BackgroundTransparency = 1
@@ -116,7 +117,7 @@ function HUDView.new(playerGui: PlayerGui)
 	local navigation = Instance.new("Frame")
 	navigation.Name = "Navigation"
 	navigation.BackgroundTransparency = 1
-	navigation.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight * 2 + Config.Layout.Gap)
+	navigation.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight * 3 + Config.Layout.Gap * 2)
 	navigation.LayoutOrder = 5
 	navigation.Parent = column
 	local dunksButton = Instance.new("TextButton")
@@ -137,12 +138,42 @@ function HUDView.new(playerGui: PlayerGui)
 	local challengesButton = dunksButton:Clone()
 	challengesButton.Name = "Challenges"
 	challengesButton.Text = "CHALLENGES"
-	challengesButton.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight)
+	challengesButton.Size = UDim2.new(0.48, 0, 0, Config.Layout.DunksButtonHeight)
 	challengesButton.Position = UDim2.fromOffset(0, Config.Layout.DunksButtonHeight + Config.Layout.Gap)
 	challengesButton.Parent = navigation
+	local rebirthButton = dunksButton:Clone()
+	rebirthButton.Name = "Rebirth"
+	rebirthButton.Text = "REBIRTH"
+	rebirthButton.TextColor3 = Config.Colors.Gold
+	rebirthButton.Position = UDim2.new(0.52, 0, 0, Config.Layout.DunksButtonHeight + Config.Layout.Gap)
+	rebirthButton.Parent = navigation
+	local dailyButton = dunksButton:Clone()
+	dailyButton.Name = "Daily"
+	dailyButton.Text = "DAILY"
+	dailyButton.Size = UDim2.new(0.48, 0, 0, Config.Layout.DunksButtonHeight)
+	dailyButton.Position = UDim2.fromOffset(0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 2)
+	dailyButton.Parent = navigation
+	local lockerButton = dunksButton:Clone()
+	lockerButton.Name = "Locker"
+	lockerButton.Text = "LOCKER"
+	lockerButton.TextColor3 = Config.Colors.Gold
+	lockerButton.Size = UDim2.new(0.48, 0, 0, Config.Layout.DunksButtonHeight)
+	lockerButton.Position = UDim2.new(0.52, 0, 0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 2)
+	lockerButton.Parent = navigation
+	-- Cash Boost countdown pill (shown only while a boost runs).
+	local boost = UI.Panel(column, "CashBoost", UDim2.new(1, 0, 0, Config.Layout.BoostHeight), UDim2.new())
+	boost.LayoutOrder = 6
+	boost.Visible = false
+	local boostLabel = UI.Label(boost, "Text", "", UDim2.new(1, -16, 1, 0), UDim2.fromOffset(8, 0), 14)
+	boostLabel.Font = Config.BoldFont
+	boostLabel.TextColor3 = Config.Colors.Gold
+	boostLabel.TextXAlignment = Enum.TextXAlignment.Center
 	UI.Interactive(dunksButton)
 	UI.Interactive(courtsButton)
 	UI.Interactive(challengesButton)
+	UI.Interactive(rebirthButton)
+	UI.Interactive(dailyButton)
+	UI.Interactive(lockerButton)
 	screen.Parent = playerGui
 
 	local function resize()
@@ -153,15 +184,39 @@ function HUDView.new(playerGui: PlayerGui)
 	end
 	local resizeConnection = bounds:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
 	resize()
-	local view = { DunksButton = dunksButton, CourtsButton = courtsButton, ChallengesButton = challengesButton }
+	local view = { DunksButton = dunksButton, CourtsButton = courtsButton, ChallengesButton = challengesButton,
+		RebirthButton = rebirthButton, DailyButton = dailyButton, LockerButton = lockerButton }
+	local courtName, rebirths = "--", 0
+
+	local function refreshCourtLabel()
+		courtLabel.Text = "COURT  /  " .. courtName
+		rebirthButton.Text = rebirths > 0 and string.format("REBIRTH %d", rebirths) or "REBIRTH"
+	end
 
 	function view.SetChallengeBadge(count: number)
 		challengesButton.Text = count > 0 and string.format("CHALLENGES (%d)", count) or "CHALLENGES"
 		challengesButton.TextColor3 = count > 0 and Config.Colors.Gain or Config.Colors.Accent
 	end
 
+	function view.SetDailyBadge(count: number)
+		dailyButton.Text = count > 0 and string.format("DAILY (%d)", count) or "DAILY"
+		dailyButton.TextColor3 = count > 0 and Config.Colors.Gain or Config.Colors.Accent
+	end
+
+	-- Cash Boost pill: pass nil to hide it.
+	function view.SetBoost(text: string?)
+		boost.Visible = text ~= nil
+		boostLabel.Text = text or ""
+	end
+
 	function view.SetCourt(name: string)
-		courtLabel.Text = "COURT  /  " .. name
+		courtName = name
+		refreshCourtLabel()
+	end
+
+	function view.SetRebirths(count: number)
+		rebirths = typeof(count) == "number" and count or 0
+		refreshCourtLabel()
 	end
 
 	function view.SetDataStatus(status: string?)
@@ -175,8 +230,12 @@ function HUDView.new(playerGui: PlayerGui)
 		if not court or court.TrainingVerticalCap ~= cap then return end
 		if capTask then task.cancel(capTask); capTask = nil end
 		if capTween then capTween:Cancel(); capTween:Destroy(); capTween = nil end
+		local nextCourt = nil
+		for _, id in Courts.OrderedIds() do
+			if Courts.Get(id).Order == court.Order + 1 then nextCourt = Courts.Get(id) end
+		end
 		capDetail.Text = string.format("%s Limit: %d Vertical\n%s", court.DisplayName, cap,
-			courtId == Courts.StartingId and "Unlock High School to keep training." or "More courts coming soon.")
+			nextCourt and ("Unlock " .. nextCourt.DisplayName .. " to keep training.") or "Rebirth to start over even stronger!")
 		capToast.GroupTransparency = 1
 		capToast.Visible = true
 		capTween = TweenService:Create(capToast, TweenInfo.new(Config.TrainingCap.FadeSeconds), { GroupTransparency = 0 })

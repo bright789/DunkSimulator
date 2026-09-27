@@ -26,6 +26,14 @@
         "$path": "src/shared",
         "$ignoreUnknownInstances": false
       },
+      "Leaderboards": {
+        "$className": "Folder",
+        "$ignoreUnknownInstances": true
+      },
+      "Contest": {
+        "$className": "Folder",
+        "$ignoreUnknownInstances": true
+      },
       "Remotes": {
         "$className": "Folder",
         "$ignoreUnknownInstances": false,
@@ -42,6 +50,30 @@
           "$className": "RemoteEvent"
         },
         "SlamTiming": {
+          "$className": "RemoteEvent"
+        },
+        "RebirthRequest": {
+          "$className": "RemoteEvent"
+        },
+        "RebirthState": {
+          "$className": "RemoteEvent"
+        },
+        "DailyRequest": {
+          "$className": "RemoteEvent"
+        },
+        "DailyState": {
+          "$className": "RemoteEvent"
+        },
+        "ContestScore": {
+          "$className": "RemoteEvent"
+        },
+        "ContestResult": {
+          "$className": "RemoteEvent"
+        },
+        "LockerRequest": {
+          "$className": "RemoteEvent"
+        },
+        "LockerState": {
           "$className": "RemoteEvent"
         },
         "DunkAnimationStatus": {

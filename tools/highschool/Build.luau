@@ -23,6 +23,16 @@ function Build.Run()
 	assert(RunService:IsStudio() and not RunService:IsRunning(), "HighSchoolBuilder is Studio EDIT MODE only; stop Play first.")
 	local shared = assert(ReplicatedStorage:FindFirstChild("Shared"), "Sync the main Rojo project first.")
 	local courts = require(shared.Config.CourtConfig)
+	local progression = require(shared.Config.ProgressionConfig)
+	-- The roof must clear the highest jump anyone can train to here, plus head/camera room.
+	local capJump = progression.GetJumpHeight(courts.Get("HighSchool").TrainingVerticalCap)
+	assert(capJump + Config.JumpHeadroom <= Config.CeilingHeight, string.format(
+		"CeilingHeight %d is too low for the High School cap jump (%.0f studs + %d headroom); raise it in Config.",
+		Config.CeilingHeight, capJump, Config.JumpHeadroom))
+	local marks = {}
+	for _, vertical in Config.VerticalMarks do
+		table.insert(marks, { Vertical = vertical, Height = progression.GetJumpHeight(vertical) })
+	end
 	local map = assert(existing(Workspace, "Map", "Folder"), "Expected existing Workspace.Map.")
 	local neighborhood = assert(existing(map, "Neighborhood", "Folder"), "Expected existing Neighborhood.")
 	local courtFolder = assert(existing(neighborhood, "Court", "Folder"), "Expected existing Neighborhood.Court.")
@@ -117,7 +127,7 @@ function Build.Run()
 		local outgoing = station(gameplay, courts.Get("Neighborhood").Portals.HighSchool,
 			neighborhoodSpawn.CFrame * CFrame.new(26, 1 - neighborhoodSpawn.Size.Y / 2, 0), Config.Colors.Dark)
 		local environment = output(folder(school, "Environment"), Config.GeneratedName)
-		Scenery.Gym(environment, { Frame = frame })
+		Scenery.Gym(environment, { Frame = frame, Marks = marks })
 		local props = Geometry.Folder(environment, "Stations")
 		Scenery.Gymnasium(Geometry.Folder(props, "TrainerGym"), trainer)
 		Scenery.Shop(Geometry.Folder(props, "PickupShop"), pickup)

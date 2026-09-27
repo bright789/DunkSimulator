@@ -12,7 +12,10 @@ return {
 	EntrancePostWidth = 1,
 	EntrancePostHeight = 11.5,
 	EntranceFenceGap = 0.1,
-	MaxParts = 600,
+	MaxParts = 640,
+	-- Leaderboard stand (ground frame, hoop end is +Z): behind the hoop on the grass,
+	-- left of it as seen from the court, facing the court.
+	Leaderboard = { Position = Vector3.new(25, 0, 45), Facing = Vector3.new(0, 0, -1) },
 	Colors = {
 		-- Saturated "pop" palette: blue court, orange key, lush greens, clean whites.
 		Court = Color3.fromRGB(34, 104, 190),

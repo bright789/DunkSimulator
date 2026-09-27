@@ -114,6 +114,7 @@ return {
 			UIClick = "rbxassetid://15675032796", -- Roblox UI small click
 			ChallengeReady = "rbxassetid://17208361335", -- Roblox GUI - Notification High
 			ChallengeClaim = "rbxassetid://9119220620", -- Slot machine payout
+			Rebirth = "rbxassetid://9117297453", -- Phasey synth power-up rise
 		},
 		StyleAssetIds = {
 			BasicOneHand = { Approach = "", Whoosh = "rbxassetid://9126229255", Impact = "", Rim = "rbxassetid://9125434858" },
@@ -141,6 +142,7 @@ return {
 			UIClick = 0.15,
 			ChallengeReady = 0.28,
 			ChallengeClaim = 0.35,
+			Rebirth = 0.4,
 		},
 		TrainingMinIntervalSeconds = 1.5,
 		-- 3D sounds in the world that every nearby player hears (WorldAudio).

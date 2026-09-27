@@ -99,4 +99,38 @@ function Geometry.Sign(parent, name, frame, text, color, width)
 	return board
 end
 
+-- Big text panel for banners and wall markings: one face carries FredokaOne text with a
+-- dark outline, unaffected by scene lighting and readable from far across an arena.
+-- `face` must point into the room (parts here are axis-aligned with the court frame).
+function Geometry.Panel(parent, name, size, frame, color, text, textColor, face)
+	local board = Geometry.Part(parent, name, size, frame, color)
+	local sideways = face == Enum.NormalId.Left or face == Enum.NormalId.Right
+	local width = sideways and size.Z or size.X
+	-- Scaled text tops out at 100 px, so big panels get a coarser canvas (about 110 px per
+	-- line of text) and the words still fill them.
+	local _, breaks = string.gsub(text, "\n", "")
+	local pixelsPerStud = math.min(24, 110 * (breaks + 1) / size.Y)
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "Label"
+	gui.Face = face
+	gui.CanvasSize = Vector2.new(math.floor(width * pixelsPerStud + 0.5), math.floor(size.Y * pixelsPerStud + 0.5))
+	gui.LightInfluence = 0
+	gui.MaxDistance = 900
+	gui.Parent = board
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(0.9, 0.84)
+	label.Position = UDim2.fromScale(0.05, 0.08)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.FredokaOne
+	label.Text = text
+	label.TextScaled = true
+	label.TextColor3 = textColor
+	label.Parent = gui
+	local outline = Instance.new("UIStroke")
+	outline.Color = SIGN_OUTLINE
+	outline.Thickness = 4
+	outline.Parent = label
+	return board
+end
+
 return Geometry

@@ -1,14 +1,11 @@
-# College Court Preparation
+# College Court Preparation (historical)
 
-College is **not implemented or unlockable**. Do not add a `College` entry to `CourtConfig` until dribbling, dunk-animation playback, both court caps, and the timed fresh-player progression run have passed Studio acceptance.
+**College Arena is now implemented.** See [COLLEGE_ARENA.md](COLLEGE_ARENA.md) for the current numbers, map, builder steps and acceptance tests, and [REBIRTH.md](REBIRTH.md) for the Rebirth loop that College leads into.
 
-The existing court architecture already resolves gameplay stations, hoop, spawn, unlocks, bonuses, and training cap from a stable court ID. A later College milestone can add one definition and a Studio-owned environment, then wire purchase/travel through the existing `CourtService` and `GameplayObjects` paths. A proposed College training cap is **250 Vertical**, subject to playtest results; its unlock Vertical, Cash cost, and multipliers are deliberately unset. Do not persist the cap or add speculative profile fields.
+This page recorded the pre-build plan. How each item was resolved:
 
-Before building Court #3:
-
-1. Measure time to Neighborhood 75, High School purchase, Windmill 110, High School 150, and all seven challenges using `PROGRESSION_PLAYTEST.md`.
-2. Choose the College gate and bonuses from measured pacing, not from an arbitrary multiplier.
-3. Plan a new explicit gameplay path with local hoop, ball pickup, trainer, upgrade station, spawn, and return portal; do not rely on recursive name searches.
-4. Keep Workspace Studio-owned. Make indoor overhead scenery non-collidable and non-queryable above play, so 250+ Vertical and the camera remain usable.
-5. Add schema migration only if a genuinely new persistent field is needed. Existing `UnlockedCourts` and `CurrentCourt` can already represent another configured ID.
-6. Test travel with a basketball, reset/rejoin, locked/invalid court requests, cap clamping, high-Vertical dunks, and two-player court separation before release.
+1. **Pacing first.** College starting numbers (150 Vertical + $40,000 unlock, x1.6 Cash, x1.3 training, 250 cap) are starting values in `CourtConfig` and still need a timed playtest with `PROGRESSION_PLAYTEST.md`.
+2. **Explicit gameplay path.** College uses `Workspace.Gameplay.Courts.College` with its own hoop Rim, pickup, trainer, upgrade station, spawn and return bus stop. There are no recursive name searches.
+3. **Studio-owned Workspace.** The map comes from the edit-mode `CollegeBuilder` tool. Overhead scenery is non-collidable and non-queryable, so 250+ Vertical and the camera stay usable.
+4. **No speculative schema.** College itself needed no new saved field; `UnlockedCourts`/`CurrentCourt` already handle it. Schema v6 exists only for the Rebirth count.
+5. **Travel tests.** Travel, locked-court requests, the cap, high-Vertical dunks and the return bus passed in Studio. Two-player court separation and bringing a basketball on the bus are still open (listed in `COLLEGE_ARENA.md`).

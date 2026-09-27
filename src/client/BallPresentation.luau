@@ -7,6 +7,7 @@ local Workspace = game:GetService("Workspace")
 local DunkConfig = require(ReplicatedStorage.Shared.Config.DunkConfig)
 local Courts = require(ReplicatedStorage.Shared.Config.CourtConfig)
 local Config = require(ReplicatedStorage.Shared.Config.PresentationConfig)
+local Locker = require(ReplicatedStorage.Shared.Config.LockerConfig)
 local BallConfig = Config.Ball
 local DribbleConfig = Config.Dribble
 
@@ -99,7 +100,7 @@ end
 
 -- Two great-circle seams plus the two curved side seams of a real basketball. Each is a
 -- thin disc slightly wider than the ball, so only its edge shows as a dark line.
-local function addSeams(state, visual: Part)
+local function addSeams(state, visual: Part, skin)
 	local diameter = DunkConfig.BallDiameter
 	local width = math.max(diameter * BallConfig.SeamWidth, 0.04)
 	local curveHeight = RADIUS * 0.62
@@ -113,7 +114,7 @@ local function addSeams(state, visual: Part)
 	state.Seams = {}
 	for name, seam in seams do
 		local part = visualPart(visual, name, Enum.PartType.Cylinder, Vector3.new(width, seam.Diameter, seam.Diameter),
-			BallConfig.SeamColor, Enum.Material.SmoothPlastic)
+			skin.Seam, skin.GlowSeams and Enum.Material.Neon or Enum.Material.SmoothPlastic)
 		part.CastShadow = false
 		table.insert(state.Seams, { Part = part, Offset = seam.Offset })
 	end
@@ -123,11 +124,14 @@ local function ensureVisual(state): Part
 	local visual = state.Visual
 	if visual and visual.Parent then return visual end
 	local diameter = DunkConfig.BallDiameter
+	-- Ball skin from the Locker (the server sets the owner's "BallSkin" attribute).
+	local skin = Locker.Get("Balls", state.Player:GetAttribute("BallSkin")) or Locker.Get("Balls", Locker.DefaultId)
+	state.Skin = skin.Id
 	visual = visualPart(nil, state.Player.Name .. "_Basketball", Enum.PartType.Ball,
-		Vector3.new(diameter, diameter, diameter), DunkConfig.BallColor, Enum.Material.Leather)
+		Vector3.new(diameter, diameter, diameter), skin.Color, skin.Material)
 	visual.CastShadow = true
-	addSeams(state, visual)
-	if BallConfig.TrailLifetime > 0 then
+	addSeams(state, visual, skin)
+	if skin.TrailLifetime > 0 then
 		local top = Instance.new("Attachment")
 		top.Position = Vector3.new(0, RADIUS * 0.35, 0)
 		top.Parent = visual
@@ -138,8 +142,8 @@ local function ensureVisual(state): Part
 		trail.Name = "DunkTrail"
 		trail.Attachment0 = top
 		trail.Attachment1 = bottom
-		trail.Lifetime = BallConfig.TrailLifetime
-		trail.Color = ColorSequence.new(BallConfig.TrailColor, Color3.new(1, 1, 1))
+		trail.Lifetime = skin.TrailLifetime
+		trail.Color = ColorSequence.new(skin.Trail, Color3.new(1, 1, 1))
 		trail.Transparency = NumberSequence.new(0.55, 1)
 		trail.WidthScale = NumberSequence.new(1, 0)
 		trail.LightEmission = 0.4
@@ -371,6 +375,12 @@ function BallPresentation.Update(state, deltaTime: number): Vector3?
 	end
 	trackServerBall(state, serverBall)
 	serverBall.Transparency = 1
+	if state.Visual and state.Skin ~= (state.Player:GetAttribute("BallSkin") or Locker.DefaultId) then
+		-- Skin changed: rebuild the visual ball with the new look.
+		state.Visual:Destroy()
+		state.Visual = nil
+		state.Seams = {}
+	end
 	local visual = ensureVisual(state)
 
 	local training = state.Player:GetAttribute("Training") == true

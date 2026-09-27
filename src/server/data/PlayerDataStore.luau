@@ -3,6 +3,9 @@ local RunService = game:GetService("RunService")
 local Config = require(script.Parent.Parent.Config.DataConfig)
 local Schema = require(script.Parent.PlayerDataSchema)
 local Challenges = require(game:GetService("ReplicatedStorage").Shared.Config.ChallengeConfig)
+local Daily = require(game:GetService("ReplicatedStorage").Shared.Config.DailyConfig)
+local Leaderboards = require(game:GetService("ReplicatedStorage").Shared.Config.LeaderboardConfig)
+local Locker = require(game:GetService("ReplicatedStorage").Shared.Config.LockerConfig)
 
 local Store = {}
 local dataStore = nil
@@ -83,6 +86,10 @@ function Store.Write(userId: number, pending, canContinue)
 			updated.CurrentCourt = pending.Snapshot.CurrentCourt
 			updated.VerticalTrainingRemainder = pending.Snapshot.VerticalTrainingRemainder
 			updated.Challenges = Challenges.CopyState(pending.Snapshot.Challenges)
+			updated.Rebirths = pending.Snapshot.Rebirths
+			updated.Daily = Daily.CopyState(pending.Snapshot.Daily)
+			updated.Stats = Leaderboards.CopyStats(pending.Snapshot.Stats)
+			updated.Locker = Locker.CopyState(pending.Snapshot.Locker)
 			updated.Revision = pending.Revision + 1
 			updated.WriteId = pending.WriteId
 			return updated, userIds, metadata

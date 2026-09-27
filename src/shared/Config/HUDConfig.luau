@@ -30,6 +30,7 @@ return {
 		CardHeight = 74,
 		ProgressHeight = 140,
 		DunksButtonHeight = 34,
+		BoostHeight = 30,
 		CourtHeaderHeight = 28,
 		Gap = 8,
 		ReferenceSize = Vector2.new(1100, 700),

@@ -1,6 +1,6 @@
--- Detailed decorative props shared by the Neighborhood and High School builders:
--- seamed basketballs, a ball shop, a leg-day gym corner, a bus stop, a school bus and the
--- Training Upgrades lab.
+-- Detailed decorative props shared by the Neighborhood, High School and College builders:
+-- seamed basketballs, a ball shop, a leg-day gym corner, a bus stop, a school bus, the
+-- Training Upgrades lab and the leaderboard stand.
 -- Every part is anchored scenery; gameplay stations are never created or moved here.
 --
 -- Frames: every function takes the station's floor frame. Its LookVector points toward
@@ -179,6 +179,17 @@ function Props.SchoolBus(parent, busFrame, colors)
 	return bus
 end
 
+-- Bus stop around a travel station (which faces the road) plus a school bus parked at the
+-- curb with its door beside the stop. The bus faces along the road.
+function Props.TransitStop(parent, station, text, busDistance, roadDrop, colors)
+	local frame = station.CFrame * CFrame.new(0, -station.Size.Y / 2, 0)
+	Props.BusStop(parent, frame, text, colors)
+	local roadward = Vector3.new(frame.LookVector.X, 0, frame.LookVector.Z).Unit
+	local along = Vector3.new(frame.RightVector.X, 0, frame.RightVector.Z).Unit
+	local center = frame.Position + roadward * busDistance - along * 8 - Vector3.new(0, roadDrop, 0)
+	Props.SchoolBus(parent, CFrame.lookAt(center, center + along), colors)
+end
+
 -- Regulation-style hoop shared by every court: glass backboard with a target square,
 -- orange ring (Segment parts, which the dunk code measures), net, bracket, arm and a pole
 -- down to the floor. `rimFrame` sits at the logical rim, LookVector toward the court
@@ -311,6 +322,42 @@ function Props.UpgradeLab(parent, frame, title, colors)
 			side < 0 and colors.Accent or colors.Yellow, colors)
 	end
 	return lab
+end
+
+-- Freestanding stand with one panel per global leaderboard (LeaderboardConfig.Boards).
+-- Each panel is tagged LeaderboardConfig.PanelTag with a "Board" attribute; the client
+-- (LeaderboardPresentation) draws the list on the panel's Front face, which points along
+-- the frame's LookVector (toward the viewers).
+function Props.Leaderboards(parent, frame, colors)
+	local shared = game:GetService("ReplicatedStorage"):FindFirstChild("Shared")
+	assert(shared, "Sync the main Rojo project first (LeaderboardConfig is needed).")
+	local config = require(shared.Config.LeaderboardConfig)
+	local CollectionService = game:GetService("CollectionService")
+	local stand = Geometry.Folder(parent, "Leaderboards")
+	local panelWidth, panelHeight, gap, header, lift = 13, 14, 0.8, 3, 1.2
+	local count = #config.Boards
+	local width = count * panelWidth + (count + 1) * gap
+	local height = panelHeight + header + gap * 2
+	local function at(x, y, z) return frame * CFrame.new(x, y, z) end
+	for _, side in { -1, 1 } do
+		Geometry.Part(stand, "Post" .. side, Vector3.new(1, lift + height, 1), at(side * (width / 2 - 0.8), (lift + height) / 2, 0.9),
+			colors.Metal, Enum.Material.Metal, true)
+		Geometry.Part(stand, "Foot" .. side, Vector3.new(1.6, 0.4, 4), at(side * (width / 2 - 0.8), 0.2, 0.9), colors.Metal, Enum.Material.Metal, true)
+	end
+	Geometry.Part(stand, "Backing", Vector3.new(width, height, 0.6), at(0, lift + height / 2, 0.3), colors.Dark, Enum.Material.Metal, true)
+	for _, y in { lift, lift + height } do
+		Geometry.Part(stand, "Trim" .. y, Vector3.new(width + 0.2, 0.35, 0.8), at(0, y, 0.25), colors.Accent, Enum.Material.Neon)
+	end
+	Geometry.Sign(stand, "Header", at(0, lift + height - gap - header / 2, -0.12), "LEADERBOARDS", colors.Accent, width - 8)
+	for index, board in config.Boards do
+		-- The viewer faces the frame, so its left is the frame's +X: board 1 goes there.
+		local x = width / 2 - gap - panelWidth / 2 - (index - 1) * (panelWidth + gap)
+		local panel = Geometry.Part(stand, "Board" .. board.Id, Vector3.new(panelWidth, panelHeight, 0.2),
+			at(x, lift + gap + panelHeight / 2, -0.1), colors.Dark)
+		panel:SetAttribute("Board", board.Id)
+		CollectionService:AddTag(panel, config.PanelTag)
+	end
+	return stand
 end
 
 return Props

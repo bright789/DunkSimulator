@@ -7,6 +7,7 @@ local Config = require(ReplicatedStorage.Shared.Config.ProgressionConfig)
 local PlayerService = require(script.Parent.PlayerService)
 local GameplayObjects = require(script.Parent.GameplayObjects)
 local ChallengeService = require(script.Parent.ChallengeService)
+local DailyService = require(script.Parent.DailyService)
 
 local TrainingService = {}
 type TrainingSession = {
@@ -103,6 +104,8 @@ local function updateSessions()
 			if PlayerService.AwardTraining(player) then
 				local tracked, problem = pcall(ChallengeService.OnVerticalChanged, player)
 				if not tracked then warn("[TrainingService] Challenge tracking failed: " .. tostring(problem)) end
+				local dailyTracked, dailyProblem = pcall(DailyService.OnTrainingRep, player)
+				if not dailyTracked then warn("[TrainingService] Daily tracking failed: " .. tostring(dailyProblem)) end
 				local cap = PlayerService.GetTrainingCap(player)
 				if cap and PlayerService.GetVertical(player) >= cap then
 					notifyCap(player)

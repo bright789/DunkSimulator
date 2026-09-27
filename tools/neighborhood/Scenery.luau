@@ -96,6 +96,11 @@ function Scenery.Environment(parent, props, boundaries, context)
 			Skin = Color3.fromRGB(234, 184, 146), Shirt = Color3.fromRGB(255, 196, 24), Pants = Color3.fromRGB(60, 60, 66),
 			Shoes = Color3.fromRGB(34, 104, 190), Hat = "ShortHair", HairColor = Color3.fromRGB(58, 38, 24),
 		})
+	local boardSpot = Config.Leaderboard
+	Props.Leaderboards(props, CFrame.lookAt((frame * CFrame.new(boardSpot.Position)).Position,
+		(frame * CFrame.new(boardSpot.Position + boardSpot.Facing)).Position), {
+		Metal = Colors.Metal, Dark = Colors.Dark, Accent = Colors.Yellow,
+	})
 	local benches = Geometry.Folder(props, "Benches")
 	local trees = Geometry.Folder(props, "Trees")
 	local lights = Geometry.Folder(props, "Lights")

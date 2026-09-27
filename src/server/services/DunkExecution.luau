@@ -18,12 +18,15 @@ local SlamTiming = require(script.Parent.SlamTiming)
 local DunkExecution = {}
 local random = Random.new()
 
--- Returns (completed, cancellation message, Cash already paid for air tricks, slam rating).
-function DunkExecution.Run(player: Player, character: Model, rim: BasePart, styleId: string): (boolean, string?, number, string?)
+-- Returns (completed, cancellation message, Cash already paid for air tricks, slam rating,
+-- number of air tricks paid, the ids of those tricks in order).
+function DunkExecution.Run(player: Player, character: Model, rim: BasePart, styleId: string): (boolean, string?, number, string?, number, { string })
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local root = character:FindFirstChild("HumanoidRootPart")
 	local ball = BasketballService.GetBall(player)
 	local trickCash = 0
+	local tricksLanded = 0
+	local landedTricks: { string } = {}
 	local rating: string? = nil
 	if not humanoid or not root or not root:IsA("BasePart") or root.Anchored or not ball then
 		return false, "Dunk execution could not start.", trickCash
@@ -212,8 +215,11 @@ function DunkExecution.Run(player: Player, character: Model, rim: BasePart, styl
 		local startLifted = dropHeight > windupLift
 		local descentEnd = startLifted and target + Vector3.new(0, windupLift, 0) or target
 		local combo = DunkRewards.PlanCombo(style.DescentTrick, vertical, dropHeight, random)
+		-- The eased path peaks at 1.5x its average speed; long drops from huge jumps get
+		-- enough time that it never outruns DescentMaxVelocity.
 		local descentSeconds = math.max(math.clamp(Config.DescentBaseSeconds + math.abs(dropHeight) * Config.DescentSecondsPerStud,
-			Config.DescentBaseSeconds, Config.DescentMaxSeconds), DunkRewards.ComboSeconds(combo))
+			Config.DescentBaseSeconds, Config.DescentMaxSeconds), DunkRewards.ComboSeconds(combo),
+			math.abs(dropHeight) * 1.6 / Config.DescentMaxVelocity)
 		-- Server moment each trick finishes (seconds into the descent).
 		local trickEnds = {}
 		local trickClock = DunkRewards.Tricks.TuckSeconds
@@ -235,6 +241,8 @@ function DunkExecution.Run(player: Player, character: Model, rim: BasePart, styl
 				local cash = PlayerService.AwardDunkTrick(player, trickId, tricksPaid)
 				if cash then
 					trickCash += cash
+					tricksLanded += 1
+					table.insert(landedTricks, trickId)
 					if trickRemote then trickRemote:FireClient(player, trickId, tricksPaid, cash, #combo) end
 				end
 			end
@@ -417,9 +425,9 @@ function DunkExecution.Run(player: Player, character: Model, rim: BasePart, styl
 			warn(string.format("[DunkExecution] Cancelled during %s after %.2fs: %s (entry Y %.2f, target Y %.2f, current Y %.2f)",
 				phase, os.clock() - startedAt, tostring(failure or "cleanup failed"), startingPosition.Y, targetHeight, root.Position.Y))
 		end
-		return false, "Dunk cancelled. Try again.", trickCash, nil
+		return false, "Dunk cancelled. Try again.", trickCash, nil, tricksLanded, landedTricks
 	end
-	return true, nil, trickCash, rating
+	return true, nil, trickCash, rating, tricksLanded, landedTricks
 end
 
 return DunkExecution

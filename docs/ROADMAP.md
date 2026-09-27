@@ -36,9 +36,9 @@ Early-Game Progression Rebalance v0.1 updates the config-driven efficiency, pric
 
 ## 6. Multiple Courts
 
-Status: Court Progression v0.1 and High School Gym are playtested. High School now requires 75 Vertical and a permanent one-time $6,000 purchase, aligning its gate with the Neighborhood training cap. Court Bonuses v0.1 adds configured 1.25x dunk Cash and 1.15x fractional Vertical training there; Neighborhood remains 1.00x. The COURTS menu presents both bonuses. Explicit per-court resolution still shares gameplay services and the editor-only builder leaves Workspace outside Rojo ownership. Court Training Caps v0.1 limits gains to 75/150 in the two courts without lowering existing stats; live Studio acceptance and a fresh timed progression run remain. See `COURT_TRAINING_CAPS.md` and `PROGRESSION_PLAYTEST.md`. Further courts remain deferred.
+Status: Court Progression v0.1 and High School Gym are playtested. High School now requires 75 Vertical and a permanent one-time $6,000 purchase, aligning its gate with the Neighborhood training cap. Court Bonuses v0.1 adds configured 1.25x dunk Cash and 1.15x fractional Vertical training there; Neighborhood remains 1.00x. The COURTS menu presents both bonuses. Explicit per-court resolution still shares gameplay services and the editor-only builder leaves Workspace outside Rojo ownership. Court Training Caps v0.1 limits gains to 75/150 in the two courts without lowering existing stats; live Studio acceptance and a fresh timed progression run remain. See `COURT_TRAINING_CAPS.md` and `PROGRESSION_PLAYTEST.md`. College Arena (Court #3, 250 cap) is now built; see `COLLEGE_ARENA.md`. Courts beyond College remain deferred.
 
-Environment rule for future indoor courts (College, Pro Arena and beyond): visual roofs and overhead dressing must not cap superhuman Vertical. High School's builder now makes its ceiling and doorway header non-collidable while preserving its indoor appearance; live Vertical 60/100/150/200+ and above-roof camera checks are still required after rebuilding in Studio. Do not change jump progression to compensate for map collision.
+Environment rule for future indoor courts (College, Pro Arena and beyond): visual roofs and overhead dressing must not cap superhuman Vertical. High School (150-stud roof) and College (300-stud roof) are now tall enough that each court's cap jump stays indoors, verified in Studio, and their overhead geometry stays non-collidable. Do not change jump progression to compensate for map collision.
 
 ## 7. Player Data Persistence
 
@@ -76,7 +76,17 @@ Game Feel & Juice v0.2 implementation adds style-specific post-validation gather
 
 **Next — Progression Playtest:** Reset the isolated DEV profile, time a fresh-player run, and re-evaluate economy/content pacing using `PROGRESSION_PLAYTEST.md`. Targets are not yet verified.
 
-**Later — College Court preparation:** The extension plan is recorded in `COLLEGE_PREPARATION.md`; its proposed 250 training cap and all economy values require playtest review. Do not implement Court #3 yet.
+**Implemented and play-tested — College Arena + Rebirth:** Court #3 (150 Vertical + $40,000, x1.6 Cash, x1.3 training, 250 cap) with a 40-fan arena, and Rebirth (200 Vertical + $100,000 x1.6^n; permanent x(1+0.5n) Cash and x(1+0.25n) training; schema v6). All numbers are starting values for the timed pacing run. See `COLLEGE_ARENA.md` and `REBIRTH.md`.
+
+**Implemented and play-tested — Daily rewards, streaks and daily challenges:** 7-day login ladder priced in "dunks" so it scales with progress, three eligible daily challenges from a pool of eight, and a stacking 2x Cash Boost (Day 3, Day 7, and the all-three sweep bonus). Schema v7. See `DAILY_REWARDS.md`.
+
+**Implemented and play-tested — Global leaderboards:** Top Vertical (best ever), Most Dunks (lifetime) and Biggest Dunk (single payout) on a 3-panel stand beside the hoop in all three gyms. OrderedDataStores with throttled writes, 60 s top-10 reads and live in-server merging. Schema v8 adds lifetime Stats. See `LEADERBOARDS.md`.
+
+**Implemented and play-tested — Dunk Contest:** server-wide 90 s rounds every 8 minutes; five judges score style, trick count/variety and slam timing (50 max); best dunk counts; tiered prizes priced in dunks plus placement bonuses; scorecard, banner and results UI; the crowd erupts for 45+. Schema v9 adds contest stats. See `DUNK_CONTEST.md`.
+
+**Implemented and play-tested — Locker (shoes and ball skins):** six sneakers built on players' feet (+5% to +25% air-trick Cash) and six cosmetic ball skins (color, seams, trail), bought with Cash from the LOCKER menu; permanent through Rebirth. Schema v10. See `LOCKER.md`. The original feature list is now complete. A 2-player Studio test verified contest placements and cross-player Locker visuals.
+
+**Implemented — Robux passes and products (off sale until ids are set):** 2x Cash, VIP (Diamond Kicks, Diamond ball, VIP tag) and 2x Daily Rewards passes, plus a repeatable 15-minute Cash Boost product with an idempotent ProcessReceipt. Effects were verified in Studio with `StudioOwnedPasses`. See `MONETIZATION.md`.
 
 ## 11. Monetization
 

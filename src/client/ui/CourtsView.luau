@@ -32,7 +32,7 @@ function CourtsView.new(playerGui: PlayerGui)
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Visible = false
 	local constraint = Instance.new("UISizeConstraint")
-	constraint.MaxSize = Vector2.new(440, 350)
+	constraint.MaxSize = Vector2.new(440, 450)
 	constraint.Parent = panel
 	local title = UI.Label(panel, "Title", Config.CourtMenu.Title, UDim2.fromScale(0.8, 0.1), UDim2.fromScale(0.06, 0.03), 23)
 	title.Font = Config.BoldFont

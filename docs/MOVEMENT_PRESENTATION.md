@@ -37,7 +37,7 @@ The attribute is presentation-only and is cleared on every cleanup path. Rewards
 
 ### High-Vertical entries
 
-At high Vertical the jump apex is far above the rim. `DunkMaxEngagementAboveRim` (120) lets a dunk start from the apex, so the whole fall becomes the trick descent (0.22 s base + 0.008 s per stud, capped at 0.7 s). A press that is still too high keeps buffering for up to `DunkHighBufferSeconds` (1.1 s) while the player falls into range instead of being rejected. The per-Vertical height limit (`GetMaxAboveRim`) is unchanged below the cap.
+At high Vertical the jump apex is far above the rim. `DunkMaxEngagementAboveRim` lets a dunk start from the apex, so the whole fall becomes the trick descent (0.22 s base + 0.008 s per stud, capped at 0.7 s, stretched to fit the air-trick combo and so the move never exceeds `DescentMaxVelocity`). It is computed from the highest court training cap: the jump height at that Vertical + 20 studs (about 285 studs for College's 250 cap), so a max-Vertical press at the very top of the jump is accepted. It used to be a fixed 120, which rejected presses near the apex above about 195 Vertical. A press that is still too high keeps buffering for up to `DunkHighBufferSeconds` (1.1 s) while the player falls into range instead of being rejected. The per-Vertical height limit (`GetMaxAboveRim`) is unchanged below the cap.
 
 ## Tuning knobs
 

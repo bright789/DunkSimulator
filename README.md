@@ -53,7 +53,7 @@ Pick up a basketball at BasketballPickup, jump near DunkHoop.Rim, and press F. [
 
 Use [the fresh-player playtest checklist](docs/PROGRESSION_PLAYTEST.md) after syncing code and refreshing the Studio-owned High School portal sign. It records actual milestone timing, Cash, TrainingLevel, and challenge completion; target pacing remains unverified until this run.
 
-[College Court preparation](docs/COLLEGE_PREPARATION.md) records the future extension path and acceptance gates only; College is not built or unlockable.
+[College Arena](docs/COLLEGE_ARENA.md) is Court #3 (150 Vertical + $40,000, x1.6 Cash, 250 cap). [Rebirth](docs/REBIRTH.md) resets a 200-Vertical player to the Neighborhood for permanent Cash/training multipliers. [Daily rewards](docs/DAILY_REWARDS.md) add a 7-day login streak, three daily challenges and a timed 2x Cash Boost. [Global leaderboards](docs/LEADERBOARDS.md) (Top Vertical, Most Dunks, Biggest Dunk) stand next to the hoop in every gym. A timed [Dunk Contest](docs/DUNK_CONTEST.md) opens every 8 minutes: five judges score every dunk and the best scores win prizes. The [Locker](docs/LOCKER.md) sells sneakers (visible, with an air-trick Cash bonus) and ball skins (schema v10). [Robux passes](docs/MONETIZATION.md) (2x Cash, VIP, 2x Daily Rewards) and a Cash Boost product are built but off sale until you paste their ids into `MonetizationConfig`.
 
 See [prototype setup and manual tests](docs/VERTICAL_PROTOTYPE.md) before pressing Play.
 
@@ -81,7 +81,17 @@ require(game:GetService("ServerStorage").HighSchoolBuilder.Build).Run()
 
 Save the Studio place and restart Play. Do not delete/move existing Map or Gameplay objects, and do not rebuild Neighborhood. The tool creates the gym 2,400 studs away, missing gameplay stations/spawn once, and both portals. Reruns replace only explicitly marked scenery, not gameplay objects. It never runs at server startup. See [the complete court guide](docs/COURT_PROGRESSION.md) for ownership, safe rebuilds, migration, all changed files and the 15-test acceptance matrix.
 
-For the high-Vertical ceiling fix in an existing Studio place: stop Play, back up the place, remove **only** `ServerStorage.HighSchoolBuilder`, re-import the updated `tools/HighSchoolBuilder.rbxmx`, run the edit-mode command above, then save/publish. The visual roof and doorway header will no longer block jumps; the floor, walls, bleachers and gameplay objects remain. Rojo sync alone does not rebuild Studio-owned map art.
+To refresh the gym art in an existing Studio place (for example the taller 150-stud gym): stop Play, back up the place, remove **only** `ServerStorage.HighSchoolBuilder`, re-import the updated `tools/HighSchoolBuilder.rbxmx`, run the edit-mode command above, then save/publish. Gameplay objects remain where they are. Rojo sync alone does not rebuild Studio-owned map art.
+
+### Court #3: College Arena
+
+After the High School is built, import **`tools/CollegeBuilder.rbxmx`** into **ServerStorage** and run in the edit-mode Command Bar:
+
+```lua
+require(game:GetService("ServerStorage").CollegeBuilder.Build).Run()
+```
+
+Save the place and restart Play. It builds the arena 4,800 studs away, its gameplay stations once, and the College bus stop at the High School. See [College Arena](docs/COLLEGE_ARENA.md).
 
 ### Tools
 

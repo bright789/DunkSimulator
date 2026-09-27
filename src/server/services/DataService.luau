@@ -229,6 +229,28 @@ function DataService.Init(playerAdapter)
 	end)
 end
 
+-- Saves right away (skipping the priority-save cooldown) and waits until everything queued
+-- so far is written, up to timeoutSeconds. Used for Robux purchases, which must only be
+-- acknowledged once the reward is saved. Returns true when the save is confirmed.
+function DataService.SaveNowAsync(player: Player, timeoutSeconds: number): boolean
+	local session = sessions[player.UserId]
+	if not DataService.IsReady(player) or not session then
+		return false
+	end
+	queueSnapshot(session)
+	local deadline = os.clock() + timeoutSeconds
+	while os.clock() < deadline do
+		if not isCurrent(session) or session.Unsafe then
+			return false
+		end
+		if not session.QueuedSnapshot and not session.PendingWrite and not session.Saving then
+			return true
+		end
+		task.wait(0.2)
+	end
+	return false
+end
+
 function DataService.RequestSave(player: Player): boolean
 	local session = sessions[player.UserId]
 	if not DataService.IsReady(player) or os.clock() < (session.NextPrioritySave or 0) then

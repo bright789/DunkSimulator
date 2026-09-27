@@ -26,7 +26,17 @@ local Courts = {
 			Bonuses = { DunkCashMultiplier = 1.25, TrainingMultiplier = 1.15 },
 			GameplayPath = { "Gameplay", "Courts", "HighSchool" },
 			SpawnPath = { "Gameplay", "Courts", "HighSchool", "Spawn" },
-			Portals = { Neighborhood = "NeighborhoodPortal" },
+			Portals = { Neighborhood = "NeighborhoodPortal", College = "CollegePortal" },
+		},
+		-- Starting numbers for Court #3; tune from a real playtest (see docs/COLLEGE_ARENA.md).
+		College = {
+			Id = "College", DisplayName = "College Arena", Order = 3, StartingCourt = false,
+			TrainingVerticalCap = 250,
+			Requirements = { Vertical = 150, Cash = 40000 },
+			Bonuses = { DunkCashMultiplier = 1.6, TrainingMultiplier = 1.3 },
+			GameplayPath = { "Gameplay", "Courts", "College" },
+			SpawnPath = { "Gameplay", "Courts", "College", "Spawn" },
+			Portals = { HighSchool = "HighSchoolPortal" },
 		},
 	},
 }
