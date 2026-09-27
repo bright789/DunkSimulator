@@ -36,13 +36,13 @@ The text below is 831 characters, under Roblox's 1000-character limit. Every cla
 
 ## Thumbnails and icon
 
-The files are in `assets/thumbnails/`. Thumbnails are 1920×1080 (16:9); the icon is 512×512. Upload the thumbnails in this order, because the first one is what most players see:
+The files are in `assets/thumbnails/`. **Upload the `.jpg` versions:** Roblox wants thumbnails under 3 MB, and the full-quality `.png` masters are about 3.3 MB. Upload them under Creator Hub → **Configure → Places → (start place) → Thumbnails**, press **Save**, and wait for moderation before they show on the game page. Thumbnails are 1920×1080 (16:9); the icon is 512×512. Upload the thumbnails in this order, because the first one is what most players see:
 
 | # | File | Hook |
 | --- | --- | --- |
-| 1 | `thumbnail-1-dunk.png` | A Windmill poster dunk in the College Arena with "DUNK SIMULATOR", "PERFECT!" and "+$1,296" (a real College Windmill payout). |
-| 2 | `thumbnail-2-vertical.png` | "JUMP TO THE ROOF!" A big jumper over the arena's vertical-meter lines with a "250 VERTICAL" badge. |
-| 3 | `thumbnail-3-courts.png` | "UNLOCK NEW COURTS!" Neighborhood → High School → College panels. |
+| 1 | `thumbnail-1-dunk.jpg` | A Windmill poster dunk in the College Arena with "DUNK SIMULATOR", "PERFECT!" and "+$1,296" (a real College Windmill payout). |
+| 2 | `thumbnail-2-vertical.jpg` | "JUMP TO THE ROOF!" A big jumper over the arena's vertical-meter lines with a "250 VERTICAL" badge. |
+| 3 | `thumbnail-3-courts.jpg` | "UNLOCK NEW COURTS!" Neighborhood → High School → College panels. |
 | Icon | `icon-512.png` | The Tomahawk jumper on a pink/purple sunburst with "DUNK SIM". |
 
 How they were made:
