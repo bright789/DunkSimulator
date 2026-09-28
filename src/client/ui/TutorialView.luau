@@ -3,6 +3,7 @@
 -- TutorialController decides what to show.
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
@@ -162,7 +163,8 @@ function TutorialView.new(playerGui: PlayerGui)
 		counter.Text = string.format("TUTORIAL  %d / %d", index, total)
 		title.Text = step.Title
 		title.TextColor3 = Config.Colors.Text
-		detail.Text = step.Detail
+		local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+		detail.Text = touch and step.TouchDetail or step.Detail
 		skip.Visible = true
 		local hasProgress = current ~= nil and goal ~= nil and goal > 0
 		track.Visible = hasProgress

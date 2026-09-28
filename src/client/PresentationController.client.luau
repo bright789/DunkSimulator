@@ -14,6 +14,7 @@ local WorkoutPresentation = require(script.Parent:WaitForChild("WorkoutPresentat
 local WorldAudio = require(script.Parent:WaitForChild("WorldAudio"))
 local DunkVFX = require(script.Parent:WaitForChild("DunkVFX"))
 local AbilityVFX = require(script.Parent:WaitForChild("AbilityVFX"))
+local CrewFollowers = require(script.Parent:WaitForChild("CrewFollowers"))
 
 local localPlayer = Players.LocalPlayer
 local tracked = {}
@@ -76,6 +77,7 @@ Players.PlayerAdded:Connect(watchPlayer)
 Players.PlayerRemoving:Connect(untrack)
 DunkVFX.Start()
 AbilityVFX.Start()
+CrewFollowers.Start()
 for _, player in Players:GetPlayers() do watchPlayer(player) end
 
 -- Visual ball and IK targets, before the Animator solves this frame.

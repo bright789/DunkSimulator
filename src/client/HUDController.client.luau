@@ -39,6 +39,8 @@ local StatusBarController = require(script.Parent:WaitForChild("StatusBarControl
 local statusBar = StatusBarController.new(player)
 local PickupController = require(script.Parent:WaitForChild("PickupController"))
 local pickups = PickupController.new(player)
+local CrewController = require(script.Parent:WaitForChild("CrewController"))
+local crew = CrewController.new(player, view)
 local connections = {}
 local previous = {}
 local destroyed = false
@@ -148,6 +150,7 @@ script.Destroying:Connect(function()
 	trainingRhythm.Destroy()
 	statusBar.Destroy()
 	pickups.Destroy()
+	crew.Destroy()
 	daily.Destroy()
 	contest.Destroy()
 	locker.Destroy()

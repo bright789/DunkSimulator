@@ -104,6 +104,8 @@ Game Feel & Juice v0.2 implementation adds style-specific post-validation gather
 
 **Implemented — Engagement pass ("no dead time"):** rhythm training at the Leg Day Gym (PERFECT x3 / GOOD x1.5 reps, server-judged), HEAT dunk streak (x1.0-x1.4 Cash within 15 s), cash bills after every dunk (+15%) and a Golden Ball race every ~75 s, a top NEXT goal bar with HEAT pill, a bottom action feed, and cheaper early upgrades (Level 2 $120, High School $4,000). See `ENGAGEMENT.md`.
 
+**Implemented — Phone pass, welcome back, Hype Crew:** phone layout fixes (ability row under the menu, smaller training ring, feed on the left, split goal bar, touch tutorial text), welcome-back earnings (10 dunks/hour away, max 8 h, 2x VIP; LastOnline), and Hype Crew packs (4 court packs, 20 members, stars, 3 slots, set bonuses, followers, three passes waiting for ids). Schema v13. See `HYPE_CREW.md`.
+
 ## 11. Monetization
 
 Introduce balanced, platform-compliant cosmetics and optional convenience products after core retention is validated.

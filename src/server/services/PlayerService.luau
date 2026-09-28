@@ -17,6 +17,7 @@ local Locker = require(ReplicatedStorage.Shared.Config.LockerConfig)
 local Monetization = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local Events = require(ReplicatedStorage.Shared.Config.EventConfig)
 local Abilities = require(ReplicatedStorage.Shared.Config.AbilityConfig)
+local Crew = require(ReplicatedStorage.Shared.Config.CrewConfig)
 local isStudio = game:GetService("RunService"):IsStudio()
 local DataConfig = require(script.Parent.Parent.Config.DataConfig)
 
@@ -43,6 +44,10 @@ type PlayerState = {
 	Settings: { Music: boolean },
 	-- Ability levels (0 = locked); AbilityService is its only writer.
 	Abilities: { [string]: number },
+	-- When this profile was last saved before this session (welcome-back earnings).
+	LastOnline: number,
+	-- Hype Crew (owned stars + equipped); CrewService is its only writer.
+	Crew: { Owned: { [string]: number }, Equipped: { string } },
 	CourtTransition: boolean,
 	Dunks: number,
 	DunkState: string,
@@ -134,6 +139,8 @@ local function addPlayer(player: Player, profile)
 		GroupMultiplier = 1,
 		Settings = { Music = profile.Settings.Music },
 		Abilities = Abilities.CopyState(profile.Abilities),
+		LastOnline = profile.LastOnline,
+		Crew = Crew.CopyState(profile.Crew),
 		CourtTransition = placeCharacter ~= nil,
 		Dunks = 0,
 		DunkState = "Idle",
@@ -354,8 +361,8 @@ function PlayerService.AwardTraining(player: Player, repMultiplier: number?): (b
 	local rep = (type(repMultiplier) == "number" and repMultiplier >= 1 and repMultiplier <= 3) and repMultiplier or 1
 	local scale = Courts.TrainingProgressScale
 	local bonuses = Courts.GetBonuses(state.CurrentCourt, state.UnlockedCourts)
-	local earnedUnits = math.floor(level.VerticalPerRep
-		* bonuses.TrainingMultiplier * Rebirths.TrainingMultiplier(state.Rebirths) * rep * scale + 0.5)
+	local earnedUnits = math.floor(level.VerticalPerRep * bonuses.TrainingMultiplier
+		* Rebirths.TrainingMultiplier(state.Rebirths) * Crew.Multipliers(state.Crew).Train * rep * scale + 0.5)
 	local remainderUnits = math.floor(state.VerticalTrainingRemainder * scale + 0.5)
 	local totalUnits = earnedUnits + remainderUnits
 	local wholeGain = math.floor(totalUnits / scale)
@@ -435,7 +442,7 @@ function PlayerService.RegisterDunk(player: Player, styleId: string, rating: str
 	local cashReward = DunkRewards.DunkCash(style.Reward, bonuses.DunkCashMultiplier * Rebirths.CashMultiplier(state.Rebirths)
 		* Daily.BoostMultiplier(state.Daily.BoostUntil, os.time())
 		* (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1) * state.FriendMultiplier * state.GroupMultiplier
-		* Events.CashMultiplier(os.time(), isStudio) * bonus, state.Vertical, rating)
+		* Events.CashMultiplier(os.time(), isStudio) * bonus * Crew.Multipliers(state.Crew).Cash, state.Vertical, rating)
 	state.Cash = math.min(state.Cash + cashReward, DataConfig.MaxCash)
 	state.Dunks += 1
 	state.CashDisplay.Value = state.Cash
@@ -467,7 +474,8 @@ function PlayerService.AwardDunkTrick(player: Player, trickId: string, comboInde
 	local cash = DunkRewards.TrickCash(trickId, comboIndex, bonuses.DunkCashMultiplier
 		* Rebirths.CashMultiplier(state.Rebirths) * Daily.BoostMultiplier(state.Daily.BoostUntil, os.time())
 		* (1 + (shoe and shoe.TrickBonus or 0)) * (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1)
-		* state.FriendMultiplier * state.GroupMultiplier * Events.CashMultiplier(os.time(), isStudio))
+		* state.FriendMultiplier * state.GroupMultiplier * Events.CashMultiplier(os.time(), isStudio)
+		* Crew.Multipliers(state.Crew).Cash)
 	if cash <= 0 or state.Cash > DataConfig.MaxCash - cash then return nil end
 	state.Cash += cash
 	state.CashDisplay.Value = state.Cash
@@ -519,6 +527,20 @@ end
 function PlayerService.HasPass(player: Player, key: string): boolean
 	local state = states[player]
 	return state ~= nil and state.Passes[key] == true
+end
+
+-- The live Hype Crew record. Only CrewService may change it, and only without yielding.
+function PlayerService.GetCrew(player: Player)
+	local state = states[player]
+	if not PlayerService.IsDataReady(player) or not state then return nil end
+	return state.Crew
+end
+
+-- Unix time this profile was last saved before this session (0 = never). WelcomeBackService.
+function PlayerService.GetLastOnline(player: Player): number?
+	local state = states[player]
+	if not PlayerService.IsDataReady(player) or not state then return nil end
+	return state.LastOnline
 end
 
 -- The live ability levels (id -> level, 0 = locked). Only AbilityService may change them,
@@ -711,6 +733,9 @@ function PlayerService.Init(onReady, onDataReady)
 				Locker = Locker.CopyState(state.Locker),
 				Settings = { Music = state.Settings.Music },
 				Abilities = Abilities.CopyState(state.Abilities),
+				-- Every save stamps "now", so time away is measured from the last save.
+				LastOnline = os.time(),
+				Crew = Crew.CopyState(state.Crew),
 			}
 		end,
 		Cleanup = function(player: Player)

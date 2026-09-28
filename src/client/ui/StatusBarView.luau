@@ -20,10 +20,10 @@ local function bar(parent: Instance, name: string, height: number, order: number
 	fill.Size = UDim2.fromScale(0, 1)
 	UI.Round(fill, Config.CornerRadius)
 	fill.Parent = frame
-	local text = UI.Label(frame, "Text", "", UDim2.new(1, -20, 1, 0), UDim2.fromOffset(10, 0), 16)
+	local text = UI.Label(frame, "Text", "", UDim2.new(0.62, -12, 1, -6), UDim2.fromOffset(10, 3), 16)
 	text.Font = Config.BoldFont
 	text.ZIndex = 2
-	local right = UI.Label(frame, "Right", "", UDim2.new(0.42, 0, 1, 0), UDim2.new(0.58, -10, 0, 0), 15)
+	local right = UI.Label(frame, "Right", "", UDim2.new(0.38, -10, 1, -6), UDim2.new(0.62, 0, 0, 3), 15)
 	right.TextXAlignment = Enum.TextXAlignment.Right
 	right.Font = Config.BoldFont
 	right.ZIndex = 2

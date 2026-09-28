@@ -47,7 +47,8 @@ function RewardPresentation.new(screen: ScreenGui)
 		card.GroupTransparency = 1
 	end
 
-	function presentation.Show(headingText: string, titleText: string, detailText: string, claimed: boolean)
+	-- `holdSeconds` (optional) keeps the card up longer, e.g. for the welcome-back pop-up.
+	function presentation.Show(headingText: string, titleText: string, detailText: string, claimed: boolean, holdSeconds: number?)
 		version += 1
 		local thisVersion = version
 		cancel()
@@ -77,7 +78,7 @@ function RewardPresentation.new(screen: ScreenGui)
 			grow:Destroy()
 		end)
 		grow:Play()
-		timer = task.delay(claimed and Feel.ClaimHoldSeconds or Feel.CompletionHoldSeconds, function()
+		timer = task.delay(holdSeconds or (claimed and Feel.ClaimHoldSeconds or Feel.CompletionHoldSeconds), function()
 			timer = nil
 			if thisVersion ~= version then return end
 			local leave = TweenService:Create(card, TweenInfo.new(Feel.FadeSeconds), {

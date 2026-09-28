@@ -7,6 +7,7 @@
 -- At HEAT 5 your court's rim burns (local only). While the new-player tutorial panel is up
 -- (it sits in the same spot and shows its own goal) the stack stays hidden. Display only.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local Styles = require(ReplicatedStorage.Shared.Config.DunkStyles)
@@ -102,6 +103,7 @@ function StatusBarController.new(player: Player)
 	end
 
 	local playerGui = player:WaitForChild("PlayerGui")
+	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 	local function tutorialShowing(): boolean
 		local tutorial = playerGui:FindFirstChild("Tutorial")
 		local step = tutorial and tutorial:FindFirstChild("Step")
@@ -117,7 +119,7 @@ function StatusBarController.new(player: Player)
 			view.SetGoal(ok and not dunking and not hidden, title, progress, fraction)
 			local level = tonumber(player:GetAttribute("Heat"))
 			local untilTime = tonumber(player:GetAttribute("HeatUntil"))
-			if level and untilTime and not hidden then
+			if level and untilTime and not hidden and not (touch and dunking) then
 				local left = math.max(0, untilTime - Workspace:GetServerTimeNow())
 				view.SetHeat(level, Heat.Names[level], Heat.Multipliers[level], left / Heat.WindowSeconds, Heat.Colors[level])
 			else

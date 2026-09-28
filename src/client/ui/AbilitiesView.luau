@@ -33,24 +33,43 @@ local function button(parent: Instance, name: string, text: string, size: UDim2,
 	return created
 end
 
-function AbilitiesView.new(playerGui: PlayerGui)
+-- `navigation` (optional) is the HUD's menu-button frame; on touch screens the slots sit in a
+-- row right under it (top-right), clear of the jump and DUNK buttons.
+function AbilitiesView.new(playerGui: PlayerGui, navigation: GuiObject?)
+	-- The hotbar sits with the HUD; the panel gets its own screen on the menus' layer (like
+	-- Codes and Daily) so it draws above the contest banner but the hotbar stays under popups.
 	local screen = UI.Screen("Abilities", 6)
+	local menuScreen = UI.Screen("AbilitiesMenu", 10)
 	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-	local slotSize = touch and 50 or 58
+	local slotSize = touch and 44 or 58
+	local gap = touch and 6 or 8
 	local ids = Abilities.Ids()
 
-	-- Hotbar: right edge, just below the middle (clear of the touch menu and jump button).
+	-- Hotbar: desktop = a column on the right edge just below the middle; touch = a row.
 	local bar = Instance.new("Frame")
 	bar.Name = "Hotbar"
 	bar.BackgroundTransparency = 1
-	bar.AnchorPoint = Vector2.new(1, 0.5)
+	bar.AnchorPoint = touch and Vector2.new(1, 0) or Vector2.new(1, 0.5)
 	bar.Position = UDim2.new(1, -10, 0.52, 0)
-	bar.Size = UDim2.fromOffset(slotSize, slotSize * #ids + 8 * (#ids - 1))
+	local length = slotSize * #ids + gap * (#ids - 1)
+	bar.Size = touch and UDim2.fromOffset(length, slotSize) or UDim2.fromOffset(slotSize, length)
 	bar.Parent = screen
 	local list = Instance.new("UIListLayout")
-	list.Padding = UDim.new(0, 8)
+	list.Padding = UDim.new(0, gap)
+	list.FillDirection = touch and Enum.FillDirection.Horizontal or Enum.FillDirection.Vertical
+	list.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	list.SortOrder = Enum.SortOrder.LayoutOrder
 	list.Parent = bar
+	local function placeBar()
+		if not (touch and navigation) then return end
+		local bottom = navigation.AbsolutePosition.Y + navigation.AbsoluteSize.Y - screen.AbsolutePosition.Y
+		bar.Position = UDim2.new(1, -10, 0, math.floor(bottom + 6))
+	end
+	if touch and navigation then
+		navigation:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeBar)
+		navigation:GetPropertyChangedSignal("AbsolutePosition"):Connect(placeBar)
+		screen:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeBar)
+	end
 
 	local slots = {}
 	for _, abilityId in ids do
@@ -101,7 +120,7 @@ function AbilitiesView.new(playerGui: PlayerGui)
 	end
 
 	-- ABILITIES panel.
-	local panel = UI.Panel(screen, "Menu", UDim2.fromScale(0.72, 0.66), UDim2.fromScale(0.5, 0.5))
+	local panel = UI.Panel(menuScreen, "Menu", UDim2.fromScale(0.72, 0.66), UDim2.fromScale(0.5, 0.5))
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Visible = false
 	local constraint = Instance.new("UISizeConstraint")
@@ -152,6 +171,8 @@ function AbilitiesView.new(playerGui: PlayerGui)
 	result.TextXAlignment = Enum.TextXAlignment.Center
 
 	screen.Parent = playerGui
+	menuScreen.Parent = playerGui
+	placeBar()
 
 	local view = { Panel = panel, Close = close, Slots = slots, Rows = rows }
 
@@ -208,6 +229,7 @@ function AbilitiesView.new(playerGui: PlayerGui)
 
 	function view.Destroy()
 		screen:Destroy()
+		menuScreen:Destroy()
 	end
 
 	return view

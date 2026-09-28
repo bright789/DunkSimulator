@@ -10,6 +10,7 @@ local Daily = require(ReplicatedStorage.Shared.Config.DailyConfig)
 local Leaderboards = require(ReplicatedStorage.Shared.Config.LeaderboardConfig)
 local Locker = require(ReplicatedStorage.Shared.Config.LockerConfig)
 local Abilities = require(ReplicatedStorage.Shared.Config.AbilityConfig)
+local Crew = require(ReplicatedStorage.Shared.Config.CrewConfig)
 
 local Schema = {}
 
@@ -47,6 +48,10 @@ function Schema.Defaults()
 		Locker = Locker.DefaultState(),
 		Settings = defaultSettings(),
 		Abilities = Abilities.DefaultState(),
+		-- Unix time of the last save (0 = never); drives welcome-back earnings.
+		LastOnline = 0,
+		-- Hype Crew: owned members (stars) and the equipped ones.
+		Crew = Crew.DefaultState(),
 	}
 end
 
@@ -129,6 +134,13 @@ function Schema.Decode(stored)
 		migrated.Abilities = Abilities.DefaultState()
 		migrated.SchemaVersion = 12
 	end
+	if migrated.SchemaVersion == 12 then
+		-- Welcome-back earnings start counting from the first save after this update, and
+		-- everyone starts with an empty Hype Crew.
+		migrated.LastOnline = 0
+		migrated.Crew = Crew.DefaultState()
+		migrated.SchemaVersion = 13
+	end
 	if migrated.SchemaVersion ~= Config.SchemaVersion then
 		return nil, nil, "No migration for this schema version"
 	end
@@ -191,6 +203,10 @@ function Schema.Decode(stored)
 	local abilities, abilitiesRepaired = Abilities.Sanitize(migrated.Abilities)
 	profile.Abilities = abilities
 	repaired = repaired or abilitiesRepaired
+	readInteger("LastOnline", 0, 4102444800)
+	local crew, crewRepaired = Crew.Sanitize(migrated.Crew)
+	profile.Crew = crew
+	repaired = repaired or crewRepaired
 	return profile, revision, nil, repaired
 end
 
@@ -199,7 +215,7 @@ function Schema.Snapshot(values)
 		or values.EquippedDunkStyle == nil or values.UnlockedCourts == nil or values.CurrentCourt == nil
 		or values.VerticalTrainingRemainder == nil or values.Challenges == nil or values.Rebirths == nil
 		or values.Daily == nil or values.Stats == nil or values.Locker == nil or values.Settings == nil
-		or values.Abilities == nil then
+		or values.Abilities == nil or values.LastOnline == nil or values.Crew == nil then
 		return nil, "Runtime snapshot is missing progression"
 	end
 	local current = table.clone(values)
@@ -224,6 +240,7 @@ function Schema.SameProgress(first, second): boolean
 		and Locker.SameState(first.Locker, second.Locker)
 		and first.Settings.Music == second.Settings.Music
 		and Abilities.SameState(first.Abilities, second.Abilities)
+		and Crew.SameState(first.Crew, second.Crew)
 end
 
 return Schema

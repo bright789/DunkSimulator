@@ -18,7 +18,8 @@ Milestones.Tutorial = {
 	{
 		Id = "Train",
 		Title = "TRAIN YOUR VERTICAL",
-		Detail = string.format("Hold E at the Leg Day Gym until you reach %d Vertical.", dunkVertical),
+		Detail = string.format("Hold E at the Leg Day Gym (click on the beat for 3x reps!) to reach %d Vertical.", dunkVertical),
+		TouchDetail = string.format("Hold the Leg Day Gym button (tap PUMP on the beat for 3x reps!) to reach %d Vertical.", dunkVertical),
 		Target = ProgressionConfig.Training.StationName,
 		Marker = "TRAIN HERE",
 		Done = function(s) return s.BestVertical >= dunkVertical end,
@@ -28,6 +29,7 @@ Milestones.Tutorial = {
 		Id = "Ball",
 		Title = "GRAB A BASKETBALL",
 		Detail = "Walk up to the Hoop Shop and press E.",
+		TouchDetail = "Walk up to the Hoop Shop and tap the button.",
 		Target = "BasketballPickup",
 		Marker = "GRAB A BALL",
 		Done = function(s) return s.HasBall or s.TotalDunks >= 1 end,

@@ -81,6 +81,15 @@ function InviteController.new(player: Player, hud)
 			popup.Show("WEEKLY CHAMPION", "👑 YOU WON LAST WEEK!", string.format("+$%s and 2x Cash for %d min",
 				UI.Number(data.Cash), data.Minutes), true)
 			Feedback.Rebirth()
+		elseif kind == "WelcomeBack" and type(data.Cash) == "number" and type(data.Seconds) == "number" then
+			-- Sent by WelcomeBackService: fans earned Cash while you were away.
+			local hours, minutes = data.Seconds // 3600, (data.Seconds % 3600) // 60
+			local away = hours > 0 and string.format("%dh %dm", hours, minutes) or string.format("%dm", minutes)
+			local note = data.Vip == true and "VIP doubled it!" or "VIP players get 2x!"
+			if data.Capped == true then note = "(8 hours max) " .. note end
+			popup.Show("WELCOME BACK", "YOUR FANS EARNED $" .. UI.Number(data.Cash),
+				string.format("You were away %s. %s", away, note), true, 4.5)
+			Feedback.ChallengeClaim()
 		elseif kind == "StarterPack" and type(data.Cash) == "number" and type(data.Minutes) == "number" then
 			-- Sent by MonetizationService once the Starter Pack is granted.
 			popup.Show("STARTER PACK", "UNLOCKED!", string.format("+$%s, 2x Cash for %d min and Sky Risers in your Locker",

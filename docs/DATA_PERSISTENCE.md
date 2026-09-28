@@ -187,3 +187,5 @@ The original persistence, Dunk Styles and Court Progression milestones are user-
 **Schema v11 (2026-09-27):** adds `Settings = { Music = boolean }` (default true). v10 profiles migrate with music on. See `INVITES_MUSIC_PASSES.md`.
 
 **Schema v12 (2026-09-27):** adds `Abilities = { SlowMo, Fireball, HangTime }`: the level of each ability, 0 = locked, up to 5. v11 profiles migrate with all three locked; the ones a player has already earned by Vertical unlock for free when they next join. Cooldowns and ARMED flags are not saved. Rebirth keeps ability levels. See `ABILITIES.md`.
+
+**Schema v13 (2026-09-27):** adds `LastOnline` (Unix time of the last save, for welcome-back earnings) and `Crew = { Owned = { memberId = stars }, Equipped = { memberId... } }` (Hype Crew). v12 profiles migrate with `LastOnline = 0` and an empty crew. Rebirth keeps the crew. See `HYPE_CREW.md`.

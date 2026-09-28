@@ -6,6 +6,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config.HUDConfig)
 local Heat = require(ReplicatedStorage.Shared.Config.HeatConfig)
@@ -13,7 +15,7 @@ local UI = require(script.Parent.ui:WaitForChild("UIComponents"))
 
 local ActionFeed = {}
 
-local MAX_LINES = 4
+local maxLines = 4
 local HOLD_SECONDS = 2.6
 local screen: ScreenGui? = nil
 local list: Frame? = nil
@@ -27,19 +29,31 @@ local function ensure()
 	if screen and screen.Parent then return end
 	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 	local created = UI.Screen("ActionFeed", 4)
+	-- Phones: the bottom centre is busy (meter, training ring) and the top has the goal bar,
+	-- so the feed goes on the left under the stats, smaller and at most 3 lines.
+	local viewport = Workspace.CurrentCamera and Workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
+	local compact = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+		and math.min(viewport.X, viewport.Y) <= 500
+	maxLines = compact and 3 or 4
 	local frame = Instance.new("Frame")
 	frame.Name = "Feed"
 	frame.BackgroundTransparency = 1
-	frame.AnchorPoint = Vector2.new(0.5, 1)
-	frame.Position = UDim2.new(0.5, 0, 0.94, -150)
-	frame.Size = UDim2.fromOffset(400, 26 * MAX_LINES + 6)
+	frame.AnchorPoint = compact and Vector2.new(0, 0) or Vector2.new(0.5, 1)
+	frame.Position = compact and UDim2.new(0, 12, 0.4, 8) or UDim2.new(0.5, 0, 0.94, -150)
+	frame.Size = UDim2.fromOffset(400, 26 * maxLines + 6)
 	frame.Parent = created
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
-	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.VerticalAlignment = compact and Enum.VerticalAlignment.Top or Enum.VerticalAlignment.Bottom
+	layout.HorizontalAlignment = compact and Enum.HorizontalAlignment.Left or Enum.HorizontalAlignment.Center
 	layout.Padding = UDim.new(0, 2)
 	layout.Parent = frame
+	frame:SetAttribute("Compact", compact)
+	if compact then
+		local shrink = Instance.new("UIScale")
+		shrink.Scale = 0.72
+		shrink.Parent = frame
+	end
 	local big = UI.Label(created, "Announce", "", UDim2.fromOffset(620, 64), UDim2.fromScale(0.5, 0.42), 38)
 	big.AnchorPoint = Vector2.new(0.5, 0.5)
 	big.TextXAlignment = Enum.TextXAlignment.Center
@@ -47,6 +61,7 @@ local function ensure()
 	big.Visible = false
 	local scale = Instance.new("UIScale")
 	scale.Parent = big
+	if compact then big.Size = UDim2.fromOffset(430, 46) end
 	created.Parent = playerGui
 	screen, list, banner, bannerScale = created, frame, big, scale
 end
@@ -83,13 +98,13 @@ function ActionFeed.Add(key: string, amount: number, format: (number, number) ->
 	else
 		local count = 0
 		for _ in lines do count += 1 end
-		if count >= MAX_LINES then
+		if count >= maxLines then
 			local oldest = oldestKey()
 			if oldest then fadeOut(oldest) end
 		end
 		order += 1
 		local label = UI.Label(list :: Frame, "Line", "", UDim2.fromOffset(400, 24), UDim2.new(), 18)
-		label.TextXAlignment = Enum.TextXAlignment.Center
+		label.TextXAlignment = (list :: Frame):GetAttribute("Compact") and Enum.TextXAlignment.Left or Enum.TextXAlignment.Center
 		label.Font = Config.BoldFont
 		label.LayoutOrder = order
 		local pop = Instance.new("UIScale")

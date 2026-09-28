@@ -3,6 +3,7 @@
 -- rep combo and a floating "+0.3" for every rep the server pays. Display only.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local Config = require(ReplicatedStorage.Shared.Config.HUDConfig)
 local UI = require(script.Parent.UIComponents)
 
@@ -27,6 +28,13 @@ function TrainingRhythmView.new(playerGui: PlayerGui)
 	root.Size = UDim2.fromOffset(340, 190)
 	root.Visible = false
 	root.Parent = screen
+	-- Phones: smaller and at the very bottom so it doesn't cover the player or the goal bar.
+	if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+		root.Position = UDim2.new(0.5, 0, 1, -6)
+		local shrink = Instance.new("UIScale")
+		shrink.Scale = 0.7
+		shrink.Parent = root
+	end
 
 	local ring = Instance.new("Frame")
 	ring.Name = "Ring"

@@ -114,7 +114,7 @@ function HUDView.new(playerGui: PlayerGui)
 	local navigation = Instance.new("Frame")
 	navigation.Name = "Navigation"
 	navigation.BackgroundTransparency = 1
-	navigation.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight * 5 + Config.Layout.Gap * 4)
+	navigation.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight * 6 + Config.Layout.Gap * 5)
 	navigation.LayoutOrder = 5
 	navigation.Parent = column
 	local dunksButton = Instance.new("TextButton")
@@ -184,6 +184,14 @@ function HUDView.new(playerGui: PlayerGui)
 	codesButton.Size = UDim2.new(0.48, 0, 0, Config.Layout.DunksButtonHeight)
 	codesButton.Position = UDim2.new(0.52, 0, 0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 4)
 	codesButton.Parent = navigation
+	-- HYPE CREW packs and collection (full-width last row).
+	local crewButton = dunksButton:Clone()
+	crewButton.Name = "HypeCrew"
+	crewButton.Text = "HYPE CREW"
+	crewButton.TextColor3 = Color3.fromRGB(255, 120, 220)
+	crewButton.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight)
+	crewButton.Position = UDim2.fromOffset(0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 5)
+	crewButton.Parent = navigation
 	-- Cash Boost countdown pill (shown only while a boost runs).
 	local boost = UI.Panel(column, "CashBoost", UDim2.new(1, 0, 0, Config.Layout.BoostHeight), UDim2.new())
 	boost.LayoutOrder = 6
@@ -230,6 +238,7 @@ function HUDView.new(playerGui: PlayerGui)
 	UI.Interactive(musicButton)
 	UI.Interactive(codesButton)
 	UI.Interactive(abilitiesButton)
+	UI.Interactive(crewButton)
 	UI.Interactive(autoButton)
 	UI.Interactive(groupButton)
 
@@ -286,7 +295,7 @@ function HUDView.new(playerGui: PlayerGui)
 	local view = { DunksButton = dunksButton, CourtsButton = courtsButton, ChallengesButton = challengesButton,
 		RebirthButton = rebirthButton, DailyButton = dailyButton, LockerButton = lockerButton,
 		InviteButton = inviteButton, MusicButton = musicButton, AutoTrainButton = autoButton, GroupButton = groupButton,
-		CodesButton = codesButton, AbilitiesButton = abilitiesButton }
+		CodesButton = codesButton, AbilitiesButton = abilitiesButton, CrewButton = crewButton, Navigation = navigation }
 	local courtName, rebirths = "--", 0
 
 	local function refreshCourtLabel()

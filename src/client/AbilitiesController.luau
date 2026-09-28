@@ -16,7 +16,7 @@ local AbilitiesController = {}
 
 function AbilitiesController.new(player: Player, hud)
 	local request = ReplicatedStorage.Remotes:WaitForChild("AbilityRequest")
-	local view = View.new(player:WaitForChild("PlayerGui"))
+	local view = View.new(player:WaitForChild("PlayerGui"), hud.Navigation)
 	local connections = {}
 	local ids = Abilities.Ids()
 
