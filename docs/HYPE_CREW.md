@@ -67,13 +67,13 @@ While you're away, your fans keep earning.
 
 **Followers.** Equipped members float beside you as little rarity-coloured cards that everyone can see (drawn on each screen, within 150 studs).
 
-**Robux passes.** Added with `Id = 0`, so they show COMING SOON until you create them and paste the ids into `MonetizationConfig`:
+**Robux passes** (ids in `MonetizationConfig`; each must be set **On Sale** with a price in the Creator Hub). Icons: `assets/pass-icons/lucky-packs.png`, `triple-open.png`, `crew-slot.png` (made by `tools/pass-icons.ps1`):
 
 | Pass | Suggested price | Effect |
 | --- | --- | --- |
-| Lucky Packs (`CrewLucky`) | 199 R$ | Epic and Legendary weights ×2 |
-| Triple Open (`CrewTriple`) | 99 R$ | OPEN ×3 button |
-| +1 Crew Slot (`CrewSlot`) | 149 R$ | 4 equipped instead of 3 |
+| Lucky Packs (`CrewLucky`, 1998015188) | 199 R$ | Epic and Legendary weights ×2 |
+| Triple Open (`CrewTriple`, 1998099184) | 99 R$ | OPEN ×3 button |
+| +1 Crew Slot (`CrewSlot`, 1998489170) | 149 R$ | 4 equipped instead of 3 |
 
 **How it works:**
 - Save format **v13** adds `Crew = { Owned = { id = stars }, Equipped = { ids } }`, saved and restored like every other field.
@@ -96,4 +96,4 @@ While you're away, your fans keep earning.
 
 **Not tested:**
 - Other players seeing your crew (needs two players).
-- The three passes, which need real ids first.
+- Buying the three passes live (ids added 2026-09-27; they need to be put on sale first).

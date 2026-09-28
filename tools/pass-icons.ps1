@@ -228,4 +228,173 @@ Draw-Sparkle $g 400 110 16 (C 255 255 230 220)
 Draw-Rim $g $goldDeep
 $bmp.Save("$out\starter-pack.png", [System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose()
 
+# Hype Crew pass helpers: trading cards, stars and a four-leaf clover.
+function Round-Rect([float]$x, [float]$y, [float]$w, [float]$h, [float]$r) {
+    $path = New-Object System.Drawing.Drawing2D.GraphicsPath
+    $d = $r * 2
+    $path.AddArc($x, $y, $d, $d, 180, 90)
+    $path.AddArc(($x + $w - $d), $y, $d, $d, 270, 90)
+    $path.AddArc(($x + $w - $d), ($y + $h - $d), $d, $d, 0, 90)
+    $path.AddArc($x, ($y + $h - $d), $d, $d, 90, 90)
+    $path.CloseFigure()
+    return $path
+}
+
+function Star-Points([float]$cx, [float]$cy, [float]$outer, [float]$inner) {
+    $pts = New-Object 'System.Collections.Generic.List[System.Drawing.PointF]'
+    for ($i = 0; $i -lt 10; $i++) {
+        $r = if ($i % 2 -eq 0) { $outer } else { $inner }
+        $a = -[Math]::PI / 2 + $i * [Math]::PI / 5
+        $pts.Add((P ($cx + $r * [Math]::Cos($a)) ($cy + $r * [Math]::Sin($a))))
+    }
+    return ,($pts.ToArray())
+}
+
+$round = [System.Drawing.Drawing2D.LineJoin]::Round
+
+# A Hype Crew trading card: rarity border, glossy face and a big star (or a crew silhouette).
+function Draw-Card($g, [float]$cx, [float]$cy, [float]$w, [float]$h, [float]$angle, $border, $top, $bottom, $starTop, $starBottom, [bool]$person) {
+    $state = $g.Save()
+    $g.TranslateTransform($cx, $cy)
+    $g.RotateTransform($angle)
+    $shadow = Round-Rect (-$w / 2 + 6) (-$h / 2 + 10) $w $h 18
+    $g.FillPath((New-Object System.Drawing.SolidBrush((C 0 0 0 95))), $shadow)
+    $card = Round-Rect (-$w / 2) (-$h / 2) $w $h 18
+    $rect = New-Object System.Drawing.RectangleF((-$w / 2), (-$h / 2), $w, $h)
+    $g.FillPath((Gradient-Brush $rect $top $bottom), $card)
+    $inner = Round-Rect (-$w / 2 + 14) (-$h / 2 + 14) ($w - 28) ($h - 28) 10
+    $g.FillPath((New-Object System.Drawing.SolidBrush((C 255 255 255 38))), $inner)
+    $pen = New-Object System.Drawing.Pen($ink, 12); $pen.LineJoin = $round
+    $g.DrawPath($pen, $card)
+    $pen2 = New-Object System.Drawing.Pen($border, 7); $pen2.LineJoin = $round
+    $g.DrawPath($pen2, $card)
+    $symbolPen = New-Object System.Drawing.Pen($ink, 7); $symbolPen.LineJoin = $round
+    if ($person) {
+        # Crew member silhouette: head and shoulders.
+        $headR = $w * 0.19
+        $head = New-Object System.Drawing.RectangleF((-$headR), (-$h * 0.3), ($headR * 2), ($headR * 2))
+        $body = New-Object System.Drawing.Drawing2D.GraphicsPath
+        $body.AddArc((-$w * 0.33), (-$h * 0.02), ($w * 0.66), ($h * 0.5), 180, 180)
+        $body.CloseFigure()
+        $fillRect = New-Object System.Drawing.RectangleF((-$w / 2), (-$h * 0.3), $w, ($h * 0.55))
+        $g.DrawPath($symbolPen, $body)
+        $g.FillPath((Gradient-Brush $fillRect $starTop $starBottom), $body)
+        $g.DrawEllipse($symbolPen, $head)
+        $g.FillEllipse((Gradient-Brush $head $starTop $starBottom), $head)
+    } else {
+        $star = Star-Points 0 (-4) ($w * 0.33) ($w * 0.145)
+        $starRect = New-Object System.Drawing.RectangleF((-$w * 0.33), (-4 - $w * 0.33), ($w * 0.66), ($w * 0.66))
+        $g.DrawPolygon($symbolPen, $star)
+        $g.FillPolygon((Gradient-Brush $starRect $starTop $starBottom), $star)
+    }
+    # Glossy highlight across the top-left.
+    $gloss = New-Object System.Drawing.Drawing2D.GraphicsPath
+    $gloss.AddPolygon([System.Drawing.PointF[]]@((P (-$w / 2 + 16) (-$h / 2 + 16)), (P (-$w / 2 + 46) (-$h / 2 + 16)),
+        (P (-$w / 2 + 16) (-$h / 2 + 70))))
+    $g.FillPath((New-Object System.Drawing.SolidBrush((C 255 255 255 70))), $gloss)
+    $g.Restore($state)
+}
+
+# Four-leaf clover: every outline first, then every fill, so the leaves read as one shape.
+function Draw-Clover($g, [float]$cx, [float]$cy, [float]$r) {
+    $shapes = @()
+    foreach ($deg in @(-90, 0, 90, 180)) {
+        $a = [Math]::PI * $deg / 180
+        $dx = [Math]::Cos($a); $dy = [Math]::Sin($a)
+        $px = -$dy; $py = $dx
+        $lx = $cx + $dx * $r * 0.58; $ly = $cy + $dy * $r * 0.58
+        $lobe = $r * 0.3
+        foreach ($side in @(-1, 1)) {
+            $ox = $lx + $px * $r * 0.2 * $side; $oy = $ly + $py * $r * 0.2 * $side
+            $e = New-Object System.Drawing.Drawing2D.GraphicsPath
+            $e.AddEllipse(($ox - $lobe), ($oy - $lobe), ($lobe * 2), ($lobe * 2))
+            $shapes += ,$e
+        }
+        $tri = New-Object System.Drawing.Drawing2D.GraphicsPath
+        $tri.AddPolygon([System.Drawing.PointF[]]@(
+            (P ($lx - $dx * $r * 0.02 + $px * $r * 0.47) ($ly - $dy * $r * 0.02 + $py * $r * 0.47)),
+            (P ($lx - $dx * $r * 0.02 - $px * $r * 0.47) ($ly - $dy * $r * 0.02 - $py * $r * 0.47)),
+            (P ($cx + $dx * $r * 0.06) ($cy + $dy * $r * 0.06))))
+        $shapes += ,$tri
+    }
+    $stemInk = New-Object System.Drawing.Pen($ink, 26); $stemInk.StartCap = [System.Drawing.Drawing2D.LineCap]::Round; $stemInk.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
+    $stemGreen = New-Object System.Drawing.Pen((C 60 170 70), 12); $stemGreen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round; $stemGreen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
+    $g.DrawBezier($stemInk, (P $cx $cy), (P ($cx + $r * 0.3) ($cy + $r * 0.5)), (P ($cx + $r * 0.55) ($cy + $r * 0.75)), (P ($cx + $r * 0.9) ($cy + $r * 0.95)))
+    $outline = New-Object System.Drawing.Pen($ink, 14); $outline.LineJoin = $round
+    foreach ($shape in $shapes) { $g.DrawPath($outline, $shape) }
+    $g.DrawBezier($stemGreen, (P $cx $cy), (P ($cx + $r * 0.3) ($cy + $r * 0.5)), (P ($cx + $r * 0.55) ($cy + $r * 0.75)), (P ($cx + $r * 0.9) ($cy + $r * 0.95)))
+    $leafRect = New-Object System.Drawing.RectangleF(($cx - $r), ($cy - $r), ($r * 2), ($r * 2))
+    $leafBrush = Gradient-Brush $leafRect (C 150 245 120) (C 40 170 70)
+    foreach ($shape in $shapes) { $g.FillPath($leafBrush, $shape) }
+    $g.FillEllipse($leafBrush, ($cx - $r * 0.24), ($cy - $r * 0.24), ($r * 0.48), ($r * 0.48))
+    # Leaf veins and a shine.
+    $vein = New-Object System.Drawing.Pen((C 30 120 50 200), 5)
+    foreach ($deg in @(-90, 0, 90, 180)) {
+        $a = [Math]::PI * $deg / 180
+        $g.DrawLine($vein, (P ($cx + [Math]::Cos($a) * $r * 0.3) ($cy + [Math]::Sin($a) * $r * 0.3)),
+            (P ($cx + [Math]::Cos($a) * $r * 0.62) ($cy + [Math]::Sin($a) * $r * 0.62)))
+    }
+    $g.FillEllipse((New-Object System.Drawing.SolidBrush((C 255 255 255 110))), ($cx - $r * 0.38), ($cy - $r * 0.86), ($r * 0.2), ($r * 0.13))
+}
+
+# 7) LUCKY PACKS (Hype Crew) --------------------------------------------------------------------------
+$icon = New-Icon; $bmp = $icon[0]; $g = $icon[1]
+Fill-Background $g (C 170 90 255) (C 30 10 66)
+Draw-Rays $g (C 255 230 150 32) 16 256 190
+# Epic (purple) and Legendary (gold) cards fanned behind a four-leaf clover.
+Draw-Card $g 214 180 128 176 -14 (C 200 120 255) (C 120 60 200) (C 60 20 120) (C 240 200 255) (C 190 110 255) $false
+Draw-Card $g 306 172 128 176 12 (C 255 214 70) (C 255 190 60) (C 200 110 20) (C 255 250 200) (C 255 200 40) $false
+Draw-Clover $g 176 238 86
+Draw-Text $g 'LUCKY' 100 256 340 $gold $goldDeep $ink 20
+Draw-Text $g 'PACKS' 78 256 426 (C 255 255 255) (C 230 205 255) $ink 16
+Draw-Sparkle $g 400 92 22 (C 255 255 220 235)
+Draw-Sparkle $g 112 116 16 (C 255 255 230 215)
+Draw-Sparkle $g 414 262 13 (C 255 240 200 210)
+Draw-Rim $g $goldDeep
+$bmp.Save("$out\lucky-packs.png", [System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose()
+
+# 8) TRIPLE OPEN (Hype Crew) --------------------------------------------------------------------------
+$icon = New-Icon; $bmp = $icon[0]; $g = $icon[1]
+Fill-Background $g (C 70 170 255) (C 10 24 74)
+Draw-Rays $g (C 255 255 255 26) 16 256 190
+# Three cards fanned out: Rare (blue), Epic (purple), Legendary (gold) in front.
+Draw-Card $g 166 196 118 162 -20 (C 90 180 255) (C 60 130 230) (C 20 50 130) (C 210 240 255) (C 90 180 255) $false
+Draw-Card $g 346 196 118 162 20 (C 200 120 255) (C 120 60 200) (C 60 20 120) (C 240 200 255) (C 190 110 255) $false
+Draw-Card $g 256 176 126 172 0 (C 255 214 70) (C 255 190 60) (C 200 110 20) (C 255 250 200) (C 255 200 40) $false
+# "x3" burst badge.
+$badge = New-Object System.Drawing.RectangleF(336, 74, 92, 92)
+$g.FillEllipse((New-Object System.Drawing.SolidBrush((C 0 0 0 90))), 340, 82, 92, 92)
+$g.FillEllipse((Gradient-Brush $badge (C 255 110 110) (C 210 30 60)), $badge)
+$g.DrawEllipse((New-Object System.Drawing.Pen($ink, 9)), $badge)
+Draw-Text $g 'x3' 60 382 118 (C 255 255 255) (C 255 225 200) $ink 11
+Draw-Text $g 'TRIPLE' 88 256 342 $gold $goldDeep $ink 20
+Draw-Text $g 'OPEN' 82 256 428 (C 255 255 255) (C 200 230 255) $ink 16
+Draw-Sparkle $g 96 132 18 (C 255 255 230 225)
+Draw-Sparkle $g 440 262 13 (C 255 255 230 205)
+Draw-Rim $g $goldDeep
+$bmp.Save("$out\triple-open.png", [System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose()
+
+# 9) +1 CREW SLOT (Hype Crew) -------------------------------------------------------------------------
+$icon = New-Icon; $bmp = $icon[0]; $g = $icon[1]
+Fill-Background $g (C 255 110 205) (C 64 10 54)
+Draw-Rays $g (C 255 240 200 30) 16 256 190
+# A crew card with a member silhouette, and a green "+" badge.
+Draw-Card $g 232 178 140 190 -8 (C 255 130 220) (C 70 60 140) (C 24 20 64) (C 255 240 250) (C 255 150 225) $true
+$plus = New-Object System.Drawing.RectangleF(300, 176, 124, 124)
+$g.FillEllipse((New-Object System.Drawing.SolidBrush((C 0 0 0 95))), 305, 186, 124, 124)
+$g.FillEllipse((Gradient-Brush $plus (C 130 245 120) (C 30 170 70)), $plus)
+$g.DrawEllipse((New-Object System.Drawing.Pen($ink, 10)), $plus)
+$bar = New-Object System.Drawing.SolidBrush((C 255 255 255))
+$barPen = New-Object System.Drawing.Pen($ink, 8); $barPen.LineJoin = $round
+$cross = [System.Drawing.PointF[]]@((P 350 204), (P 374 204), (P 374 226), (P 396 226), (P 396 250), (P 374 250), (P 374 272),
+    (P 350 272), (P 350 250), (P 328 250), (P 328 226), (P 350 226))
+$g.DrawPolygon($barPen, $cross)
+$g.FillPolygon($bar, $cross)
+Draw-Text $g '+1 CREW' 84 256 342 $gold $goldDeep $ink 18
+Draw-Text $g 'SLOT' 82 256 428 (C 255 255 255) (C 255 215 240) $ink 16
+Draw-Sparkle $g 110 128 20 (C 255 255 230 230)
+Draw-Sparkle $g 404 98 16 (C 255 240 255 220)
+Draw-Rim $g $goldDeep
+$bmp.Save("$out\crew-slot.png", [System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose()
+
 Get-ChildItem $out | Select-Object Name, Length
