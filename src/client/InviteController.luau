@@ -47,6 +47,19 @@ function InviteController.new(player: Player, hud)
 		end)
 	end))
 
+	-- Roblox Premium: show the bonus, or open Roblox's Premium offer. The server re-checks
+	-- membership (PlayerMembershipChanged) and pays the bonus.
+	local premiumPercent = math.floor(Config.PremiumBonus * 100 + 0.5)
+	local function refreshPremium()
+		if player:GetAttribute("Premium") ~= nil then hud.SetPremium(player:GetAttribute("Premium") == true, premiumPercent) end
+	end
+	table.insert(connections, player:GetAttributeChangedSignal("Premium"):Connect(refreshPremium))
+	refreshPremium()
+	table.insert(connections, hud.PremiumButton.Activated:Connect(function()
+		if player:GetAttribute("Premium") == true then return end
+		pcall(game:GetService("MarketplaceService").PromptPremiumPurchase, game:GetService("MarketplaceService"), player)
+	end))
+
 	table.insert(connections, hud.InviteButton.Activated:Connect(function()
 		if prompting then return end
 		prompting = true

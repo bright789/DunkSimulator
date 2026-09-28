@@ -24,6 +24,9 @@ local MonetizationConfig = {
 			Description = "Open 3 Hype Crew packs at once.", SuggestedRobux = 99 },
 		{ Key = "CrewSlot", Id = 1998489170, Name = "+1 Crew Slot", Icon = "+1\nCREW",
 			Description = "Equip 4 Hype Crew members instead of 3.", SuggestedRobux = 149 },
+		-- Dunk Pass premium track for Season 1 (SeasonConfig PassKey). Id 0 = not created yet.
+		{ Key = "DunkPass", Id = 0, Name = "Dunk Pass: Season 1", Icon = "DUNK\nPASS",
+			Description = "Unlocks the premium Dunk Pass track for Season 1: Launch Jets, the Rocket ball, Hype Man, the Legendary Launch Legend, extra packs, Cash and boosts.", SuggestedRobux = 299 },
 	},
 	-- Must be a Developer Product (repeatable), not a game pass.
 	Products = {

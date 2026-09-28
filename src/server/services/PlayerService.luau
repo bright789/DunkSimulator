@@ -18,6 +18,7 @@ local Monetization = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local Events = require(ReplicatedStorage.Shared.Config.EventConfig)
 local Abilities = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local Crew = require(ReplicatedStorage.Shared.Config.CrewConfig)
+local Season = require(ReplicatedStorage.Shared.Config.SeasonConfig)
 local isStudio = game:GetService("RunService"):IsStudio()
 local DataConfig = require(script.Parent.Parent.Config.DataConfig)
 
@@ -41,6 +42,7 @@ type PlayerState = {
 	Passes: { [string]: boolean },
 	FriendMultiplier: number,
 	GroupMultiplier: number,
+	PremiumMultiplier: number,
 	Settings: { Music: boolean },
 	-- Ability levels (0 = locked); AbilityService is its only writer.
 	Abilities: { [string]: number },
@@ -48,6 +50,8 @@ type PlayerState = {
 	LastOnline: number,
 	-- Hype Crew (owned stars + equipped); CrewService is its only writer.
 	Crew: { Owned: { [string]: number }, Equipped: { string } },
+	-- Dunk Pass record (season Id, XP, claimed tiers); SeasonXp/SeasonService are its only writers.
+	Season: { Id: string, Xp: number, Free: { number }, Premium: { number } },
 	CourtTransition: boolean,
 	Dunks: number,
 	DunkState: string,
@@ -137,10 +141,12 @@ local function addPlayer(player: Player, profile)
 		Passes = {},
 		FriendMultiplier = 1,
 		GroupMultiplier = 1,
+		PremiumMultiplier = 1,
 		Settings = { Music = profile.Settings.Music },
 		Abilities = Abilities.CopyState(profile.Abilities),
 		LastOnline = profile.LastOnline,
 		Crew = Crew.CopyState(profile.Crew),
+		Season = Season.CopyState(profile.Season),
 		CourtTransition = placeCharacter ~= nil,
 		Dunks = 0,
 		DunkState = "Idle",
@@ -442,6 +448,7 @@ function PlayerService.RegisterDunk(player: Player, styleId: string, rating: str
 	local cashReward = DunkRewards.DunkCash(style.Reward, bonuses.DunkCashMultiplier * Rebirths.CashMultiplier(state.Rebirths)
 		* Daily.BoostMultiplier(state.Daily.BoostUntil, os.time())
 		* (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1) * state.FriendMultiplier * state.GroupMultiplier
+		* state.PremiumMultiplier
 		* Events.CashMultiplier(os.time(), isStudio) * bonus * Crew.Multipliers(state.Crew).Cash, state.Vertical, rating)
 	state.Cash = math.min(state.Cash + cashReward, DataConfig.MaxCash)
 	state.Dunks += 1
@@ -474,7 +481,7 @@ function PlayerService.AwardDunkTrick(player: Player, trickId: string, comboInde
 	local cash = DunkRewards.TrickCash(trickId, comboIndex, bonuses.DunkCashMultiplier
 		* Rebirths.CashMultiplier(state.Rebirths) * Daily.BoostMultiplier(state.Daily.BoostUntil, os.time())
 		* (1 + (shoe and shoe.TrickBonus or 0)) * (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1)
-		* state.FriendMultiplier * state.GroupMultiplier * Events.CashMultiplier(os.time(), isStudio)
+		* state.FriendMultiplier * state.GroupMultiplier * state.PremiumMultiplier * Events.CashMultiplier(os.time(), isStudio)
 		* Crew.Multipliers(state.Crew).Cash)
 	if cash <= 0 or state.Cash > DataConfig.MaxCash - cash then return nil end
 	state.Cash += cash
@@ -502,6 +509,13 @@ function PlayerService.SetPasses(player: Player, owned: { [string]: boolean })
 end
 
 -- Community group Cash bonus (InviteService is its only caller). Not saved.
+-- Roblox Premium Cash bonus (PremiumService is its only caller). Not saved.
+function PlayerService.SetPremiumMultiplier(player: Player, multiplier: number)
+	local state = states[player]
+	if not state or type(multiplier) ~= "number" or multiplier ~= multiplier or multiplier < 1 or multiplier > 2 then return end
+	state.PremiumMultiplier = multiplier
+end
+
 function PlayerService.SetGroupMultiplier(player: Player, multiplier: number)
 	local state = states[player]
 	if not state or type(multiplier) ~= "number" or multiplier ~= multiplier or multiplier < 1 or multiplier > 2 then return end
@@ -527,6 +541,13 @@ end
 function PlayerService.HasPass(player: Player, key: string): boolean
 	local state = states[player]
 	return state ~= nil and state.Passes[key] == true
+end
+
+-- The live Dunk Pass record. Only SeasonXp and SeasonService may change it, without yielding.
+function PlayerService.GetSeason(player: Player)
+	local state = states[player]
+	if not PlayerService.IsDataReady(player) or not state then return nil end
+	return state.Season
 end
 
 -- The live Hype Crew record. Only CrewService may change it, and only without yielding.
@@ -736,6 +757,7 @@ function PlayerService.Init(onReady, onDataReady)
 				-- Every save stamps "now", so time away is measured from the last save.
 				LastOnline = os.time(),
 				Crew = Crew.CopyState(state.Crew),
+				Season = Season.CopyState(state.Season),
 			}
 		end,
 		Cleanup = function(player: Player)

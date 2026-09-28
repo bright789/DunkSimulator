@@ -11,6 +11,8 @@ local Courts = require(ReplicatedStorage.Shared.Config.CourtConfig)
 local Monetization = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local PlayerService = require(script.Parent.PlayerService)
 local DataService = require(script.Parent.DataService)
+local SeasonXp = require(script.Parent.SeasonXp)
+local SeasonXpValues = require(ReplicatedStorage.Shared.Config.SeasonConfig).XP
 
 local DailyService = {}
 local initialized = false
@@ -162,6 +164,7 @@ local function claimChallenge(player: Player, slot: number)
 	local reward = entry.Reward * dailyMultiplier(player)
 	if not PlayerService.GrantCash(player, reward, "DailyChallenge", "TimedReward") then return nil, "Reward unavailable." end
 	entry.Claimed = true
+	SeasonXp.Add(player, SeasonXpValues.DailyChallenge)
 	local sweep = true
 	for _, other in daily.Challenges do
 		if not other.Claimed then sweep = false end

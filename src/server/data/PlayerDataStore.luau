@@ -8,6 +8,7 @@ local Leaderboards = require(game:GetService("ReplicatedStorage").Shared.Config.
 local Locker = require(game:GetService("ReplicatedStorage").Shared.Config.LockerConfig)
 local Abilities = require(game:GetService("ReplicatedStorage").Shared.Config.AbilityConfig)
 local Crew = require(game:GetService("ReplicatedStorage").Shared.Config.CrewConfig)
+local Season = require(game:GetService("ReplicatedStorage").Shared.Config.SeasonConfig)
 
 local Store = {}
 local dataStore = nil
@@ -96,6 +97,7 @@ function Store.Write(userId: number, pending, canContinue)
 			updated.Abilities = Abilities.CopyState(pending.Snapshot.Abilities)
 			updated.LastOnline = pending.Snapshot.LastOnline
 			updated.Crew = Crew.CopyState(pending.Snapshot.Crew)
+			updated.Season = Season.CopyState(pending.Snapshot.Season)
 			updated.Revision = pending.Revision + 1
 			updated.WriteId = pending.WriteId
 			return updated, userIds, metadata

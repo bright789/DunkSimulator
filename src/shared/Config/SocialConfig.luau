@@ -23,6 +23,9 @@ local SocialConfig = {
 	-- opens Roblox's join prompt. 0 = no group yet (button hidden, no bonus).
 	GroupId = 292818851, -- Dunk Simulator Official
 	GroupBonus = 0.1,
+	-- Roblox Premium members earn this much extra dunk and air-trick Cash (PremiumService).
+	-- Roblox also pays the game more the longer Premium members play (Premium Payouts).
+	PremiumBonus = 0.1,
 	GroupRecheckSeconds = 10,
 	-- Launch data can take a few seconds to arrive after a player joins.
 	LaunchDataAttempts = 5,
@@ -34,6 +37,8 @@ local SocialConfig = {
 	StudioPretendFriendsOnline = 0,
 	-- Studio only: treat the player as a group member (needs a GroupId set).
 	StudioPretendInGroup = false,
+	-- Studio only: treat the player as a Roblox Premium member.
+	StudioPretendPremium = false,
 	StudioLaunchData = nil,
 }
 

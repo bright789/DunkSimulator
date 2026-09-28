@@ -22,6 +22,9 @@ local LockerConfig = {
 		-- VIP pass exclusive (Pass = the MonetizationConfig pass Key that unlocks it).
 		{ Id = "diamond_kicks", Name = "Diamond Kicks", Price = 0, Pass = "VIP", TrickBonus = 0.2,
 			Upper = Color3.fromRGB(215, 245, 255), Sole = Color3.fromRGB(120, 220, 255), Accent = Color3.fromRGB(255, 255, 255), Glow = true },
+		-- Dunk Pass exclusives (Season = the SeasonConfig season that awards them; never sold).
+		{ Id = "launch_jets", Name = "Launch Jets", Price = 0, Season = "S1", TrickBonus = 0.2,
+			Upper = Color3.fromRGB(255, 120, 40), Sole = Color3.fromRGB(245, 245, 245), Accent = Color3.fromRGB(255, 214, 64), Glow = true },
 	},
 	Balls = {
 		{ Id = "classic", Name = "Classic", Price = 0, Color = Color3.fromRGB(230, 115, 25), Material = Enum.Material.Leather,
@@ -38,6 +41,10 @@ local LockerConfig = {
 			Seam = Color3.fromRGB(255, 110, 20), GlowSeams = true, Trail = Color3.fromRGB(255, 90, 20), TrailLifetime = 0.35 },
 		{ Id = "diamond", Name = "Diamond", Price = 0, Pass = "VIP", Color = Color3.fromRGB(205, 240, 255), Material = Enum.Material.Foil,
 			Seam = Color3.fromRGB(255, 255, 255), GlowSeams = true, Trail = Color3.fromRGB(150, 230, 255), TrailLifetime = 0.4 },
+		{ Id = "launch_day", Name = "Launch Day", Price = 0, Season = "S1", Color = Color3.fromRGB(255, 150, 40),
+			Material = Enum.Material.SmoothPlastic, Seam = Color3.fromRGB(255, 255, 255), Trail = Color3.fromRGB(255, 200, 80), TrailLifetime = 0.25 },
+		{ Id = "rocket", Name = "Rocket", Price = 0, Season = "S1", Color = Color3.fromRGB(230, 235, 245), Material = Enum.Material.Foil,
+			Seam = Color3.fromRGB(255, 80, 60), GlowSeams = true, Trail = Color3.fromRGB(255, 120, 60), TrailLifetime = 0.4 },
 	},
 	DefaultId = "classic",
 }

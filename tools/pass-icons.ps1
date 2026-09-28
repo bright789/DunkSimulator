@@ -397,4 +397,36 @@ Draw-Sparkle $g 404 98 16 (C 255 240 255 220)
 Draw-Rim $g $goldDeep
 $bmp.Save("$out\crew-slot.png", [System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose()
 
+# 10) DUNK PASS: SEASON 1 ------------------------------------------------------------------
+$icon = New-Icon; $bmp = $icon[0]; $g = $icon[1]
+Fill-Background $g (C 255 150 40) (C 70 20 10)
+Draw-Rays $g (C 255 240 190 34) 16 256 190
+# A golden ticket with a basketball, tilted.
+$state = $g.Save()
+$g.TranslateTransform(256, 176)
+$g.RotateTransform(-10)
+$ticket = New-Object System.Drawing.Drawing2D.GraphicsPath
+$ticket.AddArc(-150, -86, 40, 40, 180, 90); $ticket.AddArc(110, -86, 40, 40, 270, 90)
+$ticket.AddArc(110, 46, 40, 40, 0, 90); $ticket.AddArc(-150, 46, 40, 40, 90, 90); $ticket.CloseFigure()
+$ticketShadow = $ticket.Clone(); $m = New-Object System.Drawing.Drawing2D.Matrix; $m.Translate(6, 10); $ticketShadow.Transform($m)
+$g.FillPath((New-Object System.Drawing.SolidBrush((C 0 0 0 100))), $ticketShadow)
+$g.FillPath((Gradient-Brush (New-Object System.Drawing.RectangleF(-150, -86, 300, 172)) (C 255 238 130) (C 235 150 20)), $ticket)
+$ticketPen = New-Object System.Drawing.Pen($ink, 12); $ticketPen.LineJoin = $round
+$g.DrawPath($ticketPen, $ticket)
+# Perforated stub line.
+$dash = New-Object System.Drawing.Pen((C 150 80 10), 6); $dash.DashStyle = [System.Drawing.Drawing2D.DashStyle]::Dash
+$g.DrawLine($dash, 62, -72, 62, 72)
+# Notches on the stub line.
+$g.FillEllipse((New-Object System.Drawing.SolidBrush((C 70 20 10))), 48, -100, 28, 28)
+$g.FillEllipse((New-Object System.Drawing.SolidBrush((C 70 20 10))), 48, 72, 28, 28)
+Draw-Basketball $g -44 0 56
+Draw-Sparkle $g 104 -2 16 (C 255 255 240 240)
+$g.Restore($state)
+Draw-Text $g 'DUNK' 112 256 334 $gold $goldDeep $ink 20
+Draw-Text $g 'PASS' 86 256 422 (C 255 255 255) (C 255 225 190) $ink 16
+Draw-Sparkle $g 96 110 20 (C 255 255 230 230)
+Draw-Sparkle $g 420 96 16 (C 255 255 230 220)
+Draw-Rim $g $goldDeep
+$bmp.Save("$out\dunk-pass-s1.png", [System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose()
+
 Get-ChildItem $out | Select-Object Name, Length

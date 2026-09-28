@@ -56,7 +56,8 @@ function CrewController.new(player: Player, hud)
 		for courtId in string.gmatch(tostring(player:GetAttribute("UnlockedCourts") or ""), "[^,]+") do unlocked[courtId] = true end
 		local money = cash()
 		local triple = player:GetAttribute("Pass_CrewTriple") == true
-		for packId, pack in Crew.Packs do
+		for _, packId in Crew.PackIds() do
+			local pack = Crew.Packs[packId]
 			local court = Courts.Get(pack.Court)
 			view.SetPack(packId, {
 				Unlocked = unlocked[pack.Court] == true or pack.Court == Courts.StartingId,

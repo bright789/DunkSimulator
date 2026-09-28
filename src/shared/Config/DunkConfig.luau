@@ -26,8 +26,10 @@ local DunkConfig = {
 	DunkMaxEngagementAboveRim = math.ceil(ProgressionConfig.GetJumpHeight(highestTrainingCap()) + 20),
 	DunkInputBufferSeconds = 0.5,
 	-- A press that reaches the server before it has seen the player's jump waits this long
-	-- for takeoff (covers network delay; stays under DunkInputBufferSeconds).
-	DunkTakeoffGraceSeconds = 0.35,
+	-- for takeoff (network delay). A busy server or a laggy phone can deliver the jump
+	-- ~0.5 s late (measured in a 3-player test), so this is generous; the dunk still only
+	-- starts once the server itself sees the player airborne.
+	DunkTakeoffGraceSeconds = 0.8,
 	DunkBufferVerticalAllowance = 3,
 	-- Presses this far above the allowed height keep buffering while the player falls.
 	DunkHighBufferStuds = 45,

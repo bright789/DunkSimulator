@@ -19,6 +19,8 @@ local Daily = require(ReplicatedStorage.Shared.Config.DailyConfig)
 local PlayerService = require(script.Parent.PlayerService)
 local GameplayObjects = require(script.Parent.GameplayObjects)
 local Analytics = require(script.Parent.AnalyticsReporter)
+local SeasonXp = require(script.Parent.SeasonXp)
+local SeasonXpValues = require(ReplicatedStorage.Shared.Config.SeasonConfig).XP
 
 local PickupService = {}
 local initialized = false
@@ -195,6 +197,7 @@ local function grab(player: Player, courtId: string, present: { Player })
 	local value = Config.GoldenBall.RewardDunks * Daily.DunkValue(PlayerService.GetVertical(player) or 0)
 	if not PlayerService.GrantCash(player, value, "GoldenBall", "Gameplay") then return end
 	Analytics.Custom(player, "GoldenBall")
+	SeasonXp.Add(player, SeasonXpValues.GoldenBall)
 	for _, other in present do
 		sendTo(other, "GoldenGrab", player.DisplayName, value, position, other == player)
 	end

@@ -11,6 +11,8 @@ local Config = require(ReplicatedStorage.Shared.Config.CrewConfig)
 local PlayerService = require(script.Parent.PlayerService)
 local DataService = require(script.Parent.DataService)
 local Analytics = require(script.Parent.AnalyticsReporter)
+local SeasonXp = require(script.Parent.SeasonXp)
+local SeasonConfig = require(ReplicatedStorage.Shared.Config.SeasonConfig)
 
 local CrewService = {}
 local initialized = false
@@ -71,9 +73,34 @@ local function roll(packId: string, lucky: boolean): string
 	return list[random:NextInteger(1, #list)]
 end
 
+-- Adds one member to the crew (a new member, a star, or a Cash refund past MaxStars) and
+-- returns the reveal result. `refundBase` is what a maxed copy refunds a share of.
+local function addMember(player: Player, crew, memberId: string, refundBase: number)
+	local stars = crew.Owned[memberId]
+	local result = { Id = memberId, New = stars == nil, Refund = 0 }
+	if not stars then
+		crew.Owned[memberId] = 1
+		-- New members join the crew straight away if there's a free slot.
+		if #crew.Equipped < slotsFor(player) then table.insert(crew.Equipped, memberId) end
+	elseif stars < Config.MaxStars then
+		crew.Owned[memberId] = stars + 1
+	else
+		result.Refund = math.floor(refundBase * Config.MaxedRefund)
+		if result.Refund > 0 then PlayerService.GrantCash(player, result.Refund, "CrewRefund", "Gameplay") end
+	end
+	result.Stars = crew.Owned[memberId]
+	return result
+end
+
+local function finish(player: Player, packId: string, results)
+	publish(player)
+	DataService.RequestSave(player)
+	if player.Parent == Players then remote:FireClient(player, "Opened", packId, results) end
+end
+
 local function buy(player: Player, packId, count)
 	local pack = Config.GetPack(packId)
-	if not pack or (count ~= 1 and count ~= 3) then return end
+	if not pack or pack.Hidden or (count ~= 1 and count ~= 3) then return end
 	if count == 3 and not PlayerService.HasPass(player, "CrewTriple") then
 		return reply(player, false, "Opening 3 at once needs the Triple Open pass.")
 	end
@@ -87,29 +114,44 @@ local function buy(player: Player, packId, count)
 	if not PlayerService.SpendCash(player, price, "CrewPack_" .. packId) then return reply(player, false, "Try again in a moment.") end
 	local lucky = PlayerService.HasPass(player, "CrewLucky")
 	local results = {}
-	local refund = 0
 	for _ = 1, count do
 		local memberId = roll(packId, lucky)
-		local stars = crew.Owned[memberId]
-		local result = { Id = memberId, New = stars == nil, Refund = 0 }
-		if not stars then
-			crew.Owned[memberId] = 1
-			-- New members join the crew straight away if there's a free slot.
-			if #crew.Equipped < slotsFor(player) then table.insert(crew.Equipped, memberId) end
-		elseif stars < Config.MaxStars then
-			crew.Owned[memberId] = stars + 1
-		else
-			result.Refund = math.floor(pack.Price * Config.MaxedRefund)
-			refund += result.Refund
-		end
-		result.Stars = crew.Owned[memberId]
-		table.insert(results, result)
+		table.insert(results, addMember(player, crew, memberId, pack.Price))
 		Analytics.Custom(player, "CrewPull_" .. Config.Members[memberId].Rarity)
 	end
-	if refund > 0 then PlayerService.GrantCash(player, refund, "CrewRefund", "Gameplay") end
-	publish(player)
-	DataService.RequestSave(player)
-	if player.Parent == Players then remote:FireClient(player, "Opened", packId, results) end
+	SeasonXp.Add(player, SeasonConfig.XP.CrewPack * count)
+	finish(player, packId, results)
+end
+
+-- The best pack this player's courts have unlocked (the Dunk Pass gives these for free).
+local function bestPack(player: Player): string
+	local best = "Street"
+	for _, packId in Config.PackIds() do
+		if PlayerService.HasCourt(player, Config.Packs[packId].Court) then best = packId end
+	end
+	return best
+end
+
+-- A free pack from a reward (Dunk Pass). Returns the reveal result, or nil.
+function CrewService.GrantPack(player: Player)
+	local crew = PlayerService.GetCrew(player)
+	if not crew then return nil end
+	local packId = bestPack(player)
+	local memberId = roll(packId, PlayerService.HasPass(player, "CrewLucky"))
+	local result = addMember(player, crew, memberId, Config.Packs[packId].Price)
+	Analytics.Custom(player, "CrewPull_" .. Config.Members[memberId].Rarity)
+	finish(player, packId, { result })
+	return result
+end
+
+-- A specific member from a reward (Dunk Pass exclusives). Returns the reveal result, or nil.
+function CrewService.GrantMember(player: Player, memberId: string)
+	local crew = PlayerService.GetCrew(player)
+	local member = Config.GetMember(memberId)
+	if not crew or not member then return nil end
+	local result = addMember(player, crew, memberId, 0)
+	finish(player, member.Pack, { result })
+	return result
 end
 
 local function equip(player: Player, memberId, on: boolean)

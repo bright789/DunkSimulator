@@ -72,6 +72,8 @@ function StatusBarView.new(playerGui: PlayerGui)
 		if not visible then return end
 		goalText.Text = title or ""
 		goalRight.Text = progress or ""
+		-- A goal with no numbers ("MAXED HERE! ...") gets the whole bar for its title.
+		goalText.Size = (progress == nil or progress == "") and UDim2.new(1, -20, 1, -6) or UDim2.new(0.62, -12, 1, -6)
 		goalFill.Size = UDim2.fromScale(math.clamp(fraction or 0, 0, 1), 1)
 	end
 

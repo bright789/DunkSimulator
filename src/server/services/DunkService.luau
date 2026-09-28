@@ -15,6 +15,9 @@ local ContestService = require(script.Parent.ContestService)
 local AbilityService = require(script.Parent.AbilityService)
 local HeatService = require(script.Parent.HeatService)
 local PickupService = require(script.Parent.PickupService)
+local Analytics = require(script.Parent.AnalyticsReporter)
+local SeasonXp = require(script.Parent.SeasonXp)
+local SeasonXpValues = require(ReplicatedStorage.Shared.Config.SeasonConfig).XP
 local remotes = ReplicatedStorage.Remotes
 
 local DunkService = {}
@@ -122,6 +125,9 @@ local function attemptDunk(player: Player): (string?, string?)
 				return "Player data is not ready.", "PLAYER_NOT_READY"
 			end
 			AbilityService.Consume(player, armed)
+			-- Dunk Pass XP: every dunk, more for a PERFECT or GOOD slam, plus each air trick.
+			SeasonXp.Add(player, SeasonXpValues.Dunk + (rating == "Perfect" and SeasonXpValues.Perfect
+				or rating == "Good" and SeasonXpValues.Good or 0) + (tricks or 0) * SeasonXpValues.AirTrick)
 			local spilled, spillProblem = pcall(PickupService.SpillForDunk, player, cashReward or 0)
 			if not spilled then warn("[DunkService] Cash bills failed: " .. tostring(spillProblem)) end
 			nextAttempt[player] = os.clock() + Config.DunkCooldown
@@ -144,6 +150,7 @@ local function attemptDunk(player: Player): (string?, string?)
 		-- only runs once the server itself sees the player airborne.
 		if code == "NOT_AIRBORNE" and os.clock() - requestedAt <= Config.DunkTakeoffGraceSeconds then
 			canBuffer = true
+			expiresAt = math.max(expiresAt, requestedAt + Config.DunkTakeoffGraceSeconds)
 		end
 		if not canBuffer then
 			return reason, code
@@ -197,9 +204,13 @@ function DunkService.Init()
 		if not success then
 			warn("[DunkService] Attempt failed: " .. tostring(message))
 			remotes.DunkResult:FireClient(player, nil, "Dunk unavailable. Check Studio Output.")
+			Analytics.Custom(player, "DunkRejected_ERROR")
 		elseif message then
 			remotes.DunkResult:FireClient(player, nil, message)
 			debugRejection(player, code, message)
+			-- Counted per reason so the dashboard shows how often real players get refused
+			-- (e.g. NOT_AIRBORNE would mean their jump reaches the server too late).
+			Analytics.Custom(player, "DunkRejected_" .. tostring(code or "UNKNOWN"))
 		end
 	end)
 	print("[DunkService] Dunk requests ready.")

@@ -224,11 +224,13 @@ function LockerView.new(playerGui: PlayerGui)
 				local waiting = pending == kind .. ":" .. itemId
 				local control = card.Button
 				local passItem = card.Item.Pass
+				local seasonItem = card.Item.Season ~= nil
 				control.Text = not state and "..." or (waiting and "WAIT" or (equipped and "EQUIPPED"
-					or (owned and "EQUIP" or (passItem and (passItem .. " PASS") or ("$" .. UI.Number(card.Item.Price))))))
+					or (owned and "EQUIP" or (seasonItem and "DUNK PASS" or (passItem and (passItem .. " PASS")
+						or ("$" .. UI.Number(card.Item.Price)))))))
 				local passOnSale = passItem ~= nil and (Monetization.GetPass(passItem) or { Id = 0 }).Id ~= 0
 				local usable = state ~= nil and not equipped and pending == nil
-					and (owned or (passItem and passOnSale) or (not passItem and snapshot.Cash >= card.Item.Price))
+					and (owned or (passItem and passOnSale) or (not passItem and not seasonItem and snapshot.Cash >= card.Item.Price))
 				control.Active = usable
 				control.AutoButtonColor = usable
 				control.BackgroundColor3 = equipped and Config.Colors.Gain or (usable and (owned and Config.Colors.Button

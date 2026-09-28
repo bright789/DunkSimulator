@@ -35,6 +35,7 @@ Ready-made 512×512 PNG icons are in `assets/pass-icons/`:
 - `cash-boost-15min.png`
 - `auto-train.png`, `starter-pack.png`
 - `lucky-packs.png`, `triple-open.png`, `crew-slot.png` (Hype Crew passes, see `HYPE_CREW.md`)
+- `dunk-pass-s1.png` (Dunk Pass: Season 1, see `DUNK_PASS.md`)
 
 They're drawn in the game's style (FredokaOne text, gold rim, sunburst) with everything important inside the circle, because Roblox shows pass icons cropped to a circle. Regenerate them with `powershell -ExecutionPolicy Bypass -File tools/pass-icons.ps1`. The script uses Windows' built-in System.Drawing and the FredokaOne font from your Roblox Studio install.
 

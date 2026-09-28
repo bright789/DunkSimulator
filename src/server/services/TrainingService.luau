@@ -8,6 +8,8 @@ local PlayerService = require(script.Parent.PlayerService)
 local GameplayObjects = require(script.Parent.GameplayObjects)
 local ChallengeService = require(script.Parent.ChallengeService)
 local DailyService = require(script.Parent.DailyService)
+local SeasonXp = require(script.Parent.SeasonXp)
+local SeasonXpValues = require(ReplicatedStorage.Shared.Config.SeasonConfig).XP
 
 local TrainingService = {}
 -- Station training is a beat every TickIntervalSeconds. Beat k happens at
@@ -121,6 +123,7 @@ local function payBeat(player: Player, session: TrainingSession, beatAt: number)
 	local multiplier = grade == "Perfect" and Rhythm.PerfectMultiplier or grade == "Good" and Rhythm.GoodMultiplier or 1
 	local awarded, gain = PlayerService.AwardTraining(player, multiplier)
 	if not awarded then return false end
+	if grade == "Perfect" then SeasonXp.Add(player, SeasonXpValues.PerfectRep) end
 	session.Combo = grade and session.Combo + 1 or 0
 	afterRep(player)
 	if player.Parent == Players then pulseRemote:FireClient(player, grade, gain, session.Combo) end

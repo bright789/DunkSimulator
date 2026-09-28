@@ -34,6 +34,9 @@ local CrewConfig = {
 			Color = Color3.fromRGB(160, 80, 255), Odds = { Uncommon = 35, Rare = 38, Epic = 22, Legendary = 5 } },
 		Skyline = { Order = 4, Name = "SKYLINE PACK", Court = "Rooftop", Price = 200000,
 			Color = Color3.fromRGB(255, 60, 200), Odds = { Rare = 45, Epic = 40, Legendary = 15 } },
+		-- Dunk Pass exclusives (SeasonConfig rewards). Hidden: never sold, no set bonus.
+		Season1 = { Order = 5, Name = "DUNK PASS S1", Hidden = true, Price = 0,
+			Color = Color3.fromRGB(255, 170, 40), Odds = {} },
 	},
 
 	-- Boost: "Cash" (dunk and air-trick Cash) or "Train" (Vertical per training rep).
@@ -61,6 +64,10 @@ local CrewConfig = {
 		sneaker_mogul = { Name = "Sneaker Mogul", Icon = "👟", Pack = "Skyline", Rarity = "Epic", Boost = "Cash" },
 		city_legend = { Name = "City Legend", Icon = "🏙", Pack = "Skyline", Rarity = "Legendary", Boost = "Train" },
 		goat = { Name = "The GOAT", Icon = "🐐", Pack = "Skyline", Rarity = "Legendary", Boost = "Cash" },
+
+		rookie_s1 = { Name = "Season Rookie", Icon = "🎟", Pack = "Season1", Rarity = "Epic", Boost = "Train" },
+		hype_man_s1 = { Name = "Hype Man", Icon = "🎉", Pack = "Season1", Rarity = "Epic", Boost = "Cash" },
+		launch_legend = { Name = "Launch Legend", Icon = "🚀", Pack = "Season1", Rarity = "Legendary", Boost = "Cash" },
 	},
 }
 
@@ -72,10 +79,12 @@ function CrewConfig.GetPack(packId)
 	return type(packId) == "string" and CrewConfig.Packs[packId] or nil
 end
 
--- Pack ids in order (Street first).
+-- Pack ids that can be opened, in order (Street first). Hidden packs (Dunk Pass) are left out.
 function CrewConfig.PackIds(): { string }
 	local ids = {}
-	for packId in CrewConfig.Packs do table.insert(ids, packId) end
+	for packId, pack in CrewConfig.Packs do
+		if not pack.Hidden then table.insert(ids, packId) end
+	end
 	table.sort(ids, function(a, b) return CrewConfig.Packs[a].Order < CrewConfig.Packs[b].Order end)
 	return ids
 end

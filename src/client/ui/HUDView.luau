@@ -184,14 +184,21 @@ function HUDView.new(playerGui: PlayerGui)
 	codesButton.Size = UDim2.new(0.48, 0, 0, Config.Layout.DunksButtonHeight)
 	codesButton.Position = UDim2.new(0.52, 0, 0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 4)
 	codesButton.Parent = navigation
-	-- HYPE CREW packs and collection (full-width last row).
+	-- Last row: HYPE CREW packs and the DUNK PASS.
 	local crewButton = dunksButton:Clone()
 	crewButton.Name = "HypeCrew"
 	crewButton.Text = "HYPE CREW"
 	crewButton.TextColor3 = Color3.fromRGB(255, 120, 220)
-	crewButton.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight)
+	crewButton.Size = UDim2.new(0.48, 0, 0, Config.Layout.DunksButtonHeight)
 	crewButton.Position = UDim2.fromOffset(0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 5)
 	crewButton.Parent = navigation
+	local passButton = dunksButton:Clone()
+	passButton.Name = "DunkPass"
+	passButton.Text = "DUNK PASS"
+	passButton.TextColor3 = Color3.fromRGB(255, 170, 60)
+	passButton.Size = UDim2.new(0.48, 0, 0, Config.Layout.DunksButtonHeight)
+	passButton.Position = UDim2.new(0.52, 0, 0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 5)
+	passButton.Parent = navigation
 	-- Cash Boost countdown pill (shown only while a boost runs).
 	local boost = UI.Panel(column, "CashBoost", UDim2.new(1, 0, 0, Config.Layout.BoostHeight), UDim2.new())
 	boost.LayoutOrder = 6
@@ -219,9 +226,17 @@ function HUDView.new(playerGui: PlayerGui)
 	groupButton.Text = "JOIN GROUP: +10% CASH"
 	groupButton.TextColor3 = Config.Colors.Gold
 	groupButton.Parent = column
+	-- Roblox Premium: bonus note for members, an upsell button for everyone else.
+	local premiumButton = autoButton:Clone()
+	premiumButton.Name = "Premium"
+	premiumButton.LayoutOrder = 9
+	premiumButton.Visible = false
+	premiumButton.Text = "⭐ PREMIUM: +10% CASH"
+	premiumButton.TextColor3 = Config.Colors.Gold
+	premiumButton.Parent = column
 	-- Timed event pill (EventConfig), e.g. "2X CASH WEEKEND  1d 4h".
 	local eventPill = UI.Panel(column, "Event", UDim2.new(1, 0, 0, Config.Layout.BoostHeight), UDim2.new())
-	eventPill.LayoutOrder = 9
+	eventPill.LayoutOrder = 10
 	eventPill.Visible = false
 	eventPill.BackgroundColor3 = Color3.fromRGB(90, 30, 10)
 	local eventLabel = UI.Label(eventPill, "Text", "", UDim2.new(1, -16, 1, 0), UDim2.fromOffset(8, 0), 14)
@@ -239,8 +254,10 @@ function HUDView.new(playerGui: PlayerGui)
 	UI.Interactive(codesButton)
 	UI.Interactive(abilitiesButton)
 	UI.Interactive(crewButton)
+	UI.Interactive(passButton)
 	UI.Interactive(autoButton)
 	UI.Interactive(groupButton)
+	UI.Interactive(premiumButton)
 
 	-- Touch devices: Roblox's movement thumbstick takes touches in the lower-left of the
 	-- screen, and buttons there block it, so the menu buttons move to the top-right corner.
@@ -295,7 +312,8 @@ function HUDView.new(playerGui: PlayerGui)
 	local view = { DunksButton = dunksButton, CourtsButton = courtsButton, ChallengesButton = challengesButton,
 		RebirthButton = rebirthButton, DailyButton = dailyButton, LockerButton = lockerButton,
 		InviteButton = inviteButton, MusicButton = musicButton, AutoTrainButton = autoButton, GroupButton = groupButton,
-		CodesButton = codesButton, AbilitiesButton = abilitiesButton, CrewButton = crewButton, Navigation = navigation }
+		CodesButton = codesButton, AbilitiesButton = abilitiesButton, CrewButton = crewButton, Navigation = navigation,
+		PremiumButton = premiumButton, PassButton = passButton }
 	local courtName, rebirths = "--", 0
 
 	local function refreshCourtLabel()
@@ -344,6 +362,21 @@ function HUDView.new(playerGui: PlayerGui)
 		groupButton.TextColor3 = member and Config.Colors.Gain or Config.Colors.Gold
 		if groupButton.Visible ~= visible then
 			groupButton.Visible = visible
+			resize()
+		end
+	end
+
+	-- Number of Dunk Pass rewards ready to claim, shown on the button.
+	function view.SetPassBadge(count: number)
+		passButton.Text = count > 0 and string.format("DUNK PASS (%d)", count) or "DUNK PASS"
+	end
+
+	function view.SetPremium(member: boolean, percent: number)
+		premiumButton.Text = member and string.format("⭐ PREMIUM BONUS +%d%%", percent)
+			or string.format("⭐ PREMIUM: +%d%% CASH", percent)
+		premiumButton.TextColor3 = member and Config.Colors.Gain or Config.Colors.Gold
+		if not premiumButton.Visible then
+			premiumButton.Visible = true
 			resize()
 		end
 	end

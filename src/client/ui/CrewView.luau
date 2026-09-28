@@ -162,7 +162,9 @@ function CrewView.new(playerGui: PlayerGui)
 		crewCards[memberId] = { Card = card, Icon = icon, Name = name, Stars = starLine, Boost = boost, Action = action, Stroke = stroke }
 	end
 
-	-- Pack-opening reveal: a dim backdrop and one big card at a time.
+	-- Pack-opening reveal: a dim backdrop and one big card at a time. Its own screen above
+	-- every menu, so packs from the Dunk Pass reveal on top of that screen too.
+	local revealScreen = UI.Screen("CrewReveal", 12)
 	local reveal = Instance.new("TextButton")
 	reveal.Name = "Reveal"
 	reveal.Size = UDim2.fromScale(1, 1)
@@ -172,7 +174,7 @@ function CrewView.new(playerGui: PlayerGui)
 	reveal.AutoButtonColor = false
 	reveal.Visible = false
 	reveal.ZIndex = 20
-	reveal.Parent = screen
+	reveal.Parent = revealScreen
 	local big = Instance.new("Frame")
 	big.Name = "Card"
 	big.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -205,6 +207,7 @@ function CrewView.new(playerGui: PlayerGui)
 	local tapHint = label(reveal, "Hint", "TAP TO CONTINUE", UDim2.fromOffset(300, 26), UDim2.new(0.5, -150, 0.47, 160), 16, true)
 	tapHint.ZIndex = 22
 	screen.Parent = playerGui
+	revealScreen.Parent = playerGui
 
 	local view = { Panel = panel, Close = close, PacksTab = packsTab, CrewTab = crewTab, PackCards = packCards,
 		CrewCards = crewCards, Reveal = reveal }
@@ -300,6 +303,7 @@ function CrewView.new(playerGui: PlayerGui)
 
 	function view.Destroy()
 		screen:Destroy()
+		revealScreen:Destroy()
 	end
 
 	view.ShowPage("Packs")

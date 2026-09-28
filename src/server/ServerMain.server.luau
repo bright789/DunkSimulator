@@ -26,6 +26,8 @@ local HeatService = require(script.Parent.services.HeatService)
 local PickupService = require(script.Parent.services.PickupService)
 local WelcomeBackService = require(script.Parent.services.WelcomeBackService)
 local CrewService = require(script.Parent.services.CrewService)
+local PremiumService = require(script.Parent.services.PremiumService)
+local SeasonService = require(script.Parent.services.SeasonService)
 local ProgressionConfig = require(game:GetService("ReplicatedStorage").Shared.Config.ProgressionConfig)
 
 workspace.Gravity = ProgressionConfig.Jump.Gravity
@@ -50,6 +52,10 @@ PlayerService.Init(CourtTravel.PlacePlayer, function(player)
 	if not armed then warn("[ServerMain] Ability setup failed: " .. tostring(abilityProblem)) end
 	task.spawn(WelcomeBackService.OnPlayerReady, player)
 	task.spawn(CrewService.OnPlayerReady, player)
+	local premiumOk, premiumProblem = pcall(PremiumService.OnPlayerReady, player)
+	if not premiumOk then warn("[ServerMain] Premium setup failed: " .. tostring(premiumProblem)) end
+	local seasonOk, seasonProblem = pcall(SeasonService.OnPlayerReady, player)
+	if not seasonOk then warn("[ServerMain] Dunk Pass setup failed: " .. tostring(seasonProblem)) end
 end)
 TrainingService.Init()
 BasketballService.Init()
@@ -69,6 +75,8 @@ AbilityService.Init()
 HeatService.Init()
 PickupService.Init()
 CrewService.Init()
+PremiumService.Init()
+SeasonService.Init()
 DunkStyleService.Init()
 UpgradeService.Init()
 

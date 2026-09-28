@@ -103,6 +103,9 @@
         "CrewRequest": {
           "$className": "RemoteEvent"
         },
+        "SeasonRequest": {
+          "$className": "RemoteEvent"
+        },
         "DunkAnimationStatus": {
           "$className": "RemoteEvent"
         },

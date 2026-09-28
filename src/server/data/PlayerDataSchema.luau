@@ -11,6 +11,7 @@ local Leaderboards = require(ReplicatedStorage.Shared.Config.LeaderboardConfig)
 local Locker = require(ReplicatedStorage.Shared.Config.LockerConfig)
 local Abilities = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local Crew = require(ReplicatedStorage.Shared.Config.CrewConfig)
+local Season = require(ReplicatedStorage.Shared.Config.SeasonConfig)
 
 local Schema = {}
 
@@ -52,6 +53,8 @@ function Schema.Defaults()
 		LastOnline = 0,
 		-- Hype Crew: owned members (stars) and the equipped ones.
 		Crew = Crew.DefaultState(),
+		-- Dunk Pass: this season's XP and claimed tiers.
+		Season = Season.DefaultState(),
 	}
 end
 
@@ -141,6 +144,11 @@ function Schema.Decode(stored)
 		migrated.Crew = Crew.DefaultState()
 		migrated.SchemaVersion = 13
 	end
+	if migrated.SchemaVersion == 13 then
+		-- Dunk Pass: everyone starts the current season at 0 XP.
+		migrated.Season = Season.DefaultState()
+		migrated.SchemaVersion = 14
+	end
 	if migrated.SchemaVersion ~= Config.SchemaVersion then
 		return nil, nil, "No migration for this schema version"
 	end
@@ -207,6 +215,9 @@ function Schema.Decode(stored)
 	local crew, crewRepaired = Crew.Sanitize(migrated.Crew)
 	profile.Crew = crew
 	repaired = repaired or crewRepaired
+	local season, seasonRepaired = Season.Sanitize(migrated.Season)
+	profile.Season = season
+	repaired = repaired or seasonRepaired
 	return profile, revision, nil, repaired
 end
 
@@ -215,7 +226,7 @@ function Schema.Snapshot(values)
 		or values.EquippedDunkStyle == nil or values.UnlockedCourts == nil or values.CurrentCourt == nil
 		or values.VerticalTrainingRemainder == nil or values.Challenges == nil or values.Rebirths == nil
 		or values.Daily == nil or values.Stats == nil or values.Locker == nil or values.Settings == nil
-		or values.Abilities == nil or values.LastOnline == nil or values.Crew == nil then
+		or values.Abilities == nil or values.LastOnline == nil or values.Crew == nil or values.Season == nil then
 		return nil, "Runtime snapshot is missing progression"
 	end
 	local current = table.clone(values)
@@ -241,6 +252,7 @@ function Schema.SameProgress(first, second): boolean
 		and first.Settings.Music == second.Settings.Music
 		and Abilities.SameState(first.Abilities, second.Abilities)
 		and Crew.SameState(first.Crew, second.Crew)
+		and Season.SameState(first.Season, second.Season)
 end
 
 return Schema

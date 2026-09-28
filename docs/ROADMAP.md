@@ -106,6 +106,10 @@ Game Feel & Juice v0.2 implementation adds style-specific post-validation gather
 
 **Implemented — Phone pass, welcome back, Hype Crew:** phone layout fixes (ability row under the menu, smaller training ring, feed on the left, split goal bar, touch tutorial text), welcome-back earnings (10 dunks/hour away, max 8 h, 2x VIP; LastOnline), and Hype Crew packs (4 court packs, 20 members, stars, 3 slots, set bonuses, followers, three passes waiting for ids). Schema v13. See `HYPE_CREW.md`.
 
+**Done — Launch check:** 3-player Studio test of crew cards, Golden Ball race, PERFECT labels and payouts. The dunk takeoff wait was raised to 0.8 s after one of two simultaneous dunkers was sometimes refused, and refused dunks are now counted in analytics (`DunkRejected_<REASON>`). Recommended server size 12–16 and private servers on. See `LAUNCH_CHECK.md`.
+
+**Implemented — Premium perk and Dunk Pass:** +10% Cash for Roblox Premium members (with a Premium upsell button), and a 30-tier Dunk Pass season (XP from dunks, PERFECTs, air tricks, PERFECT reps, Golden Balls, packs and daily challenges; free and premium rewards; Season 1 exclusives: Launch Jets, Launch Day and Rocket balls, Hype Man, Season Rookie, Launch Legend). The premium pass waits for its id. Schema v14. See `DUNK_PASS.md`.
+
 ## 11. Monetization
 
 Introduce balanced, platform-compliant cosmetics and optional convenience products after core retention is validated.
