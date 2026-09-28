@@ -107,6 +107,9 @@ function Scenery.Roof(parent, context)
 		barrier.Transparency = 1
 		barrier.CanQuery = false
 		barrier.CastShadow = false
+		-- Locked so a click or drag in Studio's 3D view can't grab and move it (an invisible
+		-- wall dragged onto the court blocked players on 2026-09-27).
+		barrier.Locked = true
 	end
 
 	-- The skyscraper under the roof, with lit window bands fading into the night haze.

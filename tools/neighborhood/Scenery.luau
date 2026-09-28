@@ -185,6 +185,8 @@ function Scenery.Environment(parent, props, boundaries, context)
 		local center = frame:PointToWorldSpace((first + last) / 2 + Vector3.new(0, Config.FenceHeight / 2, 0))
 		local barrier = Geometry.Part(folder, "Collision", Vector3.new(0.4, Config.FenceHeight, length), CFrame.lookAt(center, center + frame:VectorToWorldSpace(last - first)), Colors.Metal, nil, true)
 		barrier.Transparency = 1
+		-- Invisible walls are Locked so a click or drag in Studio's 3D view can't move them.
+		barrier.Locked = true
 	end
 	fence("Left", Vector3.new(-halfWidth, 0, -halfDepth), Vector3.new(-halfWidth, 0, halfDepth))
 	fence("Right", Vector3.new(halfWidth, 0, -halfDepth), Vector3.new(halfWidth, 0, halfDepth))
