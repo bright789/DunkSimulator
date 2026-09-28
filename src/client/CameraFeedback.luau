@@ -75,9 +75,17 @@ function CameraFeedback.Cue(styleId: string, moment: string)
 	if profile then start(profile) end
 end
 
-function CameraFeedback.Impact(styleId: string)
+-- `boost` (optional) scales the shake and FOV punch, e.g. for a PERFECT slam.
+function CameraFeedback.Impact(styleId: string, boost: number?)
 	local style = Config.Styles[styleId] or Config.Styles.BasicOneHand
-	start(style.Impact)
+	local profile = style.Impact
+	if boost and boost ~= 1 then
+		profile = table.clone(profile)
+		profile.FOVDelta = (profile.FOVDelta or 0) * boost
+		profile.ShakeStuds = (profile.ShakeStuds or 0) * boost
+		profile.DurationSeconds = profile.DurationSeconds * (1 + (boost - 1) * 0.5)
+	end
+	start(profile)
 end
 
 function CameraFeedback.Play(intensity: number)

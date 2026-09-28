@@ -22,7 +22,7 @@ local Courts = {
 		HighSchool = {
 			Id = "HighSchool", DisplayName = "High School Gym", Order = 2, StartingCourt = false,
 			TrainingVerticalCap = 150,
-			Requirements = { Vertical = 75, Cash = 6000 },
+			Requirements = { Vertical = 75, Cash = 4000 },
 			Bonuses = { DunkCashMultiplier = 1.25, TrainingMultiplier = 1.15 },
 			GameplayPath = { "Gameplay", "Courts", "HighSchool" },
 			SpawnPath = { "Gameplay", "Courts", "HighSchool", "Spawn" },

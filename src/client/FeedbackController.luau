@@ -8,6 +8,7 @@ local Courts = require(ReplicatedStorage.Shared.Config.CourtConfig)
 local Styles = require(ReplicatedStorage.Shared.Config.DunkStyles)
 local Audio = require(script.Parent.FeedbackAudio)
 local Camera = require(script.Parent.CameraFeedback)
+local VFX = require(script.Parent.DunkVFX)
 
 local FeedbackController = {}
 local contacted = false
@@ -75,7 +76,7 @@ end
 local function impact(styleId: string)
 	local style = Config.Dunk.Styles[styleId] or Config.Dunk.Styles.BasicOneHand
 	local intensity = style.ImpactIntensity
-	Camera.Impact(styleId)
+	Camera.Impact(styleId, VFX.LocalCameraBoost())
 	if not Audio.PlayStyle(styleId, "Impact", intensity) then
 		Audio.Play("DunkImpact", intensity)
 	end
@@ -113,6 +114,8 @@ function FeedbackController.DunkPhase(styleId: string, moment: string)
 end
 
 function FeedbackController.Pickup() Audio.Play("BasketballPickup") end
+-- Cash bill collected: a quick, higher cash ding.
+function FeedbackController.Coin() Audio.Play("CashReward", 0.6, 1.35) end
 -- Each trick in a combo rings a little higher.
 function FeedbackController.AirTrick(comboIndex: number) Audio.Play("AirTrick", 1, 1 + 0.12 * (comboIndex - 1)) end
 function FeedbackController.PerfectSlam() Audio.Play("PerfectSlam") end

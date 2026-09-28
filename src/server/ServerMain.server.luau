@@ -21,6 +21,9 @@ local InviteService = require(script.Parent.services.InviteService)
 local SettingsService = require(script.Parent.services.SettingsService)
 local WeeklyChampionService = require(script.Parent.services.WeeklyChampionService)
 local CodesService = require(script.Parent.services.CodesService)
+local AbilityService = require(script.Parent.services.AbilityService)
+local HeatService = require(script.Parent.services.HeatService)
+local PickupService = require(script.Parent.services.PickupService)
 local ProgressionConfig = require(game:GetService("ReplicatedStorage").Shared.Config.ProgressionConfig)
 
 workspace.Gravity = ProgressionConfig.Jump.Gravity
@@ -41,6 +44,8 @@ PlayerService.Init(CourtTravel.PlacePlayer, function(player)
 	if not tracked then warn("[ServerMain] Milestone setup failed: " .. tostring(milestoneProblem)) end
 	task.spawn(InviteService.OnPlayerReady, player)
 	task.spawn(WeeklyChampionService.OnPlayerReady, player)
+	local armed, abilityProblem = pcall(AbilityService.OnPlayerReady, player)
+	if not armed then warn("[ServerMain] Ability setup failed: " .. tostring(abilityProblem)) end
 end)
 TrainingService.Init()
 BasketballService.Init()
@@ -56,6 +61,9 @@ InviteService.Init()
 SettingsService.Init()
 WeeklyChampionService.Init()
 CodesService.Init()
+AbilityService.Init()
+HeatService.Init()
+PickupService.Init()
 DunkStyleService.Init()
 UpgradeService.Init()
 

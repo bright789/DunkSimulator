@@ -28,6 +28,17 @@ local AutoTrainController = require(script.Parent:WaitForChild("AutoTrainControl
 local autoTrain = AutoTrainController.new(player, view)
 local CodesController = require(script.Parent:WaitForChild("CodesController"))
 local codes = CodesController.new(player, view)
+local AbilitiesController = require(script.Parent:WaitForChild("AbilitiesController"))
+local abilities = AbilitiesController.new(player, view)
+-- Always-something-happening layer: rep rhythm, NEXT goal + HEAT, pickups, action feed.
+local ActionFeed = require(script.Parent:WaitForChild("ActionFeed"))
+task.spawn(ActionFeed.Start, player)
+local TrainingRhythmController = require(script.Parent:WaitForChild("TrainingRhythmController"))
+local trainingRhythm = TrainingRhythmController.new(player)
+local StatusBarController = require(script.Parent:WaitForChild("StatusBarController"))
+local statusBar = StatusBarController.new(player)
+local PickupController = require(script.Parent:WaitForChild("PickupController"))
+local pickups = PickupController.new(player)
 local connections = {}
 local previous = {}
 local destroyed = false
@@ -133,6 +144,10 @@ script.Destroying:Connect(function()
 	music.Destroy()
 	autoTrain.Destroy()
 	codes.Destroy()
+	abilities.Destroy()
+	trainingRhythm.Destroy()
+	statusBar.Destroy()
+	pickups.Destroy()
 	daily.Destroy()
 	contest.Destroy()
 	locker.Destroy()

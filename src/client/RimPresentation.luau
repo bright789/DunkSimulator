@@ -1,13 +1,14 @@
 -- Client-only dunk finish: hands grab the front of the ring while the server holds
 -- the player in the "Hang" phase, the legs swing, the ring bends and springs back,
--- and the slam gets sparks plus a short hit-stop. Reads replicated attributes only.
+-- and the slam gets a short hit-stop plus the court/grade VFX (DunkVFX). Reads
+-- replicated attributes only.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
-local Courts = require(ReplicatedStorage.Shared.Config.CourtConfig)
 local Styles = require(ReplicatedStorage.Shared.Config.DunkStyles)
 local Config = require(ReplicatedStorage.Shared.Config.PresentationConfig).Rim
+local VFX = require(script.Parent:WaitForChild("DunkVFX"))
 
 local RimPresentation = {}
 
@@ -17,18 +18,6 @@ local localPlayer = Players.LocalPlayer
 local function smooth(alpha: number): number
 	alpha = math.clamp(alpha, 0, 1)
 	return alpha * alpha * (3 - 2 * alpha)
-end
-
-local function findRim(player: Player): BasePart?
-	local court = Courts.Get(player:GetAttribute("CurrentCourt"))
-	if not court then return nil end
-	local container: Instance? = Workspace
-	for _, name in court.GameplayPath do
-		container = container and container:FindFirstChild(name)
-	end
-	local hoop = container and container:FindFirstChild("DunkHoop")
-	local rim = hoop and hoop:FindFirstChild("Rim")
-	return rim and rim:IsA("BasePart") and rim or nil
 end
 
 -- Ring parts (Segment##, NetStrand##) bend together around the back of the ring.
@@ -74,28 +63,8 @@ local function applyBend(hoop)
 	end
 end
 
-local function sparks(position: Vector3, strength: number)
-	local attachment = Instance.new("Attachment")
-	attachment.Name = "LocalRimImpact"
-	attachment.WorldPosition = position
-	attachment.Parent = Workspace.Terrain
-	local emitter = Instance.new("ParticleEmitter")
-	emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-	emitter.Color = ColorSequence.new(Config.SparkColor)
-	emitter.LightEmission = 1
-	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) })
-	emitter.Lifetime = NumberRange.new(0.2, 0.4)
-	emitter.Speed = NumberRange.new(14, 26)
-	emitter.SpreadAngle = Vector2.new(180, 180)
-	emitter.Drag = 5
-	emitter.Rate = 0
-	emitter.Parent = attachment
-	emitter:Emit(math.floor(Config.Sparks * strength))
-	task.delay(1, function() attachment:Destroy() end)
-end
-
 -- Freezes the local player's dunk pose for a few frames at the moment of impact.
-local function hitStop(humanoid: Humanoid)
+local function hitStop(humanoid: Humanoid, seconds: number)
 	local animator = humanoid:FindFirstChildOfClass("Animator")
 	if not animator then return end
 	local frozen = {}
@@ -105,7 +74,7 @@ local function hitStop(humanoid: Humanoid)
 			track:AdjustSpeed(0)
 		end
 	end
-	task.delay(Config.HitStopSeconds, function()
+	task.delay(seconds, function()
 		for _, entry in frozen do
 			if entry.Track.IsPlaying then entry.Track:AdjustSpeed(entry.Speed) end
 		end
@@ -174,16 +143,17 @@ local function clearGrips(state)
 	state.GripWeight = 0
 end
 
--- Called when this player's dunked ball leaves the hand at the rim.
+-- Called when this player's dunked ball leaves the hand at the rim. A PERFECT slam kicks
+-- the ring harder and freezes a little longer.
 function RimPresentation.Impact(player: Player, humanoid: Humanoid, releasePosition: Vector3)
-	local rim = findRim(player)
+	local gradeName, grade = VFX.ImpactGrade(player)
+	local rim = VFX.FindRim(player)
 	if rim then
 		local hoop = getHoop(rim)
-		hoop.Velocity += math.rad(Config.ImpactKickDegreesPerSecond)
+		hoop.Velocity += math.rad(Config.ImpactKickDegreesPerSecond) * (grade.RimKick or 1)
 	end
-	local style = Styles.Get(player:GetAttribute("EquippedDunkStyle"))
-	sparks(releasePosition, style and math.clamp(style.Order / 3, 0.6, 1.4) or 1)
-	if player == localPlayer then hitStop(humanoid) end
+	if player == localPlayer then hitStop(humanoid, grade.HitStopSeconds or Config.HitStopSeconds) end
+	VFX.Impact(player, releasePosition, gradeName)
 end
 
 -- Runs after the Animator each frame (PreSimulation) so it can override the legs.
@@ -191,7 +161,7 @@ function RimPresentation.Update(state, deltaTime: number)
 	local hanging = state.Player:GetAttribute("DunkPhase") == "Hang"
 	if hanging and not state.Hanging then state.HangElapsed = 0 end
 	state.Hanging = hanging
-	local rim = hanging and findRim(state.Player) or nil
+	local rim = hanging and VFX.FindRim(state.Player) or nil
 	if rim then state.Hoop = getHoop(rim) end
 
 	local rate = deltaTime / (hanging and Config.GripBlendInSeconds or Config.GripBlendOutSeconds)

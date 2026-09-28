@@ -23,7 +23,7 @@ High School multiplies these by 1.25 (Windmill at 150 Vertical = **$275**, was $
 
 Once the dunk starts, a meter appears. The needle sweeps toward the slam line; press **F** again (or click/tap the meter) as the slam hits.
 
-- **Server-judged:** the `SlamTiming` remote carries no data. The server stamps the press with its own clock minus the player's measured latency (capped at `MaxLatencyCompensationSeconds`). It compares that to the real moment the Slam phase started and judges it after the hang, so late presses still count. Only the first press counts.
+- **Server-judged:** the `SlamTiming` remote carries no data. The server stamps the press with its own clock minus the player's measured latency (capped at `MaxLatencyCompensationSeconds`). It compares that to the real moment the Slam phase started and judges it once no Good press can still arrive (`GoodLateSeconds` + `MaxLatencyCompensationSeconds` after the slam, about 0.41 s) or at the end of the rim hang, whichever is sooner. Late presses still count. Only the first press counts.
 - **Ratings (`DunkRewards.Timing`):**
 
 | Rating | Window around the slam | Dunk Cash |
@@ -31,10 +31,12 @@ Once the dunk starts, a meter appears. The needle sweeps toward the slam line; p
 | Perfect | 0.09 s early to 0.07 s late | x1.5 |
 | Good | 0.22 s early to 0.14 s late | x1.15 |
 
-- Air-trick Cash isn't multiplied. The rating replicates as `SlamRating` (presentation only). A Perfect gets a gold "PERFECT!" call, a ding, a `PERFECT WINDMILL!` result and a bigger crowd roar.
+- Air-trick Cash isn't multiplied. The grade replicates as `SlamRating` (presentation only): `Perfect`, `Good`, `Early` or `Late` (not set with no press). Only Perfect and Good change Cash, challenges or contest scores. A Perfect gets a gold "PERFECT!" call, a ding, a `PERFECT WINDMILL!` result (the "PERFECT " prefix is skipped on long names so it fits), a bigger crowd roar and the court's big impact VFX (see `DUNK_VFX.md`).
 - The client only predicts where to draw the needle (`FeedbackConfig.SlamMeter`: `SettleSeconds`, `SlamLine`). The rating shown on the meter is a local guess; the server's rating decides the Cash.
 
 ## Air tricks (paid before the dunk lands)
+
+Abilities can change a dunk (see `ABILITIES.md`). **Hang Time** adds `MaxBonusTricks` (2) extra tricks even to a low drop. **Slow-Mo Slam** doubles the Perfect/Good windows and makes the drop 1.5x longer. **Fireball** doubles the dunk Cash (not the tricks).
 
 When a dunk starts high above the rim, the Descent phase becomes an air-trick combo:
 

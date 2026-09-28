@@ -12,6 +12,8 @@ local RimPresentation = require(script.Parent:WaitForChild("RimPresentation"))
 local DescentPresentation = require(script.Parent:WaitForChild("DescentPresentation"))
 local WorkoutPresentation = require(script.Parent:WaitForChild("WorkoutPresentation"))
 local WorldAudio = require(script.Parent:WaitForChild("WorldAudio"))
+local DunkVFX = require(script.Parent:WaitForChild("DunkVFX"))
+local AbilityVFX = require(script.Parent:WaitForChild("AbilityVFX"))
 
 local localPlayer = Players.LocalPlayer
 local tracked = {}
@@ -72,6 +74,8 @@ end
 
 Players.PlayerAdded:Connect(watchPlayer)
 Players.PlayerRemoving:Connect(untrack)
+DunkVFX.Start()
+AbilityVFX.Start()
 for _, player in Players:GetPlayers() do watchPlayer(player) end
 
 -- Visual ball and IK targets, before the Animator solves this frame.

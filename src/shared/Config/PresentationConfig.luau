@@ -109,9 +109,8 @@ return {
 		ImpactKickDegreesPerSecond = 420,
 		Stiffness = 700,
 		Damping = 16,
+		-- Freeze frame on a normal slam (DunkVFXConfig.Grades can make it longer).
 		HitStopSeconds = 0.075,
-		Sparks = 26,
-		SparkColor = Color3.fromRGB(255, 214, 120),
 	},
 
 	Transit = {

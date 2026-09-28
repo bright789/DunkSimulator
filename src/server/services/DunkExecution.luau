@@ -6,6 +6,7 @@ local Workspace = game:GetService("Workspace")
 local DunkConfig = require(ReplicatedStorage.Shared.Config.DunkConfig)
 local Styles = require(ReplicatedStorage.Shared.Config.DunkStyles)
 local DunkRewards = require(ReplicatedStorage.Shared.Config.DunkRewards)
+local Abilities = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local Config = DunkConfig.Execution
 local BasketballService = require(script.Parent.BasketballService)
 local DunkAnimationController = require(script.Parent.DunkAnimationController)
@@ -19,8 +20,11 @@ local DunkExecution = {}
 local random = Random.new()
 
 -- Returns (completed, cancellation message, Cash already paid for air tricks, slam rating,
--- number of air tricks paid, the ids of those tricks in order).
-function DunkExecution.Run(player: Player, character: Model, rim: BasePart, styleId: string): (boolean, string?, number, string?, number, { string })
+-- number of air tricks paid, the ids of those tricks in order). `armed` is the set of
+-- abilities this dunk uses (AbilityService.ArmedFor): Slow-Mo Slam and Hang Time act here.
+function DunkExecution.Run(player: Player, character: Model, rim: BasePart, styleId: string,
+	armed: { [string]: boolean }?): (boolean, string?, number, string?, number, { string })
+	armed = armed or {}
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local root = character:FindFirstChild("HumanoidRootPart")
 	local ball = BasketballService.GetBall(player)
@@ -134,6 +138,13 @@ function DunkExecution.Run(player: Player, character: Model, rim: BasePart, styl
 	end
 
 	SlamTiming.Begin(player)
+	-- Presentation-only list of the abilities in this dunk ("SlowMo,Fireball") for every client.
+	local used = {}
+	for _, abilityId in Abilities.Ids() do
+		if armed[abilityId] then table.insert(used, abilityId) end
+	end
+	if player.Parent == Players then player:SetAttribute("DunkAbilities", #used > 0 and table.concat(used, ",") or nil) end
+	local slowMo = armed.SlowMo and Abilities.Abilities.SlowMo or nil
 	local success, failure = pcall(function()
 		ensureValid()
 		assert(startingPosition.Y >= rimPosition.Y - DunkConfig.DunkMaxBelowRim
@@ -215,12 +226,14 @@ function DunkExecution.Run(player: Player, character: Model, rim: BasePart, styl
 		local dropHeight = capturedPosition.Y - target.Y
 		local startLifted = dropHeight > windupLift
 		local descentEnd = startLifted and target + Vector3.new(0, windupLift, 0) or target
-		local combo = DunkRewards.PlanCombo(style.DescentTrick, vertical, dropHeight, random)
+		local combo = DunkRewards.PlanCombo(style.DescentTrick, vertical, dropHeight, random,
+			armed.HangTime and Abilities.Abilities.HangTime.ExtraTricks or 0)
 		-- The eased path peaks at 1.5x its average speed; long drops from huge jumps get
 		-- enough time that it never outruns DescentMaxVelocity.
 		local descentSeconds = math.max(math.clamp(Config.DescentBaseSeconds + math.abs(dropHeight) * Config.DescentSecondsPerStud,
 			Config.DescentBaseSeconds, Config.DescentMaxSeconds), DunkRewards.ComboSeconds(combo),
 			math.abs(dropHeight) * 1.6 / Config.DescentMaxVelocity)
+		if slowMo then descentSeconds *= slowMo.DescentScale end
 		-- Server moment each trick finishes (seconds into the descent).
 		local trickEnds = {}
 		local trickClock = DunkRewards.Tricks.TuckSeconds
@@ -358,6 +371,23 @@ function DunkExecution.Run(player: Player, character: Model, rim: BasePart, styl
 		local slamAt = os.clock()
 		setDunkPhase("Slam")
 		present("Slam")
+		-- Judge the slam timing once late presses have had time to arrive: as soon as no Good
+		-- press can still come in (GoodLate + max latency), or at the end of the rim hang if that
+		-- is sooner. Every client reads the grade (SlamRating) for VFX; only Perfect and Good
+		-- count as a rating for rewards.
+		local judged = false
+		local function judge()
+			if judged then return end
+			judged = true
+			local grade = SlamTiming.Judge(player, slamAt, slowMo and slowMo.TimingScale or 1)
+			rating = (grade == "Perfect" or grade == "Good") and grade or nil
+			if grade and player.Parent == Players then player:SetAttribute("SlamRating", grade) end
+		end
+		local timing = DunkRewards.Timing
+		local lateWindow = timing.GoodLateSeconds * (slowMo and slowMo.TimingScale or 1)
+		task.delay(lateWindow + timing.MaxLatencyCompensationSeconds + 0.02, function()
+			if PlayerService.GetDunkState(player) == "Executing" then judge() end
+		end)
 		moveBall("Finish", style.FinishSeconds, function()
 			return CFrame.new(rimPosition - Vector3.new(0, Config.BallBelowRim, 0))
 		end)
@@ -367,9 +397,7 @@ function DunkExecution.Run(player: Player, character: Model, rim: BasePart, styl
 		moveBall("Hang", math.max(style.HangSeconds - style.ReturnSeconds, 0.05), function()
 			return CFrame.new(rimPosition - Vector3.new(0, Config.BallBelowRim, 0))
 		end)
-		-- Judge the slam timing once late presses have had time to arrive.
-		rating = SlamTiming.Judge(player, slamAt)
-		if rating and player.Parent == Players then player:SetAttribute("SlamRating", rating) end
+		judge()
 		animationSession.FadeOut()
 		phase = "ball return"
 		moveBall("Return", style.ReturnSeconds, function()
@@ -386,6 +414,7 @@ function DunkExecution.Run(player: Player, character: Model, rim: BasePart, styl
 		player:SetAttribute("SlamRating", nil)
 		player:SetAttribute("DunkTricks", nil)
 		player:SetAttribute("DunkDescentSeconds", nil)
+		player:SetAttribute("DunkAbilities", nil)
 	end
 	local function restore(action)
 		local restored, message = pcall(action)

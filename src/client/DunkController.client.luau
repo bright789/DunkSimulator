@@ -19,6 +19,8 @@ local DunkView = require(script.Parent:WaitForChild("ui"):WaitForChild("DunkView
 local Feel = require(shared.Config.FeedbackConfig)
 local Feedback = require(script.Parent:WaitForChild("FeedbackController"))
 local Animation = require(script.Parent:WaitForChild("DunkAnimationController"))
+local VFX = require(script.Parent:WaitForChild("DunkVFX"))
+local Abilities = require(shared.Config:WaitForChild("AbilityConfig"))
 local view = DunkView.new(player:WaitForChild("PlayerGui"))
 local connections = {}
 
@@ -96,8 +98,16 @@ local function gatherSeconds(): number
 	return style and style.GatherSeconds or 0.4
 end
 
+-- Slow-Mo Slam widens the timing windows for this dunk (the server judges with the same scale).
+local function timingWindows()
+	if Abilities.InList(player:GetAttribute("DunkAbilities"), "SlowMo") then
+		return Abilities.ScaledTiming(DunkRewards.Timing, Abilities.Abilities.SlowMo.TimingScale)
+	end
+	return DunkRewards.Timing
+end
+
 local function localRating(delta: number): string
-	local timing = DunkRewards.Timing
+	local timing = timingWindows()
 	if delta >= -timing.PerfectEarlySeconds and delta <= timing.PerfectLateSeconds then return "Perfect" end
 	if delta >= -timing.GoodEarlySeconds and delta <= timing.GoodLateSeconds then return "Good" end
 	return delta < 0 and "Early" or "Late"
@@ -110,6 +120,7 @@ local function pressSlam()
 	local elapsed = os.clock() - meter.Start
 	local rating = localRating(elapsed - meter.Total)
 	view.MeterPressed(elapsed, rating)
+	VFX.SetPrediction(rating)
 	if rating == "Perfect" then Feedback.PerfectSlam() end
 end
 
@@ -120,14 +131,16 @@ table.insert(connections, player:GetAttributeChangedSignal("DunkPhase"):Connect(
 		meter.Active, meter.Pressed, meter.Start = true, false, now
 		meter.Total = (tonumber(player:GetAttribute("DunkDescentSeconds")) or 0.3) + Feel.SlamMeter.SettleSeconds
 			+ gatherSeconds() - latency()
-		view.StartMeter(meter.Total, DunkRewards.Timing, SLAM_CAPTIONS[inputMode] or SLAM_CAPTIONS.Keyboard)
+		local caption = SLAM_CAPTIONS[inputMode] or SLAM_CAPTIONS.Keyboard
+		if timingWindows() ~= DunkRewards.Timing then caption = "SLOW-MO!  " .. caption end
+		view.StartMeter(meter.Total, timingWindows(), caption)
 		refreshControls()
 	elseif meter.Active and phase == "Gather" then
 		meter.Total = (now - meter.Start) + gatherSeconds() - latency()
-		view.SetMeterTotal(meter.Total, DunkRewards.Timing)
+		view.SetMeterTotal(meter.Total, timingWindows())
 	elseif meter.Active and phase == "Slam" then
 		meter.Total = (now - meter.Start) - latency()
-		view.SetMeterTotal(meter.Total, DunkRewards.Timing)
+		view.SetMeterTotal(meter.Total, timingWindows())
 	elseif phase == nil and meter.Active then
 		meter.Active = false
 		refreshControls()

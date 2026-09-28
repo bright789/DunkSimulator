@@ -8,11 +8,12 @@ local UpgradeConfig = {
 	-- each Training Level, before court and Rebirth bonuses: Level n = n x 0.1.
 	Levels = {
 		{ VerticalPerRep = 0.1, Cost = 0 },
-		{ VerticalPerRep = 0.2, Cost = 250 },
-		{ VerticalPerRep = 0.3, Cost = 600 },
-		{ VerticalPerRep = 0.4, Cost = 1200 },
-		{ VerticalPerRep = 0.5, Cost = 2000 },
-		{ VerticalPerRep = 0.6, Cost = 3500 },
+		-- Cheap first steps so a new player can buy something about every minute.
+		{ VerticalPerRep = 0.2, Cost = 120 },
+		{ VerticalPerRep = 0.3, Cost = 350 },
+		{ VerticalPerRep = 0.4, Cost = 800 },
+		{ VerticalPerRep = 0.5, Cost = 1500 },
+		{ VerticalPerRep = 0.6, Cost = 3000 },
 		{ VerticalPerRep = 0.7, Cost = 5500 },
 		{ VerticalPerRep = 0.8, Cost = 8000 },
 		{ VerticalPerRep = 0.9, Cost = 12000 },

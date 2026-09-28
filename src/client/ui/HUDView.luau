@@ -170,12 +170,19 @@ function HUDView.new(playerGui: PlayerGui)
 	musicButton.Size = UDim2.new(0.48, 0, 0, Config.Layout.DunksButtonHeight)
 	musicButton.Position = UDim2.new(0.52, 0, 0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 3)
 	musicButton.Parent = navigation
+	local abilitiesButton = dunksButton:Clone()
+	abilitiesButton.Name = "Abilities"
+	abilitiesButton.Text = "ABILITIES"
+	abilitiesButton.TextColor3 = Color3.fromRGB(255, 140, 60)
+	abilitiesButton.Size = UDim2.new(0.48, 0, 0, Config.Layout.DunksButtonHeight)
+	abilitiesButton.Position = UDim2.fromOffset(0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 4)
+	abilitiesButton.Parent = navigation
 	local codesButton = dunksButton:Clone()
 	codesButton.Name = "Codes"
 	codesButton.Text = "CODES"
 	codesButton.TextColor3 = Config.Colors.Gold
-	codesButton.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight)
-	codesButton.Position = UDim2.fromOffset(0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 4)
+	codesButton.Size = UDim2.new(0.48, 0, 0, Config.Layout.DunksButtonHeight)
+	codesButton.Position = UDim2.new(0.52, 0, 0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 4)
 	codesButton.Parent = navigation
 	-- Cash Boost countdown pill (shown only while a boost runs).
 	local boost = UI.Panel(column, "CashBoost", UDim2.new(1, 0, 0, Config.Layout.BoostHeight), UDim2.new())
@@ -222,6 +229,7 @@ function HUDView.new(playerGui: PlayerGui)
 	UI.Interactive(inviteButton)
 	UI.Interactive(musicButton)
 	UI.Interactive(codesButton)
+	UI.Interactive(abilitiesButton)
 	UI.Interactive(autoButton)
 	UI.Interactive(groupButton)
 
@@ -278,7 +286,7 @@ function HUDView.new(playerGui: PlayerGui)
 	local view = { DunksButton = dunksButton, CourtsButton = courtsButton, ChallengesButton = challengesButton,
 		RebirthButton = rebirthButton, DailyButton = dailyButton, LockerButton = lockerButton,
 		InviteButton = inviteButton, MusicButton = musicButton, AutoTrainButton = autoButton, GroupButton = groupButton,
-		CodesButton = codesButton }
+		CodesButton = codesButton, AbilitiesButton = abilitiesButton }
 	local courtName, rebirths = "--", 0
 
 	local function refreshCourtLabel()

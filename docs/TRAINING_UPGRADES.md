@@ -7,11 +7,11 @@ New players start at Vertical 30, Cash 0, TrainingLevel 1. TrainingLevel is priv
 | Training Level | Vertical per rep | Cost to buy this level |
 | --- | --- | --- |
 | 1 | +0.1 | Starting level |
-| 2 | +0.2 | $250 |
-| 3 | +0.3 | $600 |
-| 4 | +0.4 | $1,200 |
-| 5 | +0.5 | $2,000 |
-| 6 | +0.6 | $3,500 |
+| 2 | +0.2 | $120 |
+| 3 | +0.3 | $350 |
+| 4 | +0.4 | $800 |
+| 5 | +0.5 | $1,500 |
+| 6 | +0.6 | $3,000 |
 | 7 | +0.7 | $5,500 |
 | 8 | +0.8 | $8,000 |
 | 9 | +0.9 | $12,000 |
@@ -23,7 +23,7 @@ These are prototype prices, not final economy balance. `src/shared/Config/Upgrad
 
 **Training gives no Cash.** TrainingService's existing hold sessions/timing remain untouched; every valid tick calls PlayerService.AwardTraining, which computes the TrainingLevel's `VerticalPerRep` × validated court training bonus × Rebirth training bonus and accumulates the existing persisted fractional remainder. Only whole points update Vertical, jump height and HUD feedback. Buying a level only deducts Cash and changes TrainingLevel; it grants no Vertical and does not recalculate jump height until training increases Vertical.
 
-Completed Neighborhood Basic One-Hand dunks award **$20**; Two-Hand Power awards **$35**, Tomahawk **$60**, and Windmill **$100**, from DunkStyles configuration. Thirteen Basic dunks can fund the $250 Level 2 purchase from zero Cash, before any challenge claims; normal training cannot fund purchases. Court multipliers still adjust final payouts. The loop is TRAIN -> DUNK -> CASH -> UPGRADE -> TRAIN MORE EFFICIENTLY, without shorter tick intervals.
+Completed Neighborhood Basic One-Hand dunks award **$20**; Two-Hand Power awards **$35**, Tomahawk **$60**, and Windmill **$100**, from DunkStyles configuration. A handful of Basic dunks fund the $120 Level 2 purchase from zero Cash (levels 2-6 were made cheaper on 2026-09-27, see `ENGAGEMENT.md`), before any challenge claims; training never pays Cash, but PERFECT/GOOD beats on the rhythm ring make reps up to 3x bigger (see `ENGAGEMENT.md`). Court multipliers still adjust final payouts. The loop is TRAIN -> DUNK -> CASH -> UPGRADE -> TRAIN MORE EFFICIENTLY, without shorter tick intervals.
 
 ## One-Time Studio Setup
 

@@ -5,7 +5,7 @@
 | Court | Training stops at | Unlock requirement | Cash cost |
 | --- | ---: | ---: | ---: |
 | Neighborhood | 75 Vertical | Starting court | $0 |
-| High School Gym | 150 Vertical | 75 Vertical | $6,000 once |
+| High School Gym | 150 Vertical | 75 Vertical | $4,000 once |
 
 These are **training limits, not player stat caps**. Returning to Neighborhood at Vertical 120 never reduces Vertical, dunk unlocks, jump height, or fractional remainder. It only prevents new Vertical Training there. Dunk rewards, court bonuses, TrainingLevel multipliers/prices, challenge rewards, and dunk thresholds are unchanged. No new profile field or schema migration is needed.
 

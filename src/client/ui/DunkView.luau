@@ -79,7 +79,8 @@ function DunkView.new(playerGui: PlayerGui)
 	local trickPanel = Instance.new("CanvasGroup")
 	trickPanel.Name = "AirTrick"
 	trickPanel.Size = UDim2.fromOffset(250, 60)
-	trickPanel.Position = UDim2.fromScale(0.5, 0.16)
+	-- Below the top status stack (NEXT goal / HEAT).
+	trickPanel.Position = UDim2.fromScale(0.5, 0.2)
 	trickPanel.AnchorPoint = Vector2.new(0.5, 0.5)
 	trickPanel.Visible = false
 	trickPanel.GroupTransparency = 1
@@ -329,7 +330,8 @@ function DunkView.new(playerGui: PlayerGui)
 		local style = Styles.Get(styleId)
 		local intensity = Feel.Dunk.Styles[styleId] and Feel.Dunk.Styles[styleId].ImpactIntensity or 0.7
 		local successHeading = style and (style.SuccessHeading or style.DisplayName:upper() .. "!") or "DUNK!"
-		if rating == "Perfect" then successHeading = "PERFECT " .. successHeading end
+		-- "PERFECT " only fits in front of short headings; the detail line says PERFECT anyway.
+		if rating == "Perfect" and #successHeading <= 11 then successHeading = "PERFECT " .. successHeading end
 		title.Text = success and successHeading or (rejectionReason or "Dunk unavailable.")
 		title.Size = success and UDim2.fromScale(0.9, 0.45) or UDim2.fromScale(0.9, 0.84)
 		title.TextWrapped = not success

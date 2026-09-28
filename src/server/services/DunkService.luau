@@ -12,6 +12,9 @@ local GameplayObjects = require(script.Parent.GameplayObjects)
 local ChallengeService = require(script.Parent.ChallengeService)
 local DailyService = require(script.Parent.DailyService)
 local ContestService = require(script.Parent.ContestService)
+local AbilityService = require(script.Parent.AbilityService)
+local HeatService = require(script.Parent.HeatService)
+local PickupService = require(script.Parent.PickupService)
 local remotes = ReplicatedStorage.Remotes
 
 local DunkService = {}
@@ -103,16 +106,24 @@ local function attemptDunk(player: Player): (string?, string?)
 		local reason, canBuffer, code = validateAttempt(player, character, rim, styleId)
 		if not reason and character and rim and styleId then
 			local courtId = PlayerService.GetCurrentCourt(player)
+			-- Abilities armed right now are used by this dunk; a cancelled dunk keeps them armed.
+			local armed = AbilityService.ArmedFor(player)
 			PlayerService.SetDunkState(player, "Executing")
-			local completed, cancellation, trickCash, rating, tricks, landedTricks = DunkExecution.Run(player, character, rim, styleId)
+			local completed, cancellation, trickCash, rating, tricks, landedTricks = DunkExecution.Run(player, character, rim, styleId, armed)
 			if not completed then
 				return cancellation, "EXECUTION_CANCELLED"
 			end
 			PlayerService.SetDunkState(player, "Completed")
-			local registered, cashReward = PlayerService.RegisterDunk(player, styleId, rating, trickCash)
+			-- HEAT (dunk streak) and Fireball both multiply this dunk's Cash.
+			local heatMultiplier = HeatService.OnDunk(player)
+			local registered, cashReward = PlayerService.RegisterDunk(player, styleId, rating, trickCash,
+				AbilityService.CashMultiplier(armed) * heatMultiplier)
 			if not registered then
 				return "Player data is not ready.", "PLAYER_NOT_READY"
 			end
+			AbilityService.Consume(player, armed)
+			local spilled, spillProblem = pcall(PickupService.SpillForDunk, player, cashReward or 0)
+			if not spilled then warn("[DunkService] Cash bills failed: " .. tostring(spillProblem)) end
 			nextAttempt[player] = os.clock() + Config.DunkCooldown
 			local tracked, trackingProblem = pcall(ChallengeService.OnSuccessfulDunk, player, styleId, courtId)
 			if not tracked then warn("[DunkService] Challenge tracking failed: " .. tostring(trackingProblem)) end

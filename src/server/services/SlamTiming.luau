@@ -1,8 +1,8 @@
 -- Perfect-slam timing: while a dunk executes, the dunker may press once (SlamTiming
 -- remote, no arguments). The server stamps the press with its own clock, minus the
 -- player's measured latency, and DunkExecution judges it against the real Slam moment.
--- Only the rating (Perfect / Good / nil) ever leaves this module; clients never send a
--- time, a rating or an amount.
+-- Only the grade (Perfect / Good / Early / Late, or nil with no press) ever leaves this
+-- module; clients never send a time, a rating or an amount. Only Perfect and Good pay more.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -22,18 +22,20 @@ function SlamTiming.End(player: Player)
 	sessions[player] = nil
 end
 
--- Rating for a press relative to the server moment the slam started.
-function SlamTiming.Judge(player: Player, slamAt: number): string?
+-- Grade for a press relative to the server moment the slam started (nil = no press).
+-- `windowScale` widens the windows (Slow-Mo Slam uses 2).
+function SlamTiming.Judge(player: Player, slamAt: number, windowScale: number?): string?
 	local session = sessions[player]
 	local press = session and session.Press
 	if not press then return nil end
 	local delta = press - slamAt
-	if delta >= -Timing.PerfectEarlySeconds and delta <= Timing.PerfectLateSeconds then
+	local scale = windowScale or 1
+	if delta >= -Timing.PerfectEarlySeconds * scale and delta <= Timing.PerfectLateSeconds * scale then
 		return "Perfect"
-	elseif delta >= -Timing.GoodEarlySeconds and delta <= Timing.GoodLateSeconds then
+	elseif delta >= -Timing.GoodEarlySeconds * scale and delta <= Timing.GoodLateSeconds * scale then
 		return "Good"
 	end
-	return nil
+	return delta < 0 and "Early" or "Late"
 end
 
 function SlamTiming.Init()

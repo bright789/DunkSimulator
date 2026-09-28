@@ -5,7 +5,7 @@
 | Court | Dunk Cash | Vertical training | Access |
 | --- | --- | --- | --- |
 | Neighborhood | 1.00x | 1.00x | Always unlocked |
-| High School Gym | 1.25x | 1.15x | 75 Vertical and a one-time $6,000 purchase |
+| High School Gym | 1.25x | 1.15x | 75 Vertical and a one-time $4,000 purchase |
 
 `src/shared/Config/CourtConfig.luau` is the sole source of court multipliers. `src/shared/Config/DunkStyles.luau` keeps the style **base** rewards at $20/$35/$60/$100; `UpgradeConfig` supplies Level 1–10 efficiency multipliers from 1.00x to 2.00x on 1.00 base training progress. The training interval, jump curve, dunk assist/execution and map geometry remain unchanged. These values are prototype balance; see `EARLY_GAME_REBALANCE.md`.
 

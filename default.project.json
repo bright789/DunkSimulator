@@ -91,6 +91,15 @@
         "CodeRequest": {
           "$className": "RemoteEvent"
         },
+        "AbilityRequest": {
+          "$className": "RemoteEvent"
+        },
+        "TrainingPulse": {
+          "$className": "RemoteEvent"
+        },
+        "PickupEvent": {
+          "$className": "RemoteEvent"
+        },
         "DunkAnimationStatus": {
           "$className": "RemoteEvent"
         },

@@ -7,6 +7,17 @@ local ProgressionConfig = {
 		MaxDistance = 10,
 		-- Vertical per rep comes from the Training Level (UpgradeConfig.Levels.VerticalPerRep).
 		CapFeedbackCooldownSeconds = 2,
+		-- Active training: every rep is a beat. Press (click / tap / RB) right on the beat for a
+		-- bigger rep. The server judges the press (its own clock minus latency) like the slam
+		-- meter. Only one press per beat counts: mashing gets no bonus.
+		Rhythm = {
+			PerfectSeconds = 0.07,
+			GoodSeconds = 0.14,
+			PerfectMultiplier = 3,
+			GoodMultiplier = 1.5,
+			MinPressGapSeconds = 0.2,
+			MaxLatencyCompensationSeconds = 0.25,
+		},
 	},
 	Jump = {
 		ReferenceVertical = 30,

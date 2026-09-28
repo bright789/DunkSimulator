@@ -130,7 +130,7 @@ Persistence schema v2 adds EquippedDunkStyle to PlayerService snapshots, strict 
 
 ## Court Progression v0.1
 
-CourtConfig defines stable IDs, order, requirements, direct gameplay/spawn paths and portal edges. Neighborhood remains the starting court; HighSchool requires 75 Vertical and a one-time $6,000 purchase. Only Cash is deducted. Unlocks are persistent entitlements, unlike dunk styles' Vertical-derived unlocks.
+CourtConfig defines stable IDs, order, requirements, direct gameplay/spawn paths and portal edges. Neighborhood remains the starting court; HighSchool requires 75 Vertical and a one-time $4,000 purchase. Only Cash is deducted. Unlocks are persistent entitlements, unlike dunk styles' Vertical-derived unlocks.
 
 PlayerService owns private UnlockedCourts, CurrentCourt and transient CourtTransition. CourtService validates physical portal identity, source court, prompt, proximity/line of sight, data readiness, living character, Idle dunk state, target availability and request rate. BuyCourt performs the configured private-state deduction/unlock without yielding. CourtRequest exposes only Read and Travel intent; there is no remote purchase-from-anywhere action. CourtState returns per-player snapshots/feedback. COURTS shows progress and travels only to already unlocked courts; HUD/portal labels never authorize an action.
 

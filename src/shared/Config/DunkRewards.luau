@@ -28,6 +28,8 @@ local DunkRewards = {
 		MinDropStuds = 12,
 		StudsPerTrick = 16,
 		MaxTricks = 6,
+		-- Extra tricks an ability can add on top (Hang Time, see AbilityConfig).
+		MaxBonusTricks = 2,
 		-- Air time around the combo: tuck before the first trick, open up after the last.
 		TuckSeconds = 0.15,
 		OpenSeconds = 0.2,
@@ -93,8 +95,11 @@ end
 
 -- Combo for one dunk: the style's signature trick first, then unlocked tricks shuffled so
 -- none repeats until the pool runs out, and never the same trick twice in a row.
-function DunkRewards.PlanCombo(signature: string?, vertical: number, dropStuds: number, random: Random): { string }
+-- `bonusTricks` (Hang Time) adds tricks even to a low drop.
+function DunkRewards.PlanCombo(signature: string?, vertical: number, dropStuds: number, random: Random,
+	bonusTricks: number?): { string }
 	local count = DunkRewards.TrickCount(dropStuds)
+		+ math.clamp(math.floor(bonusTricks or 0), 0, DunkRewards.Tricks.MaxBonusTricks)
 	local combo = {}
 	if count == 0 then return combo end
 	local used = {}

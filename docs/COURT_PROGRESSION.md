@@ -9,13 +9,13 @@ The authoritative definitions live in `src/shared/Config/CourtConfig.luau`:
 | Stable ID | Display name | Order | Starting court | Vertical requirement | One-time Cash cost |
 | --- | --- | --- | --- | --- | --- |
 | `Neighborhood` | Neighborhood Court | 1 | Yes | 0 | $0 |
-| `HighSchool` | High School Gym | 2 | No | 75 | $6,000 |
+| `HighSchool` | High School Gym | 2 | No | 75 | $4,000 |
 
 Vertical is an eligibility requirement, **not a currency**. Vertical 81 / Cash 6,100 becomes Vertical 81 / Cash 100 after purchase. Unlocks are permanent saved entitlements, not derived from current Cash or Vertical. An unlocked court never charges again, even if Vertical later falls below its original requirement.
 
 Other court configuration: purchase/travel admission interval 1 second per player, read interval 0.5 seconds, portal range 10 studs, spawn readiness deadline 10 seconds, arrival clearance 0.5 studs above the spawn/standing body height, arrival obstruction-check width 4 studs. These values do not replace or retune dunk/training settings.
 
-Neighborhood remains the starting court. Training timing, TrainingLevel efficiency/prices, style requirements and jump curves use the same configuration at both courts. The four style **base** rewards are Basic $20, Two-Hand $35, Tomahawk $60 and Windmill $100. Court Bonuses v0.1 applies 1.25x dunk Cash and 1.15x training progress at High School, versus 1.00x at Neighborhood; see `COURT_BONUSES.md`. High School requires 75 Vertical and costs $6,000 once. Neighborhood/High School training ends at 75/150 Vertical respectively; these are not player stat caps. There are no extra styles or separate Places.
+Neighborhood remains the starting court. Training timing, TrainingLevel efficiency/prices, style requirements and jump curves use the same configuration at both courts. The four style **base** rewards are Basic $20, Two-Hand $35, Tomahawk $60 and Windmill $100. Court Bonuses v0.1 applies 1.25x dunk Cash and 1.15x training progress at High School, versus 1.00x at Neighborhood; see `COURT_BONUSES.md`. High School requires 75 Vertical and costs $4,000 once (was $6,000 until 2026-09-27; see `ENGAGEMENT.md`). Neighborhood/High School training ends at 75/150 Vertical respectively; these are not player stat caps. There are no extra styles or separate Places.
 
 ## Ownership and Complete Gameplay Hierarchy
 

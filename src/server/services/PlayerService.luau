@@ -16,6 +16,7 @@ local Leaderboards = require(ReplicatedStorage.Shared.Config.LeaderboardConfig)
 local Locker = require(ReplicatedStorage.Shared.Config.LockerConfig)
 local Monetization = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local Events = require(ReplicatedStorage.Shared.Config.EventConfig)
+local Abilities = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local isStudio = game:GetService("RunService"):IsStudio()
 local DataConfig = require(script.Parent.Parent.Config.DataConfig)
 
@@ -40,6 +41,8 @@ type PlayerState = {
 	FriendMultiplier: number,
 	GroupMultiplier: number,
 	Settings: { Music: boolean },
+	-- Ability levels (0 = locked); AbilityService is its only writer.
+	Abilities: { [string]: number },
 	CourtTransition: boolean,
 	Dunks: number,
 	DunkState: string,
@@ -85,6 +88,16 @@ local function applyJump(player: Player, character: Model)
 	setJump(player, state, humanoid)
 end
 
+-- "College,HighSchool,Neighborhood" style list of unlocked courts for the HUD goal bar (display only).
+local function publishCourts(player: Player, state: PlayerState)
+	local ids = {}
+	for courtId, unlocked in state.UnlockedCourts do
+		if unlocked then table.insert(ids, courtId) end
+	end
+	table.sort(ids)
+	player:SetAttribute("UnlockedCourts", table.concat(ids, ","))
+end
+
 local function addPlayer(player: Player, profile)
 	if states[player] or player.Parent ~= Players then
 		return
@@ -120,6 +133,7 @@ local function addPlayer(player: Player, profile)
 		FriendMultiplier = 1,
 		GroupMultiplier = 1,
 		Settings = { Music = profile.Settings.Music },
+		Abilities = Abilities.CopyState(profile.Abilities),
 		CourtTransition = placeCharacter ~= nil,
 		Dunks = 0,
 		DunkState = "Idle",
@@ -133,6 +147,7 @@ local function addPlayer(player: Player, profile)
 	player:SetAttribute("TrainingLevel", state.TrainingLevel)
 	player:SetAttribute("EquippedDunkStyle", state.EquippedDunkStyle)
 	player:SetAttribute("CurrentCourt", state.CurrentCourt)
+	publishCourts(player, state)
 	player:SetAttribute("CourtTransition", state.CourtTransition)
 	player:SetAttribute("Rebirths", state.Rebirths)
 	player:SetAttribute("CashBoostUntil", state.Daily.BoostUntil)
@@ -212,6 +227,7 @@ function PlayerService.BuyCourt(player: Player, courtId: string): (boolean, stri
 	if state.Cash < court.Requirements.Cash then return false, "Not enough Cash.", false end
 	state.Cash -= court.Requirements.Cash
 	state.UnlockedCourts[courtId] = true
+	publishCourts(player, state)
 	state.CashDisplay.Value = state.Cash
 	Analytics.CashSpent(player, court.Requirements.Cash, state.Cash, "Shop", "Court_" .. courtId)
 	return true, court.DisplayName .. " UNLOCKED!", true
@@ -318,25 +334,28 @@ function PlayerService.SetDunkState(player: Player, dunkState: string)
 	end
 end
 
-function PlayerService.AwardTraining(player: Player): boolean
+-- One training rep. `repMultiplier` (active-training PERFECT/GOOD, 1-3) scales the gain.
+-- Returns whether the rep counted and the Vertical it added (fractional, before rounding).
+function PlayerService.AwardTraining(player: Player, repMultiplier: number?): (boolean, number)
 	local state = states[player]
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if not PlayerService.IsReady(player) or not state or state.DunkState == "Executing"
 		or not humanoid or humanoid.Health <= 0 then
-		return false
+		return false, 0
 	end
 
 	local level = UpgradeConfig.GetLevel(state.TrainingLevel)
 	if not level then
-		return false
+		return false, 0
 	end
 	local trainingCap = Courts.GetTrainingCap(state.CurrentCourt, state.UnlockedCourts)
-	if state.Vertical >= trainingCap then return false end
+	if state.Vertical >= trainingCap then return false, 0 end
+	local rep = (type(repMultiplier) == "number" and repMultiplier >= 1 and repMultiplier <= 3) and repMultiplier or 1
 	local scale = Courts.TrainingProgressScale
 	local bonuses = Courts.GetBonuses(state.CurrentCourt, state.UnlockedCourts)
 	local earnedUnits = math.floor(level.VerticalPerRep
-		* bonuses.TrainingMultiplier * Rebirths.TrainingMultiplier(state.Rebirths) * scale + 0.5)
+		* bonuses.TrainingMultiplier * Rebirths.TrainingMultiplier(state.Rebirths) * rep * scale + 0.5)
 	local remainderUnits = math.floor(state.VerticalTrainingRemainder * scale + 0.5)
 	local totalUnits = earnedUnits + remainderUnits
 	local wholeGain = math.floor(totalUnits / scale)
@@ -353,7 +372,7 @@ function PlayerService.AwardTraining(player: Player): boolean
 		end
 		setJump(player, state, humanoid)
 	end
-	return true
+	return true, earnedUnits / scale
 end
 
 function PlayerService.GetTrainingUpgradeSnapshot(player: Player)
@@ -399,7 +418,9 @@ function PlayerService.BuyNextTrainingLevel(player: Player): (boolean, string)
 end
 
 -- `trickCash` is the air-trick Cash DunkExecution already paid during this dunk (server value).
-function PlayerService.RegisterDunk(player: Player, styleId: string, rating: string?, trickCash: number?): (boolean, number?)
+-- `bonusMultiplier` is DunkService's HEAT x Fireball multiplier (1-3); 1 when there is none.
+function PlayerService.RegisterDunk(player: Player, styleId: string, rating: string?, trickCash: number?,
+	bonusMultiplier: number?): (boolean, number?)
 	local state = states[player]
 	if not PlayerService.IsReady(player) or not state or state.DunkState ~= "Completed" then
 		return false
@@ -409,10 +430,12 @@ function PlayerService.RegisterDunk(player: Player, styleId: string, rating: str
 		return false
 	end
 	local bonuses = Courts.GetBonuses(state.CurrentCourt, state.UnlockedCourts)
+	local bonus = (type(bonusMultiplier) == "number" and bonusMultiplier >= 1 and bonusMultiplier <= 3)
+		and bonusMultiplier or 1
 	local cashReward = DunkRewards.DunkCash(style.Reward, bonuses.DunkCashMultiplier * Rebirths.CashMultiplier(state.Rebirths)
 		* Daily.BoostMultiplier(state.Daily.BoostUntil, os.time())
 		* (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1) * state.FriendMultiplier * state.GroupMultiplier
-		* Events.CashMultiplier(os.time(), isStudio), state.Vertical, rating)
+		* Events.CashMultiplier(os.time(), isStudio) * bonus, state.Vertical, rating)
 	state.Cash = math.min(state.Cash + cashReward, DataConfig.MaxCash)
 	state.Dunks += 1
 	state.CashDisplay.Value = state.Cash
@@ -436,7 +459,7 @@ function PlayerService.AwardDunkTrick(player: Player, trickId: string, comboInde
 	local state = states[player]
 	if not PlayerService.IsReady(player) or not state or state.DunkState ~= "Executing"
 		or not DunkRewards.GetTrick(trickId) or type(comboIndex) ~= "number" or comboIndex % 1 ~= 0
-		or comboIndex < 1 or comboIndex > DunkRewards.Tricks.MaxTricks then
+		or comboIndex < 1 or comboIndex > DunkRewards.Tricks.MaxTricks + DunkRewards.Tricks.MaxBonusTricks then
 		return nil
 	end
 	local bonuses = Courts.GetBonuses(state.CurrentCourt, state.UnlockedCourts)
@@ -496,6 +519,14 @@ end
 function PlayerService.HasPass(player: Player, key: string): boolean
 	local state = states[player]
 	return state ~= nil and state.Passes[key] == true
+end
+
+-- The live ability levels (id -> level, 0 = locked). Only AbilityService may change them,
+-- and only without yielding.
+function PlayerService.GetAbilities(player: Player)
+	local state = states[player]
+	if not PlayerService.IsDataReady(player) or not state then return nil end
+	return state.Abilities
 end
 
 -- The live locker record. Only LockerService may change it, and only without yielding.
@@ -629,6 +660,7 @@ function PlayerService.ApplyRebirth(player: Player): (boolean, string)
 	state.TrainingLevel = UpgradeConfig.StartingLevel
 	state.VerticalTrainingRemainder = 0
 	state.UnlockedCourts = Courts.DefaultUnlocks()
+	publishCourts(player, state)
 	state.CurrentCourt = Courts.StartingId
 	state.EquippedDunkStyle = DunkStyles.ResolveEquipped(state.EquippedDunkStyle, state.Vertical)
 	state.CashDisplay.Value = state.Cash
@@ -678,6 +710,7 @@ function PlayerService.Init(onReady, onDataReady)
 				Stats = Leaderboards.CopyStats(state.Stats),
 				Locker = Locker.CopyState(state.Locker),
 				Settings = { Music = state.Settings.Music },
+				Abilities = Abilities.CopyState(state.Abilities),
 			}
 		end,
 		Cleanup = function(player: Player)

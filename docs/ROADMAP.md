@@ -98,6 +98,12 @@ Game Feel & Juice v0.2 implementation adds style-specific post-validation gather
 
 **Implemented — Launch kit:** server-only redeem codes (RELEASE, DUNKSIM, group-only GROUPDUNK; claimed once per player in a separate codes DataStore) and scheduled server-wide Cash events with a HUD countdown pill (2X CASH WEEKEND, 2–5 Oct 2026 UTC). Two new ad thumbnails (weekend event, Skyline Rooftop). See `LAUNCH_KIT.md`.
 
+**Implemented — Dunk impact VFX:** court-themed slam effects (Neighborhood dust and chips, High School confetti cannons, College pyro columns, Rooftop lightning and fireworks) scaled by the meter grade (Perfect / Good / Early / Late / no press). The server now publishes Early/Late too and judges the grade as soon as the timing window closes; rewards are unchanged. See `DUNK_VFX.md`.
+
+**Implemented — Abilities:** Slow-Mo Slam (2x timing windows, slow drop), Fireball (2x dunk Cash, ball on fire) and Hang Time (+2 air tricks). Each is earned at a Vertical milestone or bought early with Cash, has 5 levels of Cash upgrades that shorten the recharge, and is armed with 1/2/3 (or a tap) for the next dunk. Hotbar plus ABILITIES panel; levels saved (schema v12). See `ABILITIES.md`.
+
+**Implemented — Engagement pass ("no dead time"):** rhythm training at the Leg Day Gym (PERFECT x3 / GOOD x1.5 reps, server-judged), HEAT dunk streak (x1.0-x1.4 Cash within 15 s), cash bills after every dunk (+15%) and a Golden Ball race every ~75 s, a top NEXT goal bar with HEAT pill, a bottom action feed, and cheaper early upgrades (Level 2 $120, High School $4,000). See `ENGAGEMENT.md`.
+
 ## 11. Monetization
 
 Introduce balanced, platform-compliant cosmetics and optional convenience products after core retention is validated.
