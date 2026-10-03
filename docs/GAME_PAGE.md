@@ -16,6 +16,8 @@ Roblox only allows a genre change **once every three months**, so pick once.
 
 ## Description
 
+**Live text (2026-10-03):** `assets/marketing/description.txt` (codes, the Rooftop update, Dunk Pass, Hype Crew, invites). Keep that file and the Creator Hub in sync. The original launch text is kept below for reference.
+
 The text below is under Roblox's 1000-character limit. Every claim matches the current build: Vertical runs 30 → 350, there are 7 styles and 4 courts, the contest runs every 8 minutes with prizes for the top 3, and the three leaderboard names are the real ones.
 
 ```
@@ -46,6 +48,13 @@ The files are in `assets/thumbnails/`. **Upload the `.jpg` versions:** Roblox wa
 | Event | `thumbnail-4-weekend.jpg` | "2X CASH WEEKEND!" Put it first only while the event runs (see `LAUNCH_KIT.md`). |
 | 5 | `thumbnail-5-rooftop.jpg` | "NEW COURT! SKYLINE ROOFTOP" night shot of Court #4. |
 | Icon | `icon-512.png` | The Tomahawk jumper on a pink/purple sunburst with "DUNK SIM". |
+
+**Live (2026-10-03):**
+- Home Page: 4 thumbnails active (rooftop, courts, vertical, dunk), and personalization picks per player.
+- Detail Page order: rooftop first, then courts, vertical, dunk.
+- Each thumbnail had 0 impressions for Sep 27 - Oct 3, so Roblox wasn't showing the game in Home recommendations yet.
+- "250 VERTICAL" stays accurate: that shot is the College Arena, whose cap is 250.
+- Uploads silently stall while the Creator Hub tab is hidden (`document.visibilityState`). Bring the window to the front first.
 
 How they were made:
 - All game footage is real in-engine Studio footage, captured at 4K in Play mode with the HUD hidden.
