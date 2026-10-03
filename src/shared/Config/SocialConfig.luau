@@ -4,7 +4,11 @@ local SocialConfig = {
 	-- Dunk and air-trick Cash bonus for each Roblox friend in the same server.
 	FriendBonusPerFriend = 0.1,
 	MaxFriendBonus = 0.3, -- +30% at most (3 friends)
-	-- Invites carry "ref:<inviter UserId>" as launch data (Roblox allows 200 characters).
+	-- Who invited a player comes from Roblox's referral system first
+	-- (Player:GetJoinData().ReferredByPlayerId, set by Roblox for every kind of invite: the
+	-- INVITE button, Roblox's own invite menu, share links and the Referral Rewards banner).
+	-- Older INVITE-button invites also carry "ref:<inviter UserId>" as launch data (Roblox
+	-- allows 200 characters), used when ReferredByPlayerId is missing.
 	LaunchPrefix = "ref:",
 	PromptMessage = "Invite friends to dunk with you! You both get a 2x Cash Boost when they join.",
 	-- A friend who joins through your invite for the first time (a fresh player who hasn't
@@ -16,8 +20,10 @@ local SocialConfig = {
 	InviterBoostMinutes = 15,
 	-- Referral rewards an inviter can earn per UTC day.
 	MaxInviterRewardsPerDay = 5,
-	-- Accounts younger than this (days) can't credit an inviter. Anyone can craft a join link
-	-- with "ref:" launch data, so this (plus the friend check and daily cap) slows alt farming.
+	-- Accounts younger than this (days) can't credit an inviter, whichever way they were
+	-- invited. Anyone can craft a join link with "ref:" launch data, so those invites also
+	-- need the invitee to be the inviter's Roblox friend; ReferredByPlayerId is set by Roblox
+	-- itself and can't be faked, so it skips the friend check (share links reach non-friends).
 	MinAccountAgeDays = 7,
 	-- Community group: members earn GroupBonus extra dunk and air-trick Cash. The HUD button
 	-- opens Roblox's join prompt. 0 = no group yet (button hidden, no bonus).
@@ -32,14 +38,15 @@ local SocialConfig = {
 	LaunchDataRetrySeconds = 2,
 	-- Studio only (ignored on live servers), for testing without real friends or invites:
 	-- pretend this many friends are online, and/or pretend this player joined with this launch
-	-- data (e.g. "ref:123"; the friend and account-age checks are skipped for it). Keep both
-	-- off when done.
+	-- data (e.g. "ref:123") or this ReferredByPlayerId (e.g. 123); the friend and account-age
+	-- checks are skipped for both. Keep them all off when done.
 	StudioPretendFriendsOnline = 0,
 	-- Studio only: treat the player as a group member (needs a GroupId set).
 	StudioPretendInGroup = false,
 	-- Studio only: treat the player as a Roblox Premium member.
 	StudioPretendPremium = false,
 	StudioLaunchData = nil,
+	StudioReferredBy = nil,
 }
 
 function SocialConfig.FriendMultiplier(friendsOnline: number): number

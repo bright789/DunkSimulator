@@ -2,11 +2,14 @@
 -- rewards for invites sent with the INVITE button. Server-authoritative:
 --   * Friend checks use Player:IsFriendsWith on the server; the bonus is applied inside
 --     PlayerService.RegisterDunk / AwardDunkTrick.
---   * A player who joins with "ref:<id>" launch data credits that inviter once, and only if
---     they are a fresh player (no dunks, no Rebirth), their account is old enough, they are
---     friends with the inviter, and they never credited anyone before (recorded in the
---     referral DataStore). Inviters earn at most MaxInviterRewardsPerDay rewards per UTC day;
---     rewards for an offline inviter wait in the store until their next join.
+--   * The inviter comes from Roblox's referral system (JoinData.ReferredByPlayerId, every
+--     kind of invite including the Referral Rewards banner) or, failing that, from the
+--     INVITE button's "ref:<id>" launch data. A player credits that inviter once, and only
+--     if they are a fresh player (no dunks, no Rebirth), their account is old enough, they
+--     never credited anyone before (recorded in the referral DataStore), and - for launch
+--     data only, which anyone can craft - they are friends with the inviter. Inviters earn
+--     at most MaxInviterRewardsPerDay rewards per UTC day; rewards for an offline inviter
+--     wait in the store until their next join.
 --   * Community group members (SocialConfig.GroupId) earn GroupBonus extra Cash. Membership is
 --     read with GroupService:GetGroupsAsync (fresh, not cached) on join and when the client
 --     asks after Roblox's join prompt (GroupRequest, rate-limited).
@@ -147,28 +150,43 @@ local function claimPending(player: Player)
 	end
 end
 
-local function readLaunchData(player: Player): string?
-	if isStudio and type(Config.StudioLaunchData) == "string" then return Config.StudioLaunchData end
+-- Who invited this player, and how: "roblox" (ReferredByPlayerId, set by Roblox's referral
+-- system for every kind of invite) or "launch" (the INVITE button's "ref:<id>" launch data).
+-- Join data can arrive a few seconds late, so it retries.
+local function readInviter(player: Player): (number?, string?)
+	if isStudio and type(Config.StudioReferredBy) == "number" then return Config.StudioReferredBy, "roblox" end
+	if isStudio and type(Config.StudioLaunchData) == "string" then
+		return tonumber(string.match(Config.StudioLaunchData, "^" .. Config.LaunchPrefix .. "(%d+)$")), "launch"
+	end
 	for attempt = 1, Config.LaunchDataAttempts do
 		local ok, joinData = pcall(player.GetJoinData, player)
-		local data = ok and type(joinData) == "table" and joinData.LaunchData
-		if type(data) == "string" and data ~= "" then return data end
+		if ok and type(joinData) == "table" then
+			local referredBy = tonumber(joinData.ReferredByPlayerId)
+			if referredBy and referredBy > 0 then return referredBy, "roblox" end
+			local data = joinData.LaunchData
+			if type(data) == "string" and data ~= "" then
+				return tonumber(string.match(data, "^" .. Config.LaunchPrefix .. "(%d+)$")), "launch"
+			end
+		end
 		if attempt < Config.LaunchDataAttempts then task.wait(Config.LaunchDataRetrySeconds) end
-		if player.Parent ~= Players then return nil end
+		if player.Parent ~= Players then return nil, nil end
 	end
-	return nil
+	return nil, nil
 end
 
 local function handleReferral(player: Player)
-	local data = readLaunchData(player)
-	local inviterId = data and tonumber(string.match(data, "^" .. Config.LaunchPrefix .. "(%d+)$"))
+	local inviterId, source = readInviter(player)
 	if not inviterId or inviterId == player.UserId or inviterId <= 0 or not store then return end
-	Analytics.Custom(player, "JoinedFromInvite")
+	Analytics.Custom(player, "JoinedFromInvite", source == "roblox" and 2 or 1)
 	local snapshot = PlayerService.GetMilestoneSnapshot(player)
 	if not snapshot or snapshot.TotalDunks > 0 or snapshot.Rebirths > 0 then return end
-	-- The Studio test launch data skips the friend and account-age checks (live servers never do).
-	local studioTest = isStudio and type(Config.StudioLaunchData) == "string"
-	if not studioTest and (player.AccountAge < Config.MinAccountAgeDays or not isFriend(player, inviterId)) then return end
+	-- The Studio test settings skip the friend and account-age checks (live servers never do).
+	local studioTest = isStudio and (type(Config.StudioLaunchData) == "string" or type(Config.StudioReferredBy) == "number")
+	if not studioTest then
+		if player.AccountAge < Config.MinAccountAgeDays then return end
+		-- launch data can be crafted by anyone, so those invites must come from a real friend
+		if source == "launch" and not isFriend(player, inviterId) then return end
+	end
 	-- Claim this invitee once, forever.
 	local fresh = false
 	local claimed = pcall(function()
@@ -178,7 +196,7 @@ local function handleReferral(player: Player)
 				return nil
 			end
 			fresh = true
-			return { InviterId = inviterId, At = os.time() }
+			return { InviterId = inviterId, At = os.time(), Source = source }
 		end)
 	end)
 	if not claimed or not fresh or player.Parent ~= Players then return end

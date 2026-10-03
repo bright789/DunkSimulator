@@ -5,26 +5,28 @@
 **For players:**
 - **INVITE** (fourth row of the HUD) opens Roblox's own friend-invite prompt with the message "Invite friends to dunk with you! You both get a 2x Cash Boost when they join."
 - **Friend bonus:** every Roblox friend in the same server adds **+10% dunk and air-trick Cash**, up to **+30%**. The button shows it, for example "INVITE +20%".
-- **Referral reward:** when a friend joins through your invite for the first time:
+- **Referral reward:** when someone joins through any invite from you for the first time (the INVITE button, Roblox's own invite menu, a shared link, or the Referral Rewards banner on the game page):
   - The friend gets a **15-minute 2x Cash Boost**.
   - You get **Cash worth 20 dunks** at your Vertical plus a **15-minute boost**.
   - If you're offline or in another server, your reward waits and is paid (with a pop-up) the next time you join.
 
 **Rules (server-side in `InviteService`, numbers in `SocialConfig`):**
-- **Launch data:** invites carry `ref:<inviter UserId>`, read from `Player:GetJoinData().LaunchData` with retries (it can arrive a few seconds late).
+- **Who invited them:** read from `Player:GetJoinData()` with retries (it can arrive a few seconds late):
+  1. `ReferredByPlayerId` first. Roblox's referral system sets it for every kind of invite, including share links and the Referral Rewards banner, and it can't be faked.
+  2. Otherwise the INVITE button's launch data, `ref:<inviter UserId>`.
 - **Who can credit an inviter:** a player counts only if they:
   - are **fresh** (no dunks, no Rebirth),
-  - have an account at least **7 days** old (anyone can craft a join link with `ref:` launch data, so this plus the friend check and the daily cap slows farming with alt accounts),
-  - are actually **friends** with the inviter (`IsFriendsWith`),
+  - have an account at least **7 days** old (with the daily cap, this slows farming with alt accounts),
+  - for launch-data invites only, are actually **friends** with the inviter (`IsFriendsWith`). Anyone can craft a join link with `ref:` launch data; `ReferredByPlayerId` can't be crafted, and share links reach people who aren't friends yet, so it skips this check.
   - and have **never credited anyone before**.
-- **Records:** `Invitee_<id>` in the referral DataStore (`DunkSimulator_Referrals_v1`; Studio uses `..._DEV_v1`). The same store holds `Inviter_<id>`, the daily count and pending rewards.
+- **Records:** `Invitee_<id>` in the referral DataStore (`DunkSimulator_Referrals_v1`; Studio uses `..._DEV_v1`), with `InviterId`, `At` and `Source` (`roblox` or `launch`). The same store holds `Inviter_<id>`, the daily count and pending rewards.
 - **Daily cap:** inviters earn at most **5 referral rewards per UTC day**.
 - **Rule note:** Roblox doesn't allow rewarding players for likes or favorites. We only reward invites, which is allowed.
-- **Analytics:** `JoinedFromInvite`, `InviteRewarded`, and an `InviteReward` Cash source.
+- **Analytics:** `JoinedFromInvite` (value 2 = Roblox referral, 1 = launch data), `InviteRewarded`, and an `InviteReward` Cash source.
 
 **Studio testing flags** (`SocialConfig`, ignored on live servers):
 - `StudioPretendFriendsOnline`
-- `StudioLaunchData`: skips the friend and account-age checks.
+- `StudioLaunchData` (e.g. `"ref:1"`) or `StudioReferredBy` (e.g. `1`): pretend this join came from an invite. Both skip the friend and account-age checks.
 
 **Tested with both** (a fresh profile, 2 pretend friends, launch data `ref:1`):
 - The INVITE button showed "+20%".
@@ -34,6 +36,18 @@
 - A planted pending reward for the tester paid $400 plus a boost on join.
 - Rejoining paid nothing again.
 - Clicking INVITE opened Roblox's real invite prompt.
+
+**Roblox referral system (2026-10-03).** Invites are now read from `ReferredByPlayerId` first, so every invite type counts, including the Creator Hub **Referral Rewards** banner (Engagement → Referral rewards). Tested in Studio with `StudioReferredBy = 1` and fresh QA stores:
+- The log showed `JoinedFromInvite 2`, and the fresh player got "2x CASH 15:00".
+- The store held `Invitee_<id> = {InviterId 1, Source "roblox"}` and `Inviter_1 = {Pending 1, DayCount 1}`.
+- The flags and store names were reverted afterwards.
+
+The code went live with the place publish at 2026-10-03 22:42Z. The **Creator Hub banner** was published 2026-10-03 (the owner agreed to the Referral Program Terms):
+- Name "2x Cash Boost"; the image is `assets/thumbnails/icon-512.png`.
+- Description: "Friends get 2x Cash for 15 min, and you get Cash + 2x Cash!"
+- Limits: "Only brand-new players count (account 7+ days old). Your friend gets 15 min of 2x Cash on first join. You get Cash worth 20 dunks + 15 min of 2x Cash, for up to 5 friends a day."
+- Runs 2026-10-03 → 2027-03-31 11:59 PM.
+- Only one banner can be live per experience. If the rewards in `SocialConfig` change, edit the banner text to match.
 
 ## Music and ambience
 
