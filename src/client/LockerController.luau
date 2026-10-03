@@ -24,11 +24,12 @@ function LockerController.new(player: Player, hud)
 
 	local prices = {}
 	local offSale = {}
+	local vertical = nil -- for the Cash packs' current value
 	local function render()
 		view.Render(snapshot, pending)
 		local owned = {}
 		for _, pass in Monetization.Passes do owned[pass.Key] = player:GetAttribute("Pass_" .. pass.Key) == true end
-		view.RenderOffers(owned, prices, offSale)
+		view.RenderOffers(owned, prices, offSale, vertical)
 	end
 	-- Opens Roblox's own purchase prompt; the server verifies and applies the purchase.
 	local function promptPass(key: string)
@@ -40,7 +41,7 @@ function LockerController.new(player: Player, hud)
 		for _, list in { { Items = Monetization.Passes, Type = Enum.InfoType.GamePass },
 			{ Items = Monetization.Products, Type = Enum.InfoType.Product } } do
 			for _, offer in list.Items do
-				if offer.Id ~= 0 then
+				if offer.Id ~= 0 and not offer.Hidden then
 					local ok, info = pcall(MarketplaceService.GetProductInfo, MarketplaceService, offer.Id, list.Type)
 					if ok and type(info) == "table" then
 						if info.IsForSale == false then
@@ -126,11 +127,14 @@ function LockerController.new(player: Player, hud)
 		table.insert(connections, player:GetAttributeChangedSignal("Pass_" .. pass.Key):Connect(render))
 	end
 
-	-- Keep prices' affordability live while the menu is open.
+	-- Keep prices' affordability (and the Cash packs' value) live while the menu is open.
 	function controller.SetStat(name: string, value: number)
 		if name == "Cash" and snapshot then
 			snapshot.Cash = value
 			render()
+		elseif name == "Vertical" then
+			vertical = value
+			if view.Panel.Visible then render() end
 		end
 	end
 

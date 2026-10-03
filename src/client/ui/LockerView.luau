@@ -1,10 +1,11 @@
 -- Locker menu: SHOES and BALLS tabs with a card per item (color preview, name, bonus, and
--- a BUY / EQUIP / EQUIPPED button), plus a PASSES tab for Robux game passes and the Cash
--- Boost product. Display only; the server decides everything.
+-- a BUY / EQUIP / EQUIPPED button), plus a PASSES tab for Robux game passes and developer
+-- products (Cash Boost, Cash packs). Display only; the server decides everything.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config.HUDConfig)
 local Locker = require(ReplicatedStorage.Shared.Config.LockerConfig)
 local Monetization = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
+local Daily = require(ReplicatedStorage.Shared.Config.DailyConfig)
 local UI = require(script.Parent.UIComponents)
 
 local LockerView = {}
@@ -177,6 +178,8 @@ function LockerView.new(playerGui: PlayerGui)
 	local order = 0
 	for _, list in { { Kind = "Pass", Items = Monetization.Passes }, { Kind = "Product", Items = Monetization.Products } } do
 		for _, offer in list.Items do
+			-- Hidden products are only sold elsewhere (the payout boosts on the payout card).
+			if offer.Hidden then continue end
 			order += 1
 			local card = UI.Panel(passPage, offer.Key, UDim2.new(), UDim2.new())
 			card.LayoutOrder = order
@@ -192,7 +195,7 @@ function LockerView.new(playerGui: PlayerGui)
 			about.TextYAlignment = Enum.TextYAlignment.Top
 			about.TextColor3 = Config.Colors.Muted
 			local action = button(card, "Action", "", UDim2.fromScale(0.9, 0.2), UDim2.fromScale(0.05, 0.74), 14)
-			offers[offer.Key] = { Button = action, Offer = offer, Kind = list.Kind }
+			offers[offer.Key] = { Button = action, Offer = offer, Kind = list.Kind, About = about }
 		end
 	end
 	local feedback = UI.Label(panel, "Feedback", "", UDim2.fromScale(0.92, 0.05), UDim2.fromScale(0.04, 0.935), 12)
@@ -241,9 +244,15 @@ function LockerView.new(playerGui: PlayerGui)
 	end
 
 	-- `owned[key]` = pass owned; `prices[key]` = Robux price (nil until known);
-	-- `offSale[key]` = created on Roblox but not on sale.
-	function view.RenderOffers(owned: { [string]: boolean }, prices: { [string]: number }, offSale: { [string]: boolean })
+	-- `offSale[key]` = created on Roblox but not on sale; `vertical` = your Vertical (nil until known).
+	function view.RenderOffers(owned: { [string]: boolean }, prices: { [string]: number }, offSale: { [string]: boolean },
+		vertical: number?)
 		for key, entry in offers do
+			-- Cash packs also show what they're worth at your Vertical right now.
+			if entry.Offer.PackDunks and vertical then
+				entry.About.Text = string.format("%s Right now: $%s.", entry.Offer.Description,
+					UI.Number(entry.Offer.PackDunks * Daily.DunkValue(vertical)))
+			end
 			local control = entry.Button
 			local onSale = entry.Offer.Id ~= 0 and not offSale[key]
 			local has = entry.Kind == "Pass" and owned[key] == true

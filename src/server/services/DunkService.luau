@@ -18,6 +18,7 @@ local PickupService = require(script.Parent.PickupService)
 local Analytics = require(script.Parent.AnalyticsReporter)
 local SeasonXp = require(script.Parent.SeasonXp)
 local SeasonXpValues = require(ReplicatedStorage.Shared.Config.SeasonConfig).XP
+local PayoutOffer = require(script.Parent.PayoutOfferService)
 local remotes = ReplicatedStorage.Remotes
 
 local DunkService = {}
@@ -119,6 +120,8 @@ local function attemptDunk(player: Player): (string?, string?)
 			PlayerService.SetDunkState(player, "Completed")
 			-- HEAT (dunk streak) and Fireball both multiply this dunk's Cash.
 			local heatMultiplier = HeatService.OnDunk(player)
+			-- RegisterDunk updates the BestDunkCash stat; compared below to spot a personal best.
+			local statsBefore = PlayerService.GetStats(player)
 			local registered, cashReward = PlayerService.RegisterDunk(player, styleId, rating, trickCash,
 				AbilityService.CashMultiplier(armed) * heatMultiplier)
 			if not registered then
@@ -139,6 +142,14 @@ local function attemptDunk(player: Player): (string?, string?)
 			if not dailyTracked then warn("[DunkService] Daily tracking failed: " .. tostring(dailyProblem)) end
 			local judged, contestProblem = pcall(ContestService.OnDunk, player, styleId, rating, landedTricks or {})
 			if not judged then warn("[DunkService] Contest judging failed: " .. tostring(contestProblem)) end
+			-- Payout offer: only a big dunk (Fireball, or a new personal-best dunk payout) is
+			-- reported. Ordinary dunks are not, so they never replace a bigger payout on the card.
+			local statsAfter = PlayerService.GetStats(player)
+			local personalBest = statsBefore ~= nil and statsAfter ~= nil and statsAfter.BestDunkCash > statsBefore.BestDunkCash
+			if AbilityService.CashMultiplier(armed) > 1 or personalBest then
+				local offered, offerProblem = pcall(PayoutOffer.OnPayout, player, (cashReward or 0) + (trickCash or 0), "Dunk")
+				if not offered then warn("[DunkService] Payout offer failed: " .. tostring(offerProblem)) end
+			end
 			print("[DunkService] " .. player.Name .. " completed " .. styleId)
 			remotes.DunkResult:FireClient(player, cashReward, nil, styleId, trickCash, rating)
 			return nil, nil

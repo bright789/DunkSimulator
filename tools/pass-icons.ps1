@@ -429,4 +429,98 @@ Draw-Sparkle $g 420 96 16 (C 255 255 230 220)
 Draw-Rim $g $goldDeep
 $bmp.Save("$out\dunk-pass-s1.png", [System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose()
 
+# Helpers for the Cash products below.
+function Draw-Coin($g, [float]$cx, [float]$cy, [float]$r) {
+    $rect = New-Object System.Drawing.RectangleF(($cx - $r), ($cy - $r), (2 * $r), (2 * $r))
+    $g.FillEllipse((New-Object System.Drawing.SolidBrush((C 0 0 0 95))), ($cx - $r + 5), ($cy - $r + 9), (2 * $r), (2 * $r))
+    $g.FillEllipse((Gradient-Brush $rect (C 255 236 120) (C 235 150 20)), $rect)
+    $g.DrawEllipse((New-Object System.Drawing.Pen((C 150 90 10), ($r * 0.09))), $rect)
+    $g.DrawEllipse((New-Object System.Drawing.Pen((C 255 250 200 150), ($r * 0.05))), ($cx - $r * 0.8), ($cy - $r * 0.8), ($r * 1.6), ($r * 1.6))
+    Draw-Text $g '$' ($r * 1.4) $cx ($cy + $r * 0.04) (C 200 120 10) (C 150 80 5) (C 255 245 190) ($r * 0.06)
+}
+
+function Draw-Bill($g, [float]$cx, [float]$cy, [float]$w, [float]$h) {
+    $rect = New-Object System.Drawing.RectangleF(($cx - $w / 2), ($cy - $h / 2), $w, $h)
+    $g.FillRectangle((New-Object System.Drawing.SolidBrush((C 0 0 0 80))), ($rect.X + 5), ($rect.Y + 8), $w, $h)
+    $g.FillRectangle((Gradient-Brush $rect (C 160 240 150) (C 60 170 80)), $rect)
+    $pen = New-Object System.Drawing.Pen($ink, 8)
+    $pen.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Round
+    $g.DrawRectangle($pen, $rect.X, $rect.Y, $rect.Width, $rect.Height)
+    $g.DrawRectangle((New-Object System.Drawing.Pen((C 40 130 60), 4)), ($rect.X + 12), ($rect.Y + 12), ($w - 24), ($h - 24))
+}
+
+# 11-13) x2 / x4 / x7 PAYOUT (developer products for the "Boost that payout!" offer) --------
+foreach ($spec in @(
+        @('x2', (C 60 200 110), (C 8 36 32), 'payout-x2.png'),
+        @('x4', (C 60 150 255), (C 10 20 60), 'payout-x4.png'),
+        @('x7', (C 190 90 255), (C 40 10 70), 'payout-x7.png'))) {
+    $icon = New-Icon; $bmp = $icon[0]; $g = $icon[1]
+    Fill-Background $g $spec[1] $spec[2]
+    Draw-Rays $g (C 255 255 210 30) 16 256 180
+    # A fan of three coins.
+    Draw-Coin $g 164 168 58
+    Draw-Coin $g 348 168 58
+    Draw-Coin $g 256 146 78
+    Draw-Text $g $spec[0] 176 256 318 $gold $goldDeep $ink 20
+    Draw-Text $g 'PAYOUT' 70 256 432 (C 255 255 255) (C 255 235 190) $ink 14
+    Draw-Sparkle $g 92 112 20 (C 255 255 230 230)
+    Draw-Sparkle $g 424 96 16 (C 255 255 230 220)
+    Draw-Rim $g $goldDeep
+    $bmp.Save("$out\$($spec[3])", [System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose()
+}
+
+# 14) CASH STACK (developer product: Cash worth 150 dunks) --------------------------------
+$icon = New-Icon; $bmp = $icon[0]; $g = $icon[1]
+Fill-Background $g (C 70 210 120) (C 8 40 30)
+Draw-Rays $g (C 255 255 200 30) 16 256 190
+foreach ($y in @(236, 210, 184, 158)) { Draw-Bill $g 246 $y 260 96 }
+# Gold band and a $ on the top bill.
+$band = New-Object System.Drawing.RectangleF(226, 110, 40, 96)
+$g.FillRectangle((Gradient-Brush $band (C 255 236 120) (C 235 150 20)), $band)
+$g.DrawRectangle((New-Object System.Drawing.Pen($ink, 6)), $band.X, $band.Y, $band.Width, $band.Height)
+Draw-Text $g '$' 76 166 160 (C 255 255 255) (C 200 255 210) (C 30 110 50) 8
+Draw-Coin $g 386 238 46
+Draw-Text $g 'CASH' 104 256 338 $gold $goldDeep $ink 18
+Draw-Text $g 'STACK' 80 256 430 (C 255 255 255) (C 200 255 210) $ink 14
+Draw-Sparkle $g 104 108 20 (C 255 255 230 230)
+Draw-Sparkle $g 418 112 16 (C 255 255 230 220)
+Draw-Rim $g $goldDeep
+$bmp.Save("$out\cash-stack.png", [System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose()
+
+# 15) CASH VAULT (developer product: Cash worth 1,000 dunks) -------------------------------
+$icon = New-Icon; $bmp = $icon[0]; $g = $icon[1]
+Fill-Background $g (C 255 190 60) (C 60 30 10)
+Draw-Rays $g (C 255 245 200 34) 16 256 180
+# A round vault door with a gold wheel.
+$g.FillEllipse((New-Object System.Drawing.SolidBrush((C 0 0 0 100))), 152, 74, 220, 220)
+$door = New-Object System.Drawing.RectangleF(146, 64, 220, 220)
+$g.FillEllipse((Gradient-Brush $door (C 215 225 240) (C 110 120 145)), $door)
+$g.DrawEllipse((New-Object System.Drawing.Pen($ink, 12)), $door)
+$g.DrawEllipse((New-Object System.Drawing.Pen((C 80 90 115), 8)), 176, 94, 160, 160)
+foreach ($i in 0..7) {
+    $a = [Math]::PI * 2 * $i / 8
+    $bx = 256 + 92 * [Math]::Cos($a); $by = 174 + 92 * [Math]::Sin($a)
+    $g.FillEllipse((New-Object System.Drawing.SolidBrush((C 70 80 100))), ($bx - 7), ($by - 7), 14, 14)
+}
+$spoke = New-Object System.Drawing.Pen($ink, 16); $spoke.StartCap = [System.Drawing.Drawing2D.LineCap]::Round; $spoke.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
+$spokeGold = New-Object System.Drawing.Pen((C 255 200 60), 8); $spokeGold.StartCap = [System.Drawing.Drawing2D.LineCap]::Round; $spokeGold.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
+foreach ($i in 0..2) {
+    $a = [Math]::PI * $i / 3 + 0.3
+    $dx = 58 * [Math]::Cos($a); $dy = 58 * [Math]::Sin($a)
+    $g.DrawLine($spoke, (256 - $dx), (174 - $dy), (256 + $dx), (174 + $dy))
+    $g.DrawLine($spokeGold, (256 - $dx), (174 - $dy), (256 + $dx), (174 + $dy))
+}
+$hub = New-Object System.Drawing.RectangleF(232, 150, 48, 48)
+$g.FillEllipse((Gradient-Brush $hub (C 255 236 120) (C 235 150 20)), $hub)
+$g.DrawEllipse((New-Object System.Drawing.Pen($ink, 8)), $hub)
+Draw-Coin $g 126 252 46
+Draw-Coin $g 392 246 40
+Draw-Coin $g 352 288 32
+Draw-Text $g 'CASH' 104 256 342 $gold $goldDeep $ink 18
+Draw-Text $g 'VAULT' 82 256 432 (C 255 255 255) (C 255 230 190) $ink 14
+Draw-Sparkle $g 98 112 20 (C 255 255 230 230)
+Draw-Sparkle $g 420 100 16 (C 255 255 230 220)
+Draw-Rim $g $goldDeep
+$bmp.Save("$out\cash-vault.png", [System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose()
+
 Get-ChildItem $out | Select-Object Name, Length

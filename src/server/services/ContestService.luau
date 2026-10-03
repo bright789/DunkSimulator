@@ -18,6 +18,7 @@ local PlayerService = require(script.Parent.PlayerService)
 local DataService = require(script.Parent.DataService)
 local Analytics = require(script.Parent.AnalyticsReporter)
 local WeeklyChampion = require(script.Parent.WeeklyChampionService)
+local PayoutOffer = require(script.Parent.PayoutOfferService)
 
 local ContestService = {}
 local initialized = false
@@ -101,6 +102,10 @@ local function finishRound()
 					Rank = rank, Entrants = #list, Score = entry.Best, Cash = paid and cash or 0,
 					Tier = tier and tier.Name or nil, Won = won,
 				})
+			end
+			if paid then
+				local offered, offerProblem = pcall(PayoutOffer.OnPayout, player, cash, "Contest")
+				if not offered then warn("[ContestService] Payout offer failed: " .. tostring(offerProblem)) end
 			end
 		end
 	end

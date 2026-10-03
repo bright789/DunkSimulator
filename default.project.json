@@ -106,6 +106,9 @@
         "SeasonRequest": {
           "$className": "RemoteEvent"
         },
+        "PayoutOffer": {
+          "$className": "RemoteEvent"
+        },
         "DunkAnimationStatus": {
           "$className": "RemoteEvent"
         },

@@ -11,11 +11,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
+local Daily = require(ReplicatedStorage.Shared.Config.DailyConfig)
 local DataConfig = require(script.Parent.Parent.Config.DataConfig)
 local PlayerService = require(script.Parent.PlayerService)
 local DataService = require(script.Parent.DataService)
 local LockerService = require(script.Parent.LockerService)
 local DailyService = require(script.Parent.DailyService)
+local PayoutOfferService = require(script.Parent.PayoutOfferService)
 
 local MonetizationService = {}
 local initialized = false
@@ -142,6 +144,16 @@ function MonetizationService.OnPlayerReady(player: Player)
 	refresh(player)
 end
 
+-- Cash pack: PackDunks dunks' worth of Cash at the player's Vertical. A player near the Cash
+-- limit gets what fits (maybe 0) so the receipt never retries forever. Returns (paid, cash).
+local function grantCashPack(player: Player, product): (boolean, number)
+	local balance = PlayerService.GetCash(player)
+	if not balance then return false, 0 end
+	local cash = math.floor(product.PackDunks * Daily.DunkValue(PlayerService.GetVertical(player) or 0) + 0.5)
+	cash = math.clamp(cash, 0, math.max(0, DataConfig.MaxCash - balance))
+	return PlayerService.GrantCash(player, cash, product.Key, "IAP"), cash
+end
+
 local function processReceipt(receipt)
 	local product = Config.ProductById(receipt.ProductId)
 	if not product then return Enum.ProductPurchaseDecision.NotProcessedYet end
@@ -162,14 +174,27 @@ local function processReceipt(receipt)
 	if not claimed then return Enum.ProductPurchaseDecision.NotProcessedYet end
 	if alreadyGranted then return Enum.ProductPurchaseDecision.PurchaseGranted end
 	local granted = false
+	local notice, noticeData = nil, nil -- what to celebrate on the buyer's screen once saved
 	if product.Key == "CashBoost" then
 		granted = DailyService.GrantBoost(player, product.BoostMinutes)
+	elseif product.Multiplier then
+		local bonus
+		granted, bonus = PayoutOfferService.Grant(player, product.Multiplier)
+		notice, noticeData = "Boosted", { Multiplier = product.Multiplier, Bonus = bonus }
+	elseif product.PackDunks then
+		local cash
+		granted, cash = grantCashPack(player, product)
+		notice, noticeData = "CashPack", { Cash = cash, Key = product.Key }
 	end
 	-- Only acknowledge once the reward is saved. If the grant or the save fails, release the
 	-- claim so Roblox retries (a rare extra boost is better than a lost purchase).
 	if not granted or not DataService.SaveNowAsync(player, 20) then
 		pcall(receipts.RemoveAsync, receipts, receipt.PurchaseId)
 		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	local remote = ReplicatedStorage.Remotes:FindFirstChild("PayoutOffer")
+	if notice and remote and player.Parent == Players then
+		remote:FireClient(player, notice, noticeData)
 	end
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end

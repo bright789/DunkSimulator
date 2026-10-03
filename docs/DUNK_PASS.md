@@ -48,7 +48,7 @@ The exclusives show "DUNK PASS" in the Locker until earned, and the Season crew 
 
 ### Buying the premium track
 
-**Dunk Pass: Season 1** is a game pass (`MonetizationConfig` key `DunkPass`, suggested **299 R$**, icon `assets/pass-icons/dunk-pass-s1.png`). It has `Id = 0` until you create it, so the screen says "PASS COMING SOON". Premium tiers reached before buying can be claimed afterwards, so the pass never feels "too late" to buy.
+**Dunk Pass: Season 1** is a game pass (`MonetizationConfig` key `DunkPass`, suggested **299 R$**, icon `assets/pass-icons/dunk-pass-s1.png`). It is pass **1998615194**, on sale at 299 R$. Its id only reached the config on 2026-10-03, so until that publish the screen said "PASS COMING SOON" (it still does whenever the id is `0`). Premium tiers reached before buying can be claimed afterwards, so the pass never feels "too late" to buy.
 
 ### Seasons
 

@@ -43,6 +43,8 @@ local CrewController = require(script.Parent:WaitForChild("CrewController"))
 local crew = CrewController.new(player, view)
 local SeasonController = require(script.Parent:WaitForChild("SeasonController"))
 local season = SeasonController.new(player, view)
+local PayoutOfferController = require(script.Parent:WaitForChild("PayoutOfferController"))
+local payoutOffer = PayoutOfferController.new(player)
 local connections = {}
 local previous = {}
 local destroyed = false
@@ -154,6 +156,7 @@ script.Destroying:Connect(function()
 	pickups.Destroy()
 	crew.Destroy()
 	season.Destroy()
+	payoutOffer.Destroy()
 	daily.Destroy()
 	contest.Destroy()
 	locker.Destroy()

@@ -21,6 +21,7 @@ local GameplayObjects = require(script.Parent.GameplayObjects)
 local Analytics = require(script.Parent.AnalyticsReporter)
 local SeasonXp = require(script.Parent.SeasonXp)
 local SeasonXpValues = require(ReplicatedStorage.Shared.Config.SeasonConfig).XP
+local PayoutOffer = require(script.Parent.PayoutOfferService)
 
 local PickupService = {}
 local initialized = false
@@ -201,6 +202,8 @@ local function grab(player: Player, courtId: string, present: { Player })
 	for _, other in present do
 		sendTo(other, "GoldenGrab", player.DisplayName, value, position, other == player)
 	end
+	local offered, offerProblem = pcall(PayoutOffer.OnPayout, player, value, "GoldenBall")
+	if not offered then warn("[PickupService] Payout offer failed: " .. tostring(offerProblem)) end
 end
 
 local function updateBalls()

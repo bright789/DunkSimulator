@@ -25,13 +25,37 @@ local MonetizationConfig = {
 		{ Key = "CrewSlot", Id = 1998489170, Name = "+1 Crew Slot", Icon = "+1\nCREW",
 			Description = "Equip 4 Hype Crew members instead of 3.", SuggestedRobux = 149 },
 		-- Dunk Pass premium track for Season 1 (SeasonConfig PassKey). Id 0 = not created yet.
-		{ Key = "DunkPass", Id = 0, Name = "Dunk Pass: Season 1", Icon = "DUNK\nPASS",
+		{ Key = "DunkPass", Id = 1998615194, Name = "Dunk Pass: Season 1", Icon = "DUNK\nPASS",
 			Description = "Unlocks the premium Dunk Pass track for Season 1: Launch Jets, the Rocket ball, Hype Man, the Legendary Launch Legend, extra packs, Cash and boosts.", SuggestedRobux = 299 },
 	},
 	-- Must be a Developer Product (repeatable), not a game pass.
 	Products = {
 		{ Key = "CashBoost", Id = 3715129560, Name = "Cash Boost", Icon = "15\nMIN",
 			Description = "2x Cash for 15 minutes (stacks up to 60).", BoostMinutes = 15, SuggestedRobux = 25 },
+		-- "Boost that payout!" card (PayoutOffer below). Multiplier = the Cash the player just won
+		-- is paid this many times in total. Hidden = only sold from that card, not in the Locker.
+		-- (Roblox's filter rejects "Payout" in product names, so the products say "Reward".)
+		{ Key = "PayoutX2", Id = 3716333601, Name = "x2 Reward", Icon = "x2", Hidden = true, Multiplier = 2,
+			Description = "Doubles the Cash you just won from a contest, a Golden Ball or a big dunk.", SuggestedRobux = 12 },
+		{ Key = "PayoutX4", Id = 3716334299, Name = "x4 Reward", Icon = "x4", Hidden = true, Multiplier = 4,
+			Description = "Quadruples the Cash you just won from a contest, a Golden Ball or a big dunk.", SuggestedRobux = 39 },
+		{ Key = "PayoutX7", Id = 3716334447, Name = "x7 Reward", Icon = "x7", Hidden = true, Multiplier = 7,
+			Description = "Multiplies by 7 the Cash you just won from a contest, a Golden Ball or a big dunk.", SuggestedRobux = 99 },
+		-- Cash packs: PackDunks dunks' worth of Cash at the buyer's Vertical (DailyConfig.DunkValue),
+		-- so they stay worth buying at every stage of the game.
+		{ Key = "CashPackSmall", Id = 3716334976, Name = "Cash Stack", Icon = "CASH\nSTACK", PackDunks = 150,
+			Description = "Cash worth 150 dunks at your Vertical.", SuggestedRobux = 29 },
+		{ Key = "CashPackLarge", Id = 3716335075, Name = "Cash Vault", Icon = "CASH\nVAULT", PackDunks = 1000,
+			Description = "Cash worth 1,000 dunks at your Vertical.", SuggestedRobux = 149 },
+	},
+	-- "Boost that payout!" offer (PayoutOfferService). Right after a big enough payout, a card
+	-- offers the PayoutX products above. It only shows once all three have an Id.
+	PayoutOffer = {
+		MinDunks = 3, -- a payout must be worth at least 3 plain dunks (DailyConfig.DunkValue) to be offered
+		CooldownSeconds = 120, -- at most one offer per player every 2 minutes
+		OfferSeconds = 8, -- how long the card stays up
+		WindowSeconds = 300, -- a boost applies to a payout up to 5 minutes old
+		FallbackDunks = 10, -- otherwise the boost pays (multiplier - 1) x 10 dunks
 	},
 	-- Players with the 2x Cash pass earn this multiplier on dunk and trick Cash.
 	DoubleCashMultiplier = 2,
@@ -46,6 +70,16 @@ function MonetizationConfig.GetPass(key: string)
 		if pass.Key == key then return pass end
 	end
 	return nil
+end
+
+-- The payout boosts (Products with a Multiplier), lowest multiplier first.
+function MonetizationConfig.PayoutProducts()
+	local list = {}
+	for _, product in MonetizationConfig.Products do
+		if product.Multiplier then table.insert(list, product) end
+	end
+	table.sort(list, function(first, second) return first.Multiplier < second.Multiplier end)
+	return list
 end
 
 function MonetizationConfig.ProductById(productId: number)

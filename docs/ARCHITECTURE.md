@@ -183,6 +183,8 @@ College is a third `CourtConfig` entry resolved through the same explicit `Gamep
 
 `MonetizationService` checks game-pass ownership server-side (`UserOwnsGamePassAsync`, plus the `PromptGamePassPurchaseFinished` result) into PlayerService's unsaved `Passes`, then applies the effects: 2x Cash in PlayerService, 2x Daily in DailyService, VIP Locker items and tag. It handles developer products in `ProcessReceipt`, claiming each PurchaseId in a receipts DataStore before granting so retries never double-pay. See `MONETIZATION.md`.
 
+`PayoutOfferService` runs the "Boost that payout!" offer. `ContestService` (prizes), `PickupService` (Golden Ball) and `DunkService` (Fireball or personal-best dunks only) report payouts to `OnPayout`. It remembers each player's boostable payout (not saved) and sends `PayoutOffer("Offer", ...)` when the payout is worth at least `MinDunks` plain dunks, the cooldown has passed, the tutorial is over and the x2/x4/x7 products have ids. `MonetizationService.processReceipt` calls `PayoutOfferService.Grant` for those products and pays Cash packs itself; only after the confirmed save does it send the `"Boosted"` / `"CashPack"` celebration on the same server-to-client remote. On the client, `PayoutOfferController` (started by `HUDController`) and `ui/PayoutOfferView` show the card and only open Roblox's purchase prompt. See `MONETIZATION.md`.
+
 ## Custom HUD v0.1
 
 - `HUDController.client.luau` subscribes to the existing local player's replicated leaderstats Cash/Vertical values and the new TrainingLevel display attribute. It reads their current values after subscribing, including late arrival during startup. Unavailable values display `--`, not invented client defaults. Initial hydration does not show gain feedback.
