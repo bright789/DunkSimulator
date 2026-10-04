@@ -70,7 +70,7 @@ Errors are caught with pcall. The player gets "Rebirth unavailable. Please try a
 ## Acceptance tests (passed in Studio against a separate QA store)
 
 1. A saved v5 profile loads as schema 6 with `Rebirths = 0` and no other changes.
-2. With 200 Vertical and $200,000 at College, a confirmed rebirth resets to $0, 30 Vertical, LVL 1 and the Neighborhood. The saved record then has `SchemaVersion 6, Rebirths 1`.
+2. With 200 Vertical and $200,000 at College, a confirmed rebirth resets to $0, the starting Vertical (35 since 2026-10-03; 30 before), LVL 1 and the Neighborhood. The saved record then has `SchemaVersion 6, Rebirths 1`.
 3. After the rebirth, High School and College show as locked again, and the button reads `REBIRTH 1`.
 4. Dunk, air-trick and training gains include the rebirth multiplier.
 5. Below the requirement, the panel shows what is missing, and the server rejects any request that is forced through anyway.

@@ -77,6 +77,8 @@ It hides during a dunk and while the new-player tutorial panel is up (the tutori
 | Training Level 2 / 3 / 4 / 5 / 6 | $250 / $600 / $1,200 / $2,000 / $3,500 | **$120 / $350 / $800 / $1,500 / $3,000** |
 | High School Gym unlock | 75 Vertical + $6,000 | 75 Vertical + **$4,000** |
 
+**2026-10-03:** Training Level 2 is now **$60** and Level 1 trains at +0.15 per rep; new players start at 35 Vertical and dunk before they train. Playtime gifts and a goal card were added for the first minutes. See `TUTORIAL_BADGES_ANALYTICS.md` and `GIFTS_AND_GOALS.md`.
+
 Together with rhythm reps (up to x3 training), HEAT, bills and Golden Balls, a new player has something to buy or unlock about every minute in the first ten.
 
 The **High School route board** at the Neighborhood bus stop is builder-made scenery. Its two labels were edited in the place to read "$4000", so save the place. `tools/highschool` reads the price from CourtConfig, so a rebuild matches too.

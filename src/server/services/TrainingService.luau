@@ -9,6 +9,7 @@ local GameplayObjects = require(script.Parent.GameplayObjects)
 local ChallengeService = require(script.Parent.ChallengeService)
 local DailyService = require(script.Parent.DailyService)
 local SeasonXp = require(script.Parent.SeasonXp)
+local MilestoneService = require(script.Parent.MilestoneService)
 local SeasonXpValues = require(ReplicatedStorage.Shared.Config.SeasonConfig).XP
 
 local TrainingService = {}
@@ -91,6 +92,8 @@ local function afterRep(player: Player)
 	if not tracked then warn("[TrainingService] Challenge tracking failed: " .. tostring(problem)) end
 	local dailyTracked, dailyProblem = pcall(DailyService.OnTrainingRep, player)
 	if not dailyTracked then warn("[TrainingService] Daily tracking failed: " .. tostring(dailyProblem)) end
+	local logged, logProblem = pcall(MilestoneService.OnTrainingRep, player)
+	if not logged then warn("[TrainingService] Onboarding tracking failed: " .. tostring(logProblem)) end
 end
 
 local function beatTime(session: TrainingSession, beat: number): number

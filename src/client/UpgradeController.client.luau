@@ -106,20 +106,25 @@ local function money(amount)
 	return "$" .. UI.Number(amount)
 end
 
+-- Vertical per rep with up to two decimals ("0.15", "0.2", "1").
+local function perRep(amount: number): string
+	return (string.format("%.2f", amount):gsub("%.?0+$", ""))
+end
+
 local function render()
 	if not snapshot then
 		return
 	end
 	cash.Text = "Cash: " .. money(snapshot.Cash)
 	current.Text = "Training Level\nLevel " .. snapshot.TrainingLevel
-	gain.Text = string.format("Current: +%.1f Vertical / rep", snapshot.VerticalPerRep)
+	gain.Text = string.format("Current: +%s Vertical / rep", perRep(snapshot.VerticalPerRep))
 	if not snapshot.NextLevel then
 		nextLevel.Text = "MAX LEVEL"
 		cost.Text = ""
 		buy.Visible = false
 		return
 	end
-	nextLevel.Text = string.format("Next: Level %d\n+%.1f Vertical / rep", snapshot.NextLevel, snapshot.NextVerticalPerRep)
+	nextLevel.Text = string.format("Next: Level %d\n+%s Vertical / rep", snapshot.NextLevel, perRep(snapshot.NextVerticalPerRep))
 	cost.Text = "Cost: " .. money(snapshot.Price)
 	buy.Visible = true
 	local available = snapshot.CanAfford and snapshot.CanPurchase and not pending

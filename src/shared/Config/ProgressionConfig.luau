@@ -1,5 +1,7 @@
 local ProgressionConfig = {
-	StartingVertical = 30,
+	-- Same as DunkConfig.DunkMinimumVertical, so a new player can dunk straight away (train
+	-- second). Saved profiles below this are raised to it on load (PlayerDataSchema).
+	StartingVertical = 35,
 	StartingCash = 0,
 	Training = {
 		StationName = "VerticalTrainer",

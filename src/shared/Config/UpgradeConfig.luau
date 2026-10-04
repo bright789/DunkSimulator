@@ -5,11 +5,13 @@ local UpgradeConfig = {
 	RequestCooldownSeconds = 0.5,
 	SessionCheckSeconds = 0.2,
 	-- Vertical gained per training rep (every 0.5 s at a station, or with Auto Train) at
-	-- each Training Level, before court and Rebirth bonuses: Level n = n x 0.1.
+	-- each Training Level, before court and Rebirth bonuses: Level n = n x 0.1, except
+	-- Level 1 (0.15) so a brand-new player's first training feels quick.
 	Levels = {
-		{ VerticalPerRep = 0.1, Cost = 0 },
-		-- Cheap first steps so a new player can buy something about every minute.
-		{ VerticalPerRep = 0.2, Cost = 120 },
+		{ VerticalPerRep = 0.15, Cost = 0 },
+		-- Cheap first steps so a new player can buy something about every minute. Level 2 is
+		-- about three first dunks, the last step of the tutorial.
+		{ VerticalPerRep = 0.2, Cost = 60 },
 		{ VerticalPerRep = 0.3, Cost = 350 },
 		{ VerticalPerRep = 0.4, Cost = 800 },
 		{ VerticalPerRep = 0.5, Cost = 1500 },

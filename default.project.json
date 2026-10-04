@@ -135,6 +135,15 @@
         },
         "ChallengeState": {
           "$className": "RemoteEvent"
+        },
+        "GiftRequest": {
+          "$className": "RemoteEvent"
+        },
+        "GiftState": {
+          "$className": "RemoteEvent"
+        },
+        "GoalState": {
+          "$className": "RemoteEvent"
         }
       }
     }

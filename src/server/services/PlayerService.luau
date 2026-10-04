@@ -590,6 +590,7 @@ function PlayerService.GetMilestoneSnapshot(player: Player)
 		TrainingLevel = state.TrainingLevel,
 		Rebirths = state.Rebirths,
 		ContestWins = state.Stats.ContestWins,
+		BestContestScore = state.Stats.BestContestScore,
 		Cash = state.Cash,
 		HasBall = player:GetAttribute("HasBasketball") == true,
 		UnlockedCourts = table.clone(state.UnlockedCourts),

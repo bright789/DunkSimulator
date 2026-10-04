@@ -110,6 +110,8 @@ Game Feel & Juice v0.2 implementation adds style-specific post-validation gather
 
 **Implemented — Premium perk and Dunk Pass:** +10% Cash for Roblox Premium members (with a Premium upsell button), and a 30-tier Dunk Pass season (XP from dunks, PERFECTs, air tricks, PERFECT reps, Golden Balls, packs and daily challenges; free and premium rewards; Season 1 exclusives: Launch Jets, Launch Day and Rocket balls, Hype Man, Season Rookie, Launch Legend). The premium pass waits for its id. Schema v14. See `DUNK_PASS.md`.
 
+**Implemented, not yet play-tested — First five minutes (2026-10-03):** live data showed 41% of new players quit before training to 35 Vertical and only 24.8% still played after 5 minutes. New players now start at 35 Vertical (old profiles below 35 are raised on load) and the tutorial is grab a ball → dunk → train to 40 → buy Level 2 (now $60; Level 1 trains at +0.15). Seven per-session playtime gifts (1–30 minutes; Cash, Cash Boost, a crew pack), an always-on goal card with auto-paid rewards, and an eight-step onboarding funnel (Joined, Moved, Ball, DunkTry, Dunk, FirstRep, Train, Upgrade). No schema change. See `TUTORIAL_BADGES_ANALYTICS.md` and `GIFTS_AND_GOALS.md`.
+
 ## 11. Monetization
 
 Introduce balanced, platform-compliant cosmetics and optional convenience products after core retention is validated.

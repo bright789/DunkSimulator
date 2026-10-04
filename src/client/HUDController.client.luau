@@ -45,6 +45,12 @@ local SeasonController = require(script.Parent:WaitForChild("SeasonController"))
 local season = SeasonController.new(player, view)
 local PayoutOfferController = require(script.Parent:WaitForChild("PayoutOfferController"))
 local payoutOffer = PayoutOfferController.new(player)
+-- Something every minute: playtime GIFTS and the next-goal card (placed after the ability
+-- row exists, which the card sits under on touch screens).
+local GiftsController = require(script.Parent:WaitForChild("GiftsController"))
+local gifts = GiftsController.new(player, view)
+local GoalController = require(script.Parent:WaitForChild("GoalController"))
+local goals = GoalController.new(player, view)
 local connections = {}
 local previous = {}
 local destroyed = false
@@ -157,6 +163,8 @@ script.Destroying:Connect(function()
 	crew.Destroy()
 	season.Destroy()
 	payoutOffer.Destroy()
+	gifts.Destroy()
+	goals.Destroy()
 	daily.Destroy()
 	contest.Destroy()
 	locker.Destroy()

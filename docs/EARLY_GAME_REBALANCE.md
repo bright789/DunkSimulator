@@ -6,7 +6,7 @@ This is a **prototype balance change**, not a new progression system. No trainin
 
 ## Training
 
-Each valid server-timed tick generates the authoritative TrainingLevel's `VerticalPerRep` (0.1 per level, see `TRAINING_UPGRADES.md`) × the validated current court's TrainingMultiplier. The existing millionth-unit `VerticalTrainingRemainder` carries fractional progress and persists; only whole points increase Vertical, trigger unlocks or appear in HUD gain feedback. Training grants no Cash. Neighborhood remains 1.00x, High School remains 1.15x. Tick interval remains 0.5 seconds.
+Each valid server-timed tick generates the authoritative TrainingLevel's `VerticalPerRep` (0.1 per level, 0.15 at Level 1; see `TRAINING_UPGRADES.md`) × the validated current court's TrainingMultiplier. The existing millionth-unit `VerticalTrainingRemainder` carries fractional progress and persists; only whole points increase Vertical, trigger unlocks or appear in HUD gain feedback. Training grants no Cash. Neighborhood remains 1.00x, High School remains 1.15x. Tick interval remains 0.5 seconds.
 
 | Level | Old Vertical/tick | New efficiency | Old cost | New cost |
 | ---: | ---: | ---: | ---: | ---: |

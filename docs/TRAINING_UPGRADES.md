@@ -2,12 +2,12 @@
 
 ## Prototype Balance and State
 
-New players start at Vertical 30, Cash 0, TrainingLevel 1. TrainingLevel is private server state, not a leaderstats column or a client-authoritative attribute. Cash, Vertical, and TrainingLevel now survive rejoining through [Data Persistence v0.1](DATA_PERSISTENCE.md); gameplay waits for successful loading. Use the isolated DEV store for these tests.
+New players start at Vertical 35 (the dunk minimum, so they can dunk before training; since 2026-10-03), Cash 0, TrainingLevel 1. TrainingLevel is private server state, not a leaderstats column or a client-authoritative attribute. Cash, Vertical, and TrainingLevel now survive rejoining through [Data Persistence v0.1](DATA_PERSISTENCE.md); gameplay waits for successful loading. Use the isolated DEV store for these tests.
 
 | Training Level | Vertical per rep | Cost to buy this level |
 | --- | --- | --- |
-| 1 | +0.1 | Starting level |
-| 2 | +0.2 | $120 |
+| 1 | +0.15 | Starting level |
+| 2 | +0.2 | $60 |
 | 3 | +0.3 | $350 |
 | 4 | +0.4 | $800 |
 | 5 | +0.5 | $1,500 |
@@ -17,13 +17,15 @@ New players start at Vertical 30, Cash 0, TrainingLevel 1. TrainingLevel is priv
 | 9 | +0.9 | $12,000 |
 | 10 | +1.0 | $18,000 |
 
+**2026-10-03 change (first five minutes):** Level 1 went from +0.1 to **+0.15** per rep and Level 2 from $120 to **$60** (about three first dunks), so a new player's first training and first upgrade come quickly. Level 2 stays +0.2, so it is still an upgrade. The upgrade panel shows two decimals (`+0.15 Vertical / rep`). See `TUTORIAL_BADGES_ANALYTICS.md` for the new tutorial order.
+
 **2026-09-27 change:** training used to be 0.25 × an efficiency multiplier (1.00x–2.00x). Now each level adds a flat +0.1 Vertical per rep, from 0.1 at Level 1 to 1.0 at Level 10, so upgrades are the main way training gets faster (10× from Level 1 to Level 10, instead of 2×). The court training bonus (High School ×1.15, College ×1.3, Rooftop ×1.45) and the Rebirth training bonus still multiply it. Auto Train uses the same rate. The pacing model put the first Rebirth at about the same time as before (around 61 minutes with upgrade buying), with a slower Level 1 start and much faster late levels.
 
 These are prototype prices, not final economy balance. `src/shared/Config/UpgradeConfig.luau` owns the starting level, full price/efficiency table, interaction range (8), purchase/open throttles (0.5 seconds), and session check interval (0.2 seconds). The unchanged 2-second UI confirmation lives in `src/shared/Config/FeedbackConfig.luau`. Maximum level is the table length. Vertical per rep comes straight from the level's `VerticalPerRep`; the tick time (0.5 seconds) and jump curve are unchanged.
 
 **Training gives no Cash.** TrainingService's existing hold sessions/timing remain untouched; every valid tick calls PlayerService.AwardTraining, which computes the TrainingLevel's `VerticalPerRep` × validated court training bonus × Rebirth training bonus and accumulates the existing persisted fractional remainder. Only whole points update Vertical, jump height and HUD feedback. Buying a level only deducts Cash and changes TrainingLevel; it grants no Vertical and does not recalculate jump height until training increases Vertical.
 
-Completed Neighborhood Basic One-Hand dunks award **$20**; Two-Hand Power awards **$35**, Tomahawk **$60**, and Windmill **$100**, from DunkStyles configuration. A handful of Basic dunks fund the $120 Level 2 purchase from zero Cash (levels 2-6 were made cheaper on 2026-09-27, see `ENGAGEMENT.md`), before any challenge claims; training never pays Cash, but PERFECT/GOOD beats on the rhythm ring make reps up to 3x bigger (see `ENGAGEMENT.md`). Court multipliers still adjust final payouts. The loop is TRAIN -> DUNK -> CASH -> UPGRADE -> TRAIN MORE EFFICIENTLY, without shorter tick intervals.
+Completed Neighborhood Basic One-Hand dunks award **$20**; Two-Hand Power awards **$35**, Tomahawk **$60**, and Windmill **$100**, from DunkStyles configuration. About three Basic dunks fund the $60 Level 2 purchase from zero Cash (levels 2-6 were made cheaper on 2026-09-27, see `ENGAGEMENT.md`), before any challenge claims; training never pays Cash, but PERFECT/GOOD beats on the rhythm ring make reps up to 3x bigger (see `ENGAGEMENT.md`). Court multipliers still adjust final payouts. The loop is TRAIN -> DUNK -> CASH -> UPGRADE -> TRAIN MORE EFFICIENTLY, without shorter tick intervals.
 
 ## One-Time Studio Setup
 

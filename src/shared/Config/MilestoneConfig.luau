@@ -1,30 +1,25 @@
 -- Player milestones shared by the new-player tutorial (client), badges and analytics
 -- funnels (server). Every check reads a plain snapshot built from progress the game already
 -- saves, so milestones never need their own saved data:
---   { Vertical, BestVertical, TotalDunks, TrainingLevel, Rebirths, ContestWins, Cash,
---     HasBall, UnlockedCourts = { [courtId] = true } }
-local DunkConfig = require(script.Parent.DunkConfig)
+--   { Vertical, BestVertical, TotalDunks, TrainingLevel, Rebirths, ContestWins,
+--     BestContestScore, Cash, HasBall, UnlockedCourts = { [courtId] = true } }
+-- (The client's tutorial snapshot fills only the fields the tutorial reads.)
 local ProgressionConfig = require(script.Parent.ProgressionConfig)
 local UpgradeConfig = require(script.Parent.UpgradeConfig)
 
 local Milestones = {}
 
-local dunkVertical = DunkConfig.DunkMinimumVertical
 local firstUpgradeCost = UpgradeConfig.Levels[UpgradeConfig.StartingLevel + 1].Cost
+
+-- New players start at the dunk minimum (ProgressionConfig.StartingVertical), so the
+-- tutorial is "dunk first, train second": the Train step asks for this much Vertical.
+Milestones.TutorialTrainVertical = 40
+local trainVertical = Milestones.TutorialTrainVertical
 
 -- New-player tutorial, in order. `Target` names the map part the guide arrow points at
 -- (the nearest one to the player); `Progress` returns (current, goal) for the progress bar.
+-- The Id of each step is also the name of its onboarding funnel step (Onboarding below).
 Milestones.Tutorial = {
-	{
-		Id = "Train",
-		Title = "TRAIN YOUR VERTICAL",
-		Detail = string.format("Hold E at the Leg Day Gym (click on the beat for 3x reps!) to reach %d Vertical.", dunkVertical),
-		TouchDetail = string.format("Hold the Leg Day Gym button (tap PUMP on the beat for 3x reps!) to reach %d Vertical.", dunkVertical),
-		Target = ProgressionConfig.Training.StationName,
-		Marker = "TRAIN HERE",
-		Done = function(s) return s.BestVertical >= dunkVertical end,
-		Progress = function(s) return s.Vertical, dunkVertical end,
-	},
 	{
 		Id = "Ball",
 		Title = "GRAB A BASKETBALL",
@@ -41,6 +36,18 @@ Milestones.Tutorial = {
 		Target = "Rim",
 		Marker = "DUNK HERE",
 		Done = function(s) return s.TotalDunks >= 1 end,
+	},
+	{
+		Id = "Train",
+		Title = string.format("TRAIN YOUR VERTICAL TO %d", trainVertical),
+		Detail = "Hold E at the Leg Day Gym (click on the beat for 3x!). Higher jumps = bigger dunk Cash!",
+		TouchDetail = "Hold the Leg Day Gym button (tap PUMP on the beat!). Higher jumps = bigger dunk Cash!",
+		Target = ProgressionConfig.Training.StationName,
+		Marker = "TRAIN HERE",
+		-- Owning Training Level 2 also counts: those players have already trained, and it keeps
+		-- players who finished the old tutorial (train to 35 first) from seeing it again.
+		Done = function(s) return s.BestVertical >= trainVertical or s.TrainingLevel > UpgradeConfig.StartingLevel end,
+		Progress = function(s) return s.Vertical, trainVertical end,
 	},
 	{
 		Id = "Upgrade",
@@ -64,6 +71,22 @@ end
 -- The tutorial is only for first-run players: never after a Rebirth, and not once finished.
 function Milestones.TutorialActive(snapshot): boolean
 	return snapshot.Rebirths == 0 and Milestones.TutorialStepsDone(snapshot) < #Milestones.Tutorial
+end
+
+-- Onboarding funnel (Creator Hub -> Analytics -> Funnels -> Onboarding), finer than the
+-- tutorial so the dashboard can tell "couldn't find it" from "found it but quit". Steps with
+-- a tutorial step's Id are reached when that step is done; the others are reported by the
+-- server as they happen (MilestoneService):
+--   Moved     walked MoveStuds (flat) from where the character was first seen this session
+--   DunkTry   a dunk request reached the server while the player held a ball
+--   FirstRep  a training rep counted
+-- Each step implies the ones before it, so they are always logged in this order.
+Milestones.Onboarding = { "Joined", "Moved", "Ball", "DunkTry", "Dunk", "FirstRep", "Train", "Upgrade" }
+Milestones.MoveStuds = 10
+
+-- Position of a step name in Milestones.Onboarding (nil if unknown).
+function Milestones.OnboardingStep(name: string): number?
+	return table.find(Milestones.Onboarding, name)
 end
 
 -- One-time progression funnel for analytics. Each step implies the ones before it, because

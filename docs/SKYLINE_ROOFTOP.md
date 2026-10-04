@@ -47,7 +47,7 @@ Rebirth now needs **300 Vertical** (only trainable at the Skyline Rooftop) and *
 
 ## Pacing change: training speed
 
-`ProgressionConfig.Training.BaseProgressPerTick` changed from **1.0 to 0.25**. Training used to take under 2 minutes for a whole run, which made Training Upgrades almost pointless. It now takes about 1–2.5 minutes per court. (Later replaced by per-level rates: +0.1 Vertical per rep per Training Level. See `TRAINING_UPGRADES.md`.)
+`ProgressionConfig.Training.BaseProgressPerTick` changed from **1.0 to 0.25**. Training used to take under 2 minutes for a whole run, which made Training Upgrades almost pointless. It now takes about 1–2.5 minutes per court. (Later replaced by per-level rates of about +0.1 Vertical per rep per Training Level; Level 1 is +0.15. See `TRAINING_UPGRADES.md`.)
 
 ## Other updates
 

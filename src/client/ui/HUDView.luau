@@ -114,7 +114,7 @@ function HUDView.new(playerGui: PlayerGui)
 	local navigation = Instance.new("Frame")
 	navigation.Name = "Navigation"
 	navigation.BackgroundTransparency = 1
-	navigation.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight * 6 + Config.Layout.Gap * 5)
+	navigation.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight * 7 + Config.Layout.Gap * 6)
 	navigation.LayoutOrder = 5
 	navigation.Parent = column
 	local dunksButton = Instance.new("TextButton")
@@ -199,6 +199,14 @@ function HUDView.new(playerGui: PlayerGui)
 	passButton.Size = UDim2.new(0.48, 0, 0, Config.Layout.DunksButtonHeight)
 	passButton.Position = UDim2.new(0.52, 0, 0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 5)
 	passButton.Parent = navigation
+	-- Full-width last row: free playtime GIFTS (count ready, or a countdown to the next one).
+	local giftsButton = dunksButton:Clone()
+	giftsButton.Name = "Gifts"
+	giftsButton.Text = "GIFTS"
+	giftsButton.TextColor3 = Config.Colors.Gold
+	giftsButton.Size = UDim2.new(1, 0, 0, Config.Layout.DunksButtonHeight)
+	giftsButton.Position = UDim2.fromOffset(0, (Config.Layout.DunksButtonHeight + Config.Layout.Gap) * 6)
+	giftsButton.Parent = navigation
 	-- Cash Boost countdown pill (shown only while a boost runs).
 	local boost = UI.Panel(column, "CashBoost", UDim2.new(1, 0, 0, Config.Layout.BoostHeight), UDim2.new())
 	boost.LayoutOrder = 6
@@ -255,6 +263,7 @@ function HUDView.new(playerGui: PlayerGui)
 	UI.Interactive(abilitiesButton)
 	UI.Interactive(crewButton)
 	UI.Interactive(passButton)
+	UI.Interactive(giftsButton)
 	UI.Interactive(autoButton)
 	UI.Interactive(groupButton)
 	UI.Interactive(premiumButton)
@@ -312,8 +321,8 @@ function HUDView.new(playerGui: PlayerGui)
 	local view = { DunksButton = dunksButton, CourtsButton = courtsButton, ChallengesButton = challengesButton,
 		RebirthButton = rebirthButton, DailyButton = dailyButton, LockerButton = lockerButton,
 		InviteButton = inviteButton, MusicButton = musicButton, AutoTrainButton = autoButton, GroupButton = groupButton,
-		CodesButton = codesButton, AbilitiesButton = abilitiesButton, CrewButton = crewButton, Navigation = navigation,
-		PremiumButton = premiumButton, PassButton = passButton }
+		CodesButton = codesButton, AbilitiesButton = abilitiesButton, CrewButton = crewButton, Navigation = navigation, Column = column, TouchLayout = touchLayout,
+		PremiumButton = premiumButton, PassButton = passButton, GiftsButton = giftsButton }
 	local courtName, rebirths = "--", 0
 
 	local function refreshCourtLabel()
@@ -364,6 +373,12 @@ function HUDView.new(playerGui: PlayerGui)
 			groupButton.Visible = visible
 			resize()
 		end
+	end
+
+	-- GIFTS button: `text` is "GIFTS (2)", a countdown or "GIFTS"; `ready` highlights it.
+	function view.SetGifts(text: string, ready: boolean)
+		giftsButton.Text = text
+		giftsButton.TextColor3 = ready and Config.Colors.Gain or Config.Colors.Gold
 	end
 
 	-- Number of Dunk Pass rewards ready to claim, shown on the button.

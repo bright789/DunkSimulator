@@ -2,6 +2,9 @@
 -- logs the analytics onboarding and progression funnels. Everything is worked out from
 -- progress the game already saves, so nothing new is stored. On join, badges the player
 -- already qualifies for (but doesn't own) are awarded too. Badges with id 0 are skipped.
+-- The onboarding funnel (Milestones.Onboarding) also has three steps the server sees happen
+-- during the session: Moved (checked here), DunkTry (DunkService) and FirstRep
+-- (TrainingService). Each step is logged at most once per session, always in order.
 local BadgeService = game:GetService("BadgeService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,13 +19,21 @@ local MilestoneService = {}
 -- Player attributes that can change a milestone; a slow sweep also catches court unlocks.
 local WATCHED = { "TotalDunks", "BestVertical", "TrainingLevel", "Rebirths", "ContestWins", "HasBasketball", "CurrentCourt" }
 local SWEEP_SECONDS = 5
+-- How often onboarding players are checked for the Moved step.
+local MOVE_CHECK_SECONDS = 1
 local isStudio = RunService:IsStudio()
 local initialized = false
 
 type Entry = {
 	Badges: { [string]: boolean },
 	Onboarding: boolean,
+	-- Highest onboarding funnel step logged this session.
 	OnboardingLogged: number,
+	-- Funnel steps the server saw happen this session (Moved, DunkTry, FirstRep), by index.
+	Reached: { [number]: boolean },
+	-- Moved check: the character being watched and where it was first seen.
+	MoveCharacter: Model?,
+	MoveOrigin: Vector3?,
 	ProgressionLogged: number,
 	Connections: { RBXScriptConnection },
 }
@@ -76,6 +87,29 @@ local function awardMissingBadges(player: Player, earned)
 	end
 end
 
+-- Logs every onboarding funnel step the player has now reached, in order. A done tutorial
+-- step (from saved progress) implies every funnel step before it, so missing earlier steps
+-- are logged first; a step seen this session (Moved, DunkTry, FirstRep) is logged once the
+-- step before it has been.
+local function logOnboarding(player: Player, entry: Entry, snapshot)
+	local reached = entry.OnboardingLogged
+	local done = Milestones.TutorialStepsDone(snapshot)
+	if done > 0 then
+		reached = math.max(reached, Milestones.OnboardingStep(Milestones.Tutorial[done].Id) or 0)
+	end
+	while entry.Reached[reached + 1] do
+		reached += 1
+	end
+	for step = entry.OnboardingLogged + 1, reached do
+		Analytics.OnboardingStep(player, step, Milestones.Onboarding[step])
+	end
+	entry.OnboardingLogged = math.max(entry.OnboardingLogged, reached)
+	if entry.OnboardingLogged >= #Milestones.Onboarding then
+		entry.Onboarding = false
+		Analytics.Custom(player, "TutorialComplete")
+	end
+end
+
 local function check(player: Player)
 	local entry = entries[player]
 	local snapshot = entry and PlayerService.GetMilestoneSnapshot(player)
@@ -86,18 +120,7 @@ local function check(player: Player)
 			task.spawn(awardBadge, player, badge)
 		end
 	end
-	if entry.Onboarding then
-		local done = Milestones.TutorialStepsDone(snapshot)
-		if done > entry.OnboardingLogged then
-			entry.OnboardingLogged = done
-			-- Funnel step 1 is "Joined", so tutorial step n is funnel step n + 1.
-			Analytics.OnboardingStep(player, done + 1, Milestones.Tutorial[done].Id)
-			if done == #Milestones.Tutorial then
-				entry.Onboarding = false
-				Analytics.Custom(player, "TutorialComplete")
-			end
-		end
-	end
+	if entry.Onboarding then logOnboarding(player, entry, snapshot) end
 	local reached = Milestones.ProgressionReached(snapshot)
 	if reached > entry.ProgressionLogged then
 		entry.ProgressionLogged = reached
@@ -110,11 +133,55 @@ local function safeCheck(player: Player)
 	if not ok then warn("[MilestoneService] Check failed: " .. tostring(problem)) end
 end
 
+-- Records an onboarding step the server saw happen (once per session) and logs what it can.
+local function reach(player: Player, stepName: string)
+	local entry = entries[player]
+	local step = Milestones.OnboardingStep(stepName)
+	if not entry or not entry.Onboarding or not step or entry.Reached[step] or entry.OnboardingLogged >= step then
+		return
+	end
+	entry.Reached[step] = true
+	safeCheck(player)
+end
+
+-- Moved: the character has walked MoveStuds (flat) from where it was first seen once the
+-- player was ready (after court placement). A respawned character starts a new check.
+local function checkMoved(player: Player, entry: Entry)
+	local step = Milestones.OnboardingStep("Moved")
+	if not entry.Onboarding or not step or entry.Reached[step] or entry.OnboardingLogged >= step
+		or not PlayerService.IsReady(player) then
+		return
+	end
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then return end
+	if entry.MoveCharacter ~= character or not entry.MoveOrigin then
+		entry.MoveCharacter = character
+		entry.MoveOrigin = root.Position
+		return
+	end
+	local offset = root.Position - entry.MoveOrigin
+	if Vector3.new(offset.X, 0, offset.Z).Magnitude >= Milestones.MoveStuds then
+		reach(player, "Moved")
+	end
+end
+
+-- DunkService: a dunk request reached the server while the player held a ball.
+function MilestoneService.OnDunkRequest(player: Player)
+	reach(player, "DunkTry")
+end
+
+-- TrainingService: a training rep counted (station or Auto Train).
+function MilestoneService.OnTrainingRep(player: Player)
+	reach(player, "FirstRep")
+end
+
 -- Called once the player's saved data has loaded.
 function MilestoneService.OnPlayerReady(player: Player)
 	local snapshot = PlayerService.GetMilestoneSnapshot(player)
 	if not snapshot or entries[player] then return end
-	local entry: Entry = { Badges = {}, Onboarding = false, OnboardingLogged = 0, ProgressionLogged = 0, Connections = {} }
+	local entry: Entry = { Badges = {}, Onboarding = false, OnboardingLogged = 0, Reached = {}, MoveCharacter = nil,
+		MoveOrigin = nil, ProgressionLogged = 0, Connections = {} }
 	entries[player] = entry
 
 	local earned = {}
@@ -127,11 +194,11 @@ function MilestoneService.OnPlayerReady(player: Player)
 	task.spawn(awardMissingBadges, player, earned)
 
 	if Milestones.TutorialActive(snapshot) then
+		-- Returning players also log the steps their saved progress already implies.
 		entry.Onboarding = true
-		local done = Milestones.TutorialStepsDone(snapshot)
-		Analytics.OnboardingStep(player, 1, "Joined")
-		if done > 0 then Analytics.OnboardingStep(player, done + 1, Milestones.Tutorial[done].Id) end
-		entry.OnboardingLogged = done
+		Analytics.OnboardingStep(player, 1, Milestones.Onboarding[1])
+		entry.OnboardingLogged = 1
+		logOnboarding(player, entry, snapshot)
 	end
 	local reached = Milestones.ProgressionReached(snapshot)
 	if reached > 0 then Analytics.ProgressionStep(player, reached, Milestones.Progression[reached].Id) end
@@ -156,6 +223,15 @@ function MilestoneService.Init()
 		while true do
 			task.wait(SWEEP_SECONDS)
 			for player in entries do safeCheck(player) end
+		end
+	end)
+	task.spawn(function()
+		while true do
+			task.wait(MOVE_CHECK_SECONDS)
+			for player, entry in entries do
+				local ok, problem = pcall(checkMoved, player, entry)
+				if not ok then warn("[MilestoneService] Move check failed: " .. tostring(problem)) end
+			end
 		end
 	end)
 end

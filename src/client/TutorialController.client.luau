@@ -1,8 +1,8 @@
--- New-player tutorial: train to dunk height, grab a ball, dunk, then buy the first training
--- upgrade (steps in MilestoneConfig.Tutorial). It reads progress the server already
--- replicates (leaderstats and player attributes), so it needs no saved data of its own:
--- players who finished the steps, or have Rebirthed, never see it. SKIP hides it for the
--- session. Display only; the server logs the matching analytics funnel.
+-- New-player tutorial: grab a ball, dunk (new players start at dunk height), train, then
+-- buy the first training upgrade (steps in MilestoneConfig.Tutorial). It reads progress the
+-- server already replicates (leaderstats and player attributes), so it needs no saved data
+-- of its own: players who finished the steps, or have Rebirthed, never see it. SKIP hides it
+-- for the session. Display only; the server logs the matching analytics funnel.
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

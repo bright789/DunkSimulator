@@ -9,7 +9,7 @@ Use a **separate published private Studio test experience** with API access enab
    local userId = game:GetService("StudioService"):GetUserId(); require(game:GetService("ServerScriptService").data.PlayerDataStore).ResetStudioData(userId, "RESET " .. tostring(userId))
    ```
 
-3. Start a new solo Play session and start one cumulative timer after `DataStatus` becomes Ready. Confirm Cash 0, Vertical 30, TrainingLevel 1, fractional remainder 0, Neighborhood only, default Basic selection, and zero claimed dunk challenges. The reach-Vertical challenges should evaluate from 30 normally. Do **not** grant stats, Cash, unlocks, or challenge progress during this run.
+3. Start a new solo Play session and start one cumulative timer after `DataStatus` becomes Ready. Confirm Cash 0, Vertical 35, TrainingLevel 1, fractional remainder 0, Neighborhood only, default Basic selection, and zero claimed dunk challenges. The reach-Vertical challenges should evaluate from 35 normally. Do **not** grant stats, Cash, unlocks, or challenge progress during this run.
 4. Play normally. At each milestone below, record cumulative time, Cash, TrainingLevel, equipped style, current court, and any ReadyToClaim challenges. Release the trainer before reading values. Record the High School cash-ready and purchased times separately if they differ.
 
 | Milestone | Cumulative time | Cash | TrainingLevel | Notes / challenges ready |

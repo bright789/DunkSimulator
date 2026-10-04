@@ -29,6 +29,8 @@ local WelcomeBackService = require(script.Parent.services.WelcomeBackService)
 local CrewService = require(script.Parent.services.CrewService)
 local PremiumService = require(script.Parent.services.PremiumService)
 local SeasonService = require(script.Parent.services.SeasonService)
+local GiftService = require(script.Parent.services.GiftService)
+local GoalService = require(script.Parent.services.GoalService)
 local ProgressionConfig = require(game:GetService("ReplicatedStorage").Shared.Config.ProgressionConfig)
 
 workspace.Gravity = ProgressionConfig.Jump.Gravity
@@ -57,6 +59,10 @@ PlayerService.Init(CourtTravel.PlacePlayer, function(player)
 	if not premiumOk then warn("[ServerMain] Premium setup failed: " .. tostring(premiumProblem)) end
 	local seasonOk, seasonProblem = pcall(SeasonService.OnPlayerReady, player)
 	if not seasonOk then warn("[ServerMain] Dunk Pass setup failed: " .. tostring(seasonProblem)) end
+	local giftOk, giftProblem = pcall(GiftService.OnPlayerReady, player)
+	if not giftOk then warn("[ServerMain] Gift setup failed: " .. tostring(giftProblem)) end
+	local goalOk, goalProblem = pcall(GoalService.OnPlayerReady, player)
+	if not goalOk then warn("[ServerMain] Goal setup failed: " .. tostring(goalProblem)) end
 end)
 TrainingService.Init()
 BasketballService.Init()
@@ -79,6 +85,8 @@ PickupService.Init()
 CrewService.Init()
 PremiumService.Init()
 SeasonService.Init()
+GiftService.Init()
+GoalService.Init()
 DunkStyleService.Init()
 UpgradeService.Init()
 

@@ -19,6 +19,7 @@ local Analytics = require(script.Parent.AnalyticsReporter)
 local SeasonXp = require(script.Parent.SeasonXp)
 local SeasonXpValues = require(ReplicatedStorage.Shared.Config.SeasonConfig).XP
 local PayoutOffer = require(script.Parent.PayoutOfferService)
+local MilestoneService = require(script.Parent.MilestoneService)
 local remotes = ReplicatedStorage.Remotes
 
 local DunkService = {}
@@ -191,6 +192,11 @@ function DunkService.Init()
 		if not PlayerService.IsReady(player) then
 			debugRejection(player, "PLAYER_NOT_READY")
 			return
+		end
+		-- Onboarding funnel "DunkTry": a dunk press with a ball in hand (analytics only).
+		if BasketballService.HasBall(player) then
+			local logged, logProblem = pcall(MilestoneService.OnDunkRequest, player)
+			if not logged then warn("[DunkService] Onboarding tracking failed: " .. tostring(logProblem)) end
 		end
 		if PlayerService.GetDunkState(player) ~= "Idle" then
 			debugRejection(player, "BUSY")

@@ -12,7 +12,7 @@ A reason to come back every day: a 7-day login reward ladder with a streak, thre
 
 ## Numbers (starting values in `src/shared/Config/DailyConfig.luau`)
 
-Rewards are priced in **dunks**: one "dunk" is the Cash a plain dunk of your best unlocked style earns at your current Vertical, with no court, rebirth, timing or boost bonus (minimum $10). So the rewards stay worth claiming from 30 Vertical to 250.
+Rewards are priced in **dunks**: one "dunk" is the Cash a plain dunk of your best unlocked style earns at your current Vertical, with no court, rebirth, timing or boost bonus (minimum $10). So the rewards stay worth claiming from 35 Vertical (the start) to 250.
 
 | Ladder day | Cash | Extra |
 | --- | --- | --- |
@@ -24,7 +24,7 @@ Rewards are priced in **dunks**: one "dunk" is the Cash a plain dunk of your bes
 | 6 | 15 dunks (min $200) | |
 | 7 | 25 dunks (min $400) | 2x Cash Boost, 30 min |
 
-Examples: at 30 Vertical, Day 1 is $80 and Day 7 is $500. At 200 Vertical (Windmill), Day 1 is $1,080 and Day 7 is $6,750.
+Examples: at 35 Vertical, Day 1 is $84 and Day 7 is $525. At 200 Vertical (Windmill), Day 1 is $1,080 and Day 7 is $6,750.
 
 Each daily challenge pays **6 dunks (min $75)**. The sweep bonus is a **15-minute** Cash Boost. With the **2x Daily Rewards** pass, login and challenge Cash pays ×2 and the panel shows the doubled amounts (see `MONETIZATION.md`). The Cash Boost developer product adds 15 minutes to the same boost.
 

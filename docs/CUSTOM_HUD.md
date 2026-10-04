@@ -46,13 +46,14 @@ Layout uses the core safe area, UIListLayout, UIPadding, UIScale, UISizeConstrai
 - On phones (shortest side ≤ `Layout.CompactMaxSize`, 500 px), the Training card and dunk-progress panel are also hidden, and Court / Cash / Vertical are pinned to the top-left above the thumbstick.
 - `CompactStatsHeight` and `TouchMenuHeight` in `HUDConfig.Layout` set how much of the screen height each block uses.
 - Desktop and keyboard devices keep the original column.
+- The menu grid is now 2 columns x 6 rows plus a full-width GIFTS row (2026-10-03). The goal card sits top-right on desktop, under the stat column on phones and under the ability row on tablets; see `GIFTS_AND_GOALS.md`.
 - Checked in Studio's Device Emulator: iPhone XR (896×414) and iPad 6th gen (1024×768).
 
 ## Manual Studio Checklist
 
 Repeat visual checks at **1920x1080**, **1366x768**, **960x540**, and **800x600** using Studio's device/window sizing. Resize during Play as well as starting at each size.
 
-1. Fresh join: Cash $0, Vertical 30, Training LVL 1. PlayerList is hidden; server Explorer still contains leaderstats Cash/Vertical and the TrainingLevel player attribute. There is one NeighborhoodHUD, one DunkFeedback, and one TrainingUpgrades screen in PlayerGui. No phantom gain/level-up plays on join.
+1. Fresh join: Cash $0, Vertical 35, Training LVL 1. PlayerList is hidden; server Explorer still contains leaderstats Cash/Vertical and the TrainingLevel player attribute. There is one NeighborhoodHUD, one DunkFeedback, and one TrainingUpgrades screen in PlayerGui. No phantom gain/level-up plays on join.
 2. Check cards, captions, hint, progress, close button, and upgrade costs fit. The center stays clear outside short feedback/the open upgrade panel. Check default topbar/chat usability and that opening chat/focusing a text box still prevents F requests.
 3. Hold E on VerticalTrainer for at least 30 seconds: +1 per tick at Level 1, no Cash. Each +1 is brief; no UI pile-up or growing GUI descendant count. Release stops training. Jump capability remains unchanged from the working prototype.
 4. At Vertical 32 the bar shows 32 / 35. At 35 Basic unlocks; the card then previews the next locked milestone. At 50, 75 and 110 the corresponding style unlocks. The bar stays bounded and never claims a locked style is playable.
