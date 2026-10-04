@@ -3,7 +3,8 @@
 -- data loads) and claims in memory only: rejoining starts both over, and nothing is saved.
 -- A client can only ask to read its gifts or claim one by its number; the server checks the
 -- time itself and decides every reward (Cash priced in dunks, Cash Boost minutes, a free
--- Hype Crew pack).
+-- Hype Crew pack). Where Hype Crew packs are restricted (CrewService.PacksRestricted) the
+-- pack's price is paid as Cash instead, and the snapshot shows that Cash and no pack.
 --   GiftRequest  client -> server: ("Read") or ("Claim", index)
 --   GiftState    server -> client: (snapshot, result?) where snapshot is
 --     { StartedAt, Gifts = { { Minutes, UnlockAt, Claimed, Cash, BoostMinutes, CrewPack } } }
@@ -36,8 +37,15 @@ local function unlockAt(session, index: number): number
 	return session.StartedAt + Config.Gifts[index].Minutes * secondsPerMinute
 end
 
+-- True when this gift's crew pack is paid as Cash instead (packs restricted in the player's region).
+local function packAsCash(player: Player, gift): boolean
+	return gift.CrewPack == true and CrewService.PacksRestricted(player)
+end
+
 local function cashFor(player: Player, gift): number
-	return Config.Cash(gift, Daily.DunkValue(PlayerService.GetVertical(player) or 0))
+	local cash = Config.Cash(gift, Daily.DunkValue(PlayerService.GetVertical(player) or 0))
+	if packAsCash(player, gift) then cash += CrewService.BestPackPrice(player) end
+	return cash
 end
 
 local function snapshot(player: Player, session)
@@ -49,7 +57,7 @@ local function snapshot(player: Player, session)
 			Claimed = session.Claimed[index] == true,
 			Cash = cashFor(player, gift),
 			BoostMinutes = gift.BoostMinutes or 0,
-			CrewPack = gift.CrewPack == true,
+			CrewPack = gift.CrewPack == true and not packAsCash(player, gift),
 		}
 	end
 	return { StartedAt = session.StartedAt, Gifts = gifts }
@@ -81,7 +89,7 @@ local function claim(player: Player, index: number)
 		boost = 0
 	end
 	local pack = false
-	if gift.CrewPack then
+	if gift.CrewPack and not packAsCash(player, gift) then
 		pack = CrewService.GrantPack(player) ~= nil
 		if not pack then warn("[GiftService] Crew pack not granted to " .. player.Name) end
 	end

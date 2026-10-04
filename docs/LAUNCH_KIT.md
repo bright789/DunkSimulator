@@ -56,7 +56,7 @@ The codes store is separate from player data, so no schema change.
 **The launch weekend is scheduled:** Friday 2 Oct 2026 00:00 UTC → Monday 5 Oct 2026 00:00 UTC. That is **Thursday 1 Oct 7 PM → Sunday 4 Oct 7 PM** US Central (CDT). It turns on and off by itself; no republish needed.
 
 - `PlayerService` multiplies dunk and trick Cash by `EventConfig.CashMultiplier(os.time())`. The server is the only one that pays; the client only reads the same config to draw the countdown pill (using `Workspace:GetServerTimeNow()` so a wrong phone clock doesn't matter).
-- To schedule another event, add an entry with a new `Name`, `Starts`, `Ends` (Unix seconds, UTC) and `CashMultiplier`. Old entries can stay. If two overlap, the first one in the list wins.
+- To schedule another event, add an entry with a new `Name`, `Starts`, `Ends` (Unix seconds, UTC) and `CashMultiplier`. Old entries can stay. Since Pack A (2026-10-03), overlapping events (including Dunk Night and the random server events) multiply, capped at x4 in total (`MaxEventMultiplier`); the pill shows one line per event. See `ENGAGEMENT.md`.
 - Keep event names short (about 16 characters) so the pill fits on phones.
 - **Studio testing:** set `StudioForceEvent = 1` to pretend event #1 is running now. It's ignored on live servers, but **set it back to `0`** before publishing anyway.
 

@@ -1,29 +1,17 @@
--- CODES button and panel, plus the timed-event countdown pill (EventConfig). Sends
--- CodeRequest("Redeem", text) and shows the server's answer; the server decides everything.
+-- CODES button and panel. Sends CodeRequest("Redeem", text) and shows the server's answer;
+-- the server decides everything. (The event countdown pill moved to EventsController.)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
 
-local Events = require(ReplicatedStorage.Shared.Config.EventConfig)
 local View = require(script.Parent.ui:WaitForChild("CodesView"))
 local Feedback = require(script.Parent.FeedbackController)
 
 local CodesController = {}
-
-local function span(seconds: number): string
-	seconds = math.max(0, math.floor(seconds))
-	local days, hours, minutes = seconds // 86400, (seconds % 86400) // 3600, (seconds % 3600) // 60
-	if days > 0 then return string.format("%dd %dh", days, hours) end
-	if hours > 0 then return string.format("%dh %dm", hours, minutes) end
-	return string.format("%dm %02ds", minutes, seconds % 60)
-end
 
 function CodesController.new(player: Player, hud)
 	local request = ReplicatedStorage.Remotes:WaitForChild("CodeRequest")
 	local view = View.new(player:WaitForChild("PlayerGui"))
 	local connections = {}
 	local pending = false
-	local isStudio = RunService:IsStudio()
 
 	local function submit()
 		local text = view.Box.Text
@@ -60,19 +48,8 @@ function CodesController.new(player: Player, hud)
 	end))
 	table.insert(connections, view.Close.Activated:Connect(function() view.Panel.Visible = false end))
 
-	-- Event countdown pill.
-	local ticker = task.spawn(function()
-		while true do
-			local now = Workspace:GetServerTimeNow()
-			local event = Events.Active(now, isStudio)
-			hud.SetEvent(event and string.format("%s  %s", event.Name, span(event.Ends - now)) or nil)
-			task.wait(1)
-		end
-	end)
-
 	local controller = {}
 	function controller.Destroy()
-		task.cancel(ticker)
 		for _, connection in connections do connection:Disconnect() end
 		view.Destroy()
 	end

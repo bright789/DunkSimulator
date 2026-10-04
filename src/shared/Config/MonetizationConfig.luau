@@ -17,10 +17,11 @@ local MonetizationConfig = {
 			Description = "Diamond Kicks and the Diamond ball in your Locker, plus a VIP tag.", SuggestedRobux = 149 },
 		{ Key = "DoubleDaily", Id = 1998489062, Name = "2x Daily Rewards", Icon = "2x\nDAILY",
 			Description = "Double Cash from daily login rewards and daily challenges.", SuggestedRobux = 99 },
-		-- Hype Crew passes (see CrewConfig).
-		{ Key = "CrewLucky", Id = 1998015188, Name = "Lucky Packs", Icon = "LUCKY\nPACKS",
+		-- Hype Crew passes (see CrewConfig). PackPass = only useful for opening packs, so the
+		-- PASSES tab hides it where packs (paid random items) are restricted.
+		{ Key = "CrewLucky", Id = 1998015188, Name = "Lucky Packs", Icon = "LUCKY\nPACKS", PackPass = true,
 			Description = "Epic and Legendary Hype Crew show up twice as often in every pack.", SuggestedRobux = 199 },
-		{ Key = "CrewTriple", Id = 1998099184, Name = "Triple Open", Icon = "OPEN\nx3",
+		{ Key = "CrewTriple", Id = 1998099184, Name = "Triple Open", Icon = "OPEN\nx3", PackPass = true,
 			Description = "Open 3 Hype Crew packs at once.", SuggestedRobux = 99 },
 		{ Key = "CrewSlot", Id = 1998489170, Name = "+1 Crew Slot", Icon = "+1\nCREW",
 			Description = "Equip 4 Hype Crew members instead of 3.", SuggestedRobux = 149 },

@@ -4,7 +4,11 @@
 -- back on the same remote as ("Opened", results) or ("Result", ok, message).
 -- Mirrors for the HUD and the followers: CrewOwned ("id:stars,..."), CrewEquipped ("id,id"),
 -- CrewSlots, CrewCash and CrewTrain (bonus in whole percent).
+-- Packs cost Cash, which can be bought with Robux, so they are paid random items: in regions
+-- where Roblox restricts those (PolicyService), opening packs is refused and PacksRestricted
+-- is set on the player so the client can show packs as unavailable.
 local Players = game:GetService("Players")
+local PolicyService = game:GetService("PolicyService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config.CrewConfig)
@@ -19,6 +23,10 @@ local initialized = false
 local remote: RemoteEvent
 local random = Random.new()
 local nextRequest: { [Player]: number } = {}
+-- PolicyService answer per player (true = paid random items restricted); nil = not known yet.
+local restricted: { [Player]: boolean } = {}
+local nextPolicyLookup: { [Player]: number } = {}
+local POLICY_RETRY_SECONDS = 60
 
 local function slotsFor(player: Player): number
 	return PlayerService.HasPass(player, "CrewSlot") and Config.PassSlots or Config.Slots
@@ -42,22 +50,45 @@ local function reply(player: Player, ok: boolean, message: string)
 	if player.Parent == Players then remote:FireClient(player, "Result", ok, message) end
 end
 
--- One member from a pack: pick a rarity by the pack's odds (Lucky boosts Epic/Legendary),
--- then any member of that rarity in the pack.
-local function roll(packId: string, lucky: boolean): string
-	local pack = Config.Packs[packId]
-	local total = 0
-	local weights = {}
-	for rarity, weight in pack.Odds do
-		local boosted = (lucky and (rarity == "Epic" or rarity == "Legendary")) and weight * Config.LuckyMultiplier or weight
-		weights[rarity] = boosted
-		total += boosted
+-- Asks PolicyService whether paid random items are restricted for this player (one retry).
+-- Caches and publishes the answer. A failed lookup counts as restricted (the safe answer)
+-- and isn't cached, so it can be asked again after POLICY_RETRY_SECONDS. Yields.
+local function lookupPolicy(player: Player): boolean
+	if restricted[player] ~= nil then return restricted[player] end
+	if os.clock() < (nextPolicyLookup[player] or 0) then return true end
+	for attempt = 1, 2 do
+		local ok, info = pcall(PolicyService.GetPolicyInfoForPlayerAsync, PolicyService, player)
+		if player.Parent ~= Players then return true end
+		if ok and type(info) == "table" then
+			restricted[player] = info.ArePaidRandomItemsRestricted == true
+			player:SetAttribute("PacksRestricted", restricted[player])
+			return restricted[player]
+		end
+		if attempt == 1 then task.wait(1) end
 	end
+	warn("[CrewService] PolicyService lookup failed for " .. player.Name .. "; packs are off for now.")
+	nextPolicyLookup[player] = os.clock() + POLICY_RETRY_SECONDS
+	player:SetAttribute("PacksRestricted", true)
+	return true
+end
+
+-- Whether Hype Crew packs are off for this player, without waiting: an unknown answer counts
+-- as restricted. GiftService uses it to give a pack's value as Cash instead.
+function CrewService.PacksRestricted(player: Player): boolean
+	return restricted[player] ~= false
+end
+
+-- One member from a pack: pick a rarity by the pack's odds (CrewConfig.Odds, the same odds the
+-- PACKS page shows; Lucky boosts Epic/Legendary), then any member of that rarity in the pack.
+local function roll(packId: string, lucky: boolean): string
+	local odds = Config.Odds(packId, lucky)
+	local total = 0
+	for _, entry in odds do total += entry.Weight end
 	local pick = random:NextNumber(0, total)
 	local chosen = nil
-	for rarity, weight in weights do
-		chosen = rarity
-		pick -= weight
+	for _, entry in odds do
+		chosen = entry.Rarity
+		pick -= entry.Weight
 		if pick <= 0 then break end
 	end
 	local pool, any = {}, {}
@@ -107,6 +138,8 @@ local function buy(player: Player, packId, count)
 	if not PlayerService.HasCourt(player, pack.Court) then
 		return reply(player, false, "Unlock that court first.")
 	end
+	-- May wait for PolicyService the first time; nothing has been changed yet.
+	if lookupPolicy(player) then return reply(player, false, Config.RestrictedMessage) end
 	local crew = PlayerService.GetCrew(player)
 	if not crew then return reply(player, false, "Player data is not ready.") end
 	local price = pack.Price * count
@@ -130,6 +163,11 @@ local function bestPack(player: Player): string
 		if PlayerService.HasCourt(player, Config.Packs[packId].Court) then best = packId end
 	end
 	return best
+end
+
+-- Price of the pack GrantPack would open (GiftService pays it as Cash where packs are restricted).
+function CrewService.BestPackPrice(player: Player): number
+	return Config.Packs[bestPack(player)].Price
 end
 
 -- A free pack from a reward (Dunk Pass). Returns the reveal result, or nil.
@@ -174,6 +212,14 @@ local function equip(player: Player, memberId, on: boolean)
 end
 
 function CrewService.OnPlayerReady(player: Player)
+	task.spawn(function()
+		-- If the lookup failed, try again a little later (the PACKS page waits for an answer).
+		for _ = 1, 3 do
+			lookupPolicy(player)
+			if restricted[player] ~= nil or player.Parent ~= Players then return end
+			task.wait(POLICY_RETRY_SECONDS)
+		end
+	end)
 	-- Pass ownership arrives a moment after data; wait briefly so slots are right.
 	local waited = 0
 	while player.Parent == Players and player:GetAttribute("Pass_CrewSlot") == nil and waited < 10 do
@@ -207,7 +253,11 @@ function CrewService.Init()
 			reply(player, false, "Try again.")
 		end
 	end)
-	Players.PlayerRemoving:Connect(function(player) nextRequest[player] = nil end)
+	Players.PlayerRemoving:Connect(function(player)
+		nextRequest[player] = nil
+		restricted[player] = nil
+		nextPolicyLookup[player] = nil
+	end)
 end
 
 return CrewService

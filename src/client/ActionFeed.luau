@@ -128,8 +128,9 @@ function ActionFeed.Push(text: string, color: Color3)
 	ActionFeed.Add("once" .. order, 0, function() return text end, color)
 end
 
--- Big centre message, e.g. "ON FIRE!" or "GOLDEN BALL! +$4,000".
-function ActionFeed.Announce(text: string, color: Color3)
+-- Big centre message, e.g. "ON FIRE!" or "GOLDEN BALL! +$4,000". `holdSeconds` (optional)
+-- keeps it up longer than the usual 1.6 s, e.g. for event banners.
+function ActionFeed.Announce(text: string, color: Color3, holdSeconds: number?)
 	ensure()
 	bannerVersion += 1
 	local version = bannerVersion
@@ -143,7 +144,7 @@ function ActionFeed.Announce(text: string, color: Color3)
 	local scale = bannerScale :: UIScale
 	scale.Scale = 0.5
 	TweenService:Create(scale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
-	task.delay(1.6, function()
+	task.delay(holdSeconds or 1.6, function()
 		if bannerVersion ~= version then return end
 		if outline then TweenService:Create(outline, TweenInfo.new(0.35), { Transparency = 1 }):Play() end
 		local fade = TweenService:Create(label, TweenInfo.new(0.35), { TextTransparency = 1 })

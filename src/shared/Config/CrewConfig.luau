@@ -12,9 +12,13 @@ local CrewConfig = {
 	MaxedRefund = 0.25,
 	-- Permanent +Cash for owning every member of a pack's set.
 	SetBonusCash = 0.05,
-	-- Lucky Packs pass: Epic and Legendary weights are multiplied by this.
+	-- Lucky Packs pass: the weights of these rarities are multiplied by LuckyMultiplier.
 	LuckyMultiplier = 2,
+	LuckyRarities = { Epic = true, Legendary = true },
 	RequestCooldownSeconds = 0.4,
+	-- Packs cost Cash, and Cash can be bought with Robux, so packs are paid random items. Where
+	-- Roblox restricts those (PolicyService ArePaidRandomItemsRestricted) packs can't be opened.
+	RestrictedMessage = "Hype Crew packs aren't available in your region.",
 
 	Rarities = {
 		Common = { Order = 1, Bonus = 0.04, Color = Color3.fromRGB(200, 205, 215) },
@@ -102,6 +106,27 @@ function CrewConfig.MemberIds(): { string }
 		return ma.Name < mb.Name
 	end)
 	return ids
+end
+
+-- The odds of one pull from `packId` for a player who does (`lucky`) or doesn't own the Lucky
+-- Packs pass: a list of { Rarity, Weight, Chance } (Chance 0-1), most common rarity first.
+-- CrewService rolls with these weights and CrewView shows these chances, so the odds on
+-- screen always match the real roll.
+function CrewConfig.Odds(packId, lucky: boolean?): { { Rarity: string, Weight: number, Chance: number } }
+	local pack = CrewConfig.GetPack(packId)
+	local list = {}
+	if not pack then return list end
+	local total = 0
+	for rarity, weight in pack.Odds do
+		if lucky and CrewConfig.LuckyRarities[rarity] then weight *= CrewConfig.LuckyMultiplier end
+		table.insert(list, { Rarity = rarity, Weight = weight, Chance = 0 })
+		total += weight
+	end
+	table.sort(list, function(a, b) return CrewConfig.Rarities[a.Rarity].Order < CrewConfig.Rarities[b.Rarity].Order end)
+	for _, entry in list do
+		entry.Chance = total > 0 and entry.Weight / total or 0
+	end
+	return list
 end
 
 -- Bonus (e.g. 0.12 = +12%) of one member at `stars`.

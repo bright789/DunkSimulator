@@ -197,6 +197,23 @@ New players start at `ProgressionConfig.StartingVertical` 35 (the dunk minimum),
 | `GiftState` | Server -> requesting client | Session snapshot (start time, each gift's open time, claimed flag and reward) plus an optional `Claimed`/`Rejected` result. No server listener. |
 | `GoalState` | Server -> client | `("Goal", goal or nil)` and `("Complete", { Text, Cash })`. Clients send nothing. |
 
+## Pack A (2026-10-03): events, AFK Practice, notifications, paid-random-item rules
+
+- **Events (`EventConfig`, shared).** Three kinds of timed events feed one set of functions: the scheduled `Events` list, the weekly **Dunk Night** (worked out from `EventConfig.DunkNight` with UTC arithmetic: `DunkNightStart`, `DunkNightAt`) and the random **server event**. `ActiveEvents`, `CashMultiplier`, `TrainingMultiplier` and `GoldenBallSeconds` combine whatever is running (multipliers multiply, capped at `MaxEventMultiplier` x4). `PlayerService` applies the Cash multiplier in `RegisterDunk`/`AwardDunkTrick` and the training multiplier in `AwardTraining`; `PickupService` takes the Golden Ball interval from `GoldenBallSeconds`. Clients run the same functions for display only.
+- **`ServerEventService`** (server) runs the random events (OVERTIME, TRAINING FRENZY, GOLDEN BALL STORM, CASH RAIN): one at a time, 15-20 minutes apart (5 minutes during Dunk Night), only with players in a court, never in a contest round's last 20 s. It publishes the running event as **Workspace attributes** `ServerEvent` (Id or `""`) and `ServerEventEnds` (Unix seconds), read everywhere through `EventConfig.ReadServerEvent`, and drives CASH RAIN through `PickupService.RainBills` (ordinary bill drops sent with a `"Rain"` flag on `PickupEvent`).
+- **`AfkService`** (server, `AfkConfig`) builds one AFK pad per court at startup (`Workspace.AfkPads`; placement searched from each court's spawn with raycasts, an overlap box and keep-away distances to named map objects, or a fixed `AfkConfig.Offsets` spot). It checks every second who stands on their own court's pad, keeps per-session timers in memory and pays through `PlayerService.GrantCash`, `DailyService.GrantBoost` and `SeasonXp.Add`. Mirrors: player attributes `AfkOnPad`, `AfkRewardIn`, `AfkPrizeIn`.
+- **`NotificationService`** (server, `NotificationConfig`) records each day's players in the notifications DataStore, elects one server per UTC day with a MemoryStore hash-map claim plus a DataStore `Sent_<day>` marker, and sends through the owner-inserted Open Cloud package (`ServerScriptService.OpenCloud`, kept by `$ignoreUnknownInstances`). Studio only prints a dry run. It also logs joins with `notif:` launch data and the opt-in prompt analytics.
+- **Paid random items.** `CrewConfig.Odds` is the single odds function for the server roll and the PACKS page. `CrewService` checks `PolicyService` per player, refuses packs where paid random items are restricted, and publishes `PacksRestricted` for the client; `GiftService` pays the 30-minute gift's pack as Cash there (`CrewService.PacksRestricted`, `BestPackPrice`). See `HYPE_CREW.md`.
+- **Clients** (started by `HUDController`, display only): `EventsController` (the HUD event pill, which moved here from `CodesController`, now one line per event; Dunk Night and server-event banners, feed lines and sounds), `AfkController` + `ui/AfkView` (the AFK strip and payout lines) and `NotificationController` (the once-per-session opt-in prompt). `PickupController` drops Cash Rain bills from the sky. `ActionFeed.Announce` takes an optional hold time.
+- **Stores** (`DataConfig`): `DunkSimulator_Notifications_v1` / `DunkSimulator_Notifications_DEV_v1` (keys `Recent_<yyyymmdd>_<shard>` and `Sent_<yyyymmdd>`). MemoryStore hash map `DunkNotify` (key `Notify_<yyyymmdd>`, live servers only). No player-data schema change.
+
+| Remote | Direction | Contract |
+| --- | --- | --- |
+| `AfkPractice` | Server -> client | `("Reward", cash)` and `("Prize", kind, amount, text)`. No server listener. |
+| `NotificationPrompt` | Client -> server | `"Shown"` or `"Closed"` (no other arguments); analytics only, once per session each. Grants nothing. |
+
+See `ENGAGEMENT.md` (Dunk Night, server events, AFK) and `NOTIFICATIONS.md`.
+
 ## Custom HUD v0.1
 
 - `HUDController.client.luau` subscribes to the existing local player's replicated leaderstats Cash/Vertical values and the new TrainingLevel display attribute. It reads their current values after subscribing, including late arrival during startup. Unavailable values display `--`, not invented client defaults. Initial hydration does not show gain feedback.

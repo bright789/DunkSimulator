@@ -96,6 +96,13 @@ A cheap, in-the-moment first purchase. Right after a worthwhile lump payout, a s
 
 **Cash Stack** (150 dunks) and **Cash Vault** (1,000 dunks) pay `PackDunks x DailyConfig.DunkValue(your Vertical)` Cash, so they're worth the same number of dunks at every stage of the game. They're listed in the Locker's PASSES tab, and their Locker card shows what the pack is worth right now (e.g. "Right now: $18,500."). The Cash is cut to fit under the Cash limit. After the save is confirmed the buyer sees "+$18,500 CASH!".
 
+## Paid random items (Hype Crew packs, 2026-10-03)
+
+Because Cash can be bought with Robux (Cash Stack/Vault, payout boosts, Starter Pack) and Hype Crew packs cost Cash, packs are **paid random items** ([Roblox rules](https://create.roblox.com/docs/production/monetization/paid-random-items)). Details in `HYPE_CREW.md`; in short:
+- **Odds shown = odds rolled.** `CrewConfig.Odds` is used by both the server roll and the PACKS page. Lucky Packs owners see their boosted odds labelled **LUCKY ODDS**.
+- **Restricted regions** (`PolicyService` `ArePaidRandomItemsRestricted`, checked on the server, cached per player, a failed lookup counts as restricted): opening packs is refused ("Hype Crew packs aren't available in your region."), the 30-minute playtime gift pays the pack's price as Cash instead, the PACKS page shows NOT AVAILABLE, and the **Lucky Packs** and **Triple Open** passes are hidden in the PASSES tab (`PackPass = true`). The server publishes the answer as the `PacksRestricted` player attribute for the client.
+- Dunk Pass rewards and codes are not purchases of random items and are unchanged.
+
 ## How it works (server-authoritative)
 
 - **Ownership:** `MonetizationService` checks each pass with `MarketplaceService:UserOwnsGamePassAsync` when a player's data is ready (retrying up to 3 times). After an in-game purchase it applies the pass immediately using Roblox's `PromptGamePassPurchaseFinished` result; the next join re-checks. Ownership lives in PlayerService (not saved) and is mirrored to `Pass_<Key>` attributes for the UI.

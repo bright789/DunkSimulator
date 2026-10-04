@@ -98,3 +98,90 @@ The **High School route board** at the Neighborhood bus stop is builder-made sce
 **Not tested yet:**
 - What other players see (the Golden Ball race, "X grabbed the Golden Ball").
 - Phone layout of the ring, status stack and feed.
+
+## 6. Pack A (2026-10-03): Dunk Night, server events, AFK Practice, notifications
+
+Research on 2025-26 Roblox hits (Steal An Egg, Grow a Garden, Steal a Brainrot, Volleyball Legends, Basketball: Zero, Blue Lock: Rivals) showed the ones that last all have a fixed weekly "admin abuse" event, random server events, an AFK area that pays every few minutes, and notifications. Dunk's new players averaged 1.4 minutes and almost none came back the next day.
+
+### Dunk Night (weekly)
+
+**Every Saturday 19:00-19:45 UTC.** `EventConfig.DunkNight` holds the day (0 = Sunday ... 6 = Saturday), start hour/minute and length; the start is worked out with plain UTC arithmetic, so daylight saving never moves it.
+
+| While it runs | Normal |
+| --- | --- |
+| Dunk and air-trick Cash **x2** | x1 |
+| Training reps **x2** (station, rhythm and Auto Train; `PlayerService.AwardTraining`) | x1 |
+| A Golden Ball about every **15 s** on each court with players | ~75 s |
+| A random server event about every **5 minutes** (270-330 s) | 15-20 minutes |
+
+- **HUD:** the event pill shows `DUNK NIGHT  32:10` while it runs, and `DUNK NIGHT IN 3:42:10` during the 24 hours before it. The pill now has one line per running event and grows taller.
+- **Start:** a big centre banner "DUNK NIGHT! 2x CASH  2x TRAINING", a feed line with the details and the Rebirth fanfare. Players who join during it see the same.
+- **End:** a banner "Dunk Night is over — see you next Saturday!".
+- **Stacking (decision):** all event multipliers **multiply**, capped at **x4** in total from events (`EventConfig.MaxEventMultiplier`). So Dunk Night + OVERTIME = x4 Cash, and the launch 2X CASH WEEKEND overlapping both is still x4. Passes, boosts, court, Rebirth, HEAT and crew still stack on top as before.
+- Hype Crew pack luck is **not** boosted (that would need live odds changes on the PACKS page).
+- **Studio flag:** `EventConfig.StudioForceDunkNight` (default **false**) makes it Dunk Night all the time in Studio.
+
+### Random server events
+
+`ServerEventService` + `EventConfig.ServerEvents`. While at least one player is in a court, one event starts for the whole server **15-20 minutes** (random) after the previous one ended (the first one 15-20 minutes after someone joins). Never two at once, and not while a Dunk Contest round has 20 s or less left (it waits until the round is over). The tutorial isn't blocked: banners are plain text in the middle of the screen.
+
+| Event | Weight | Length | Effect |
+| --- | --- | --- | --- |
+| **OVERTIME** | 30 | 3:00 | Dunk and air-trick Cash x2 |
+| **TRAINING FRENZY** | 30 | 3:00 | Training reps x2 |
+| **GOLDEN BALL STORM** | 20 | 1:30 | A Golden Ball about every 10 s on each court with players |
+| **CASH RAIN** | 20 | 1:00 | Every player on a court gets 2 bills a second falling around them (4-16 studs away), each worth 0.25 of a plain dunk at their Vertical (`PickupConfig.Rain`). They are ordinary Cash bills: same server checks, they fly to you within 10 studs and vanish after 15 s. |
+
+- The running event is published as Workspace attributes `ServerEvent` (its Id, `""` when none) and `ServerEventEnds` (Unix seconds). `PlayerService` (Cash, training) and `PickupService` (Golden Ball timer) read them through `EventConfig`, the same way as the scheduled events, so multipliers stack with passes and boosts exactly like those.
+- **Clients:** a banner such as "OVERTIME! 2x Cash for 3:00", a line in the event pill (`OVERTIME  2:41`), and a feed line and sound when it starts ("OVERTIME STARTED!") and ends ("OVERTIME IS OVER").
+- **Analytics:** custom event `ServerEvent_Overtime` / `_TrainingFrenzy` / `_GoldenBallStorm` / `_CashRain` for each player in a court when it starts. Cash Rain Cash shows as `PickupBills`.
+- **Studio flags** (default off): `ServerEvents.StudioForceNext` (an event Id to start 10 s after the first player is ready) and `ServerEvents.StudioIntervalSeconds` (seconds between events instead of 15-20 minutes).
+
+### AFK Practice Court
+
+`AfkService` + `AfkConfig`. When the server starts it puts **one glowing pad per court** near the court's spawn: a cyan disc and ring with a light and the label "AFK PRACTICE / earn while you chill".
+
+- **Placement:** starting at the court's SpawnLocation it tries spots in front of the spawn (toward the court) and to its sides, never behind it (that's the entrance), at 14, 18, 22, 26 and 30 studs. A spot is used when the floor there is flat (raycasts at the centre and around the edge), within 3 studs of the spawn's height, nothing solid is in a 7-stud-tall box above it, and it is far enough from the rim (30 studs), the Leg Day trainer, Hoop Shop and Upgrade station (14), their props (Hoop Shop, gym, Upgrade Lab: 10), bus stops, return gates and the elevator (12), court portals (14), leaderboard stands (8) and spawns (8). Output prints where each pad went, e.g. "Neighborhood AFK pad at (12.1, 0.2, -40.5), 22 studs from the spawn". If a court has no good spot it warns; then set `AfkConfig.Offsets.<Court>` (studs from the spawn: X to its right, Z forward) to place it by hand.
+- **Earning:** every second the server checks who is standing on the pad of the court they're on (HumanoidRootPart within 5 studs, not riding the bus). That second counts toward two timers:
+  - every **3 minutes** on the pad: Cash worth **4 dunks** (`AfkDunks`) at your Vertical (`DailyConfig.DunkValue`);
+  - every **15 minutes** on the pad: a **free prize**: 5 minutes of 2x Cash Boost (40%), 10 dunks of Cash (40%) or 50 Dunk Pass XP (20%; the Cash prize instead when no season is running). It's free, so it isn't a paid random item.
+  - **VIP** doubles all AFK Cash.
+  - Leaving the pad **pauses** both timers for the session (they don't reset); rejoining starts them over.
+- **Client:** while you're on a pad a strip reads "AFK PRACTICE  •  next reward 1:42  •  prize in 12:10" (above the action feed; lower middle on phones). Payouts show as "AFK PRACTICE  +$420" in the feed and prizes as a big "AFK PRIZE!" message.
+- AFK time counts toward the playtime gifts by itself (they use the session clock).
+- **Analytics:** custom events `AfkReward` and `AfkPrize`; Cash sources `AfkReward` / `AfkPrize` (TimedReward).
+- **Note:** Roblox disconnects players who give no input for about **20 minutes**, so "AFK" players still need to touch a key now and then.
+- **Studio flag:** `AfkConfig.StudioFastAfk` (default **false**): rewards every 10 s and prizes every 30 s in Studio.
+
+| Remote | Direction | Payload |
+| --- | --- | --- |
+| `AfkPractice` | server -> client | `("Reward", cash)` and `("Prize", kind, amount, text)` with kind `"Boost"`, `"Cash"` or `"PassXp"`. Clients send nothing. The timers are the player attributes `AfkOnPad`, `AfkRewardIn` and `AfkPrizeIn` (seconds of pad time left). |
+
+### Notifications
+
+A daily Roblox notification to last week's players, and a once-per-session opt-in prompt at a good moment. See `NOTIFICATIONS.md`.
+
+### Pack A Studio checklist
+
+1. **Dunk Night:** set `StudioForceDunkNight = true`, Play: banner and fanfare, pill `DUNK NIGHT  mm:ss`, a dunk pays twice its usual Cash, a rep adds twice its usual Vertical, Golden Balls every ~15 s. Set it back.
+2. **Countdown:** on a Friday/Saturday before 19:00 UTC the pill reads `DUNK NIGHT IN h:mm:ss`.
+3. **Server events:** set `StudioForceNext = "CashRain"` (then the other three): 10 s after spawning the banner shows, bills fall around you and pay when collected, the pill shows the event's line and it ends with "CASH RAIN IS OVER". `StudioIntervalSeconds = 30` shows several in a row. Set both back.
+4. **AFK:** check Output for each court's pad position, then look at each pad in Play: it must not block a doorway, the rim, the Hoop Shop, gym, Upgrade station, bus stop/portal or the leaderboard. With `StudioFastAfk = true`: stand on it, the strip counts down, +4 dunks every 10 s, a prize every 30 s; step off and the timers pause. Set it back.
+5. **Hype Crew:** with Lucky Packs owned (the creator owns every pass) the PACKS page shows **LUCKY ODDS** with the boosted numbers.
+
+## Pack A Studio test (2026-10-03)
+
+Run on the QA profile at the Rooftop (350 Vertical). The test flags were reverted afterwards.
+
+- **Dunk Night (forced on):**
+  - The event pill showed `2X CASH WEEKEND / DUNK NIGHT 41:11 / TRAINING FRENZY 2:58`.
+  - Golden Balls kept spawning.
+- **Random events (25 s Studio interval):**
+  - TRAINING FRENZY started with its banner ("2x training reps for 2:59"), a feed line and `ServerEvent_TrainingFrenzy`.
+  - OVERTIME started exactly 25 s after Training Frenzy ended, with no overlap.
+  - Forced CASH RAIN: bills fell around the player, the feed read "+$2,873 CASH BILLS (x13)" and the pill showed `CASH RAIN 0:31`.
+- **AFK pads:**
+  - Placed on all 4 courts, 14 to 18 studs from each spawn and clear of the court.
+  - Standing on the Rooftop pad showed "AFK PRACTICE • next reward 0:06 • prize in 0:16".
+  - Fast mode paid +$7,056 every cycle (4 dunks x $882 x 2 VIP) and a prize of +$17,640 (10 dunks x 2 VIP).
+- **Hype Crew:** "LUCKY ODDS" showed the boosted chances (Campus 27.6 / 29.9 / 34.6 / 7.9%), and packs stayed openable for a player who isn't restricted.

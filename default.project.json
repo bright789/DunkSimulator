@@ -144,6 +144,12 @@
         },
         "GoalState": {
           "$className": "RemoteEvent"
+        },
+        "AfkPractice": {
+          "$className": "RemoteEvent"
+        },
+        "NotificationPrompt": {
+          "$className": "RemoteEvent"
         }
       }
     }

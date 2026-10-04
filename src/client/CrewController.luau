@@ -1,6 +1,9 @@
 -- HYPE CREW menu logic. Everything shown comes from the server's attributes (CrewOwned,
--- CrewEquipped, CrewSlots, CrewCash, CrewTrain, UnlockedCourts, Pass_CrewTriple) and every
--- action is a CrewRequest the server checks. Pack results play as flip reveals, one at a time.
+-- CrewEquipped, CrewSlots, CrewCash, CrewTrain, UnlockedCourts, Pass_CrewTriple,
+-- Pass_CrewLucky, PacksRestricted) and every action is a CrewRequest the server checks. Pack
+-- results play as flip reveals, one at a time. Pack odds include the Lucky Packs boost for
+-- its owners; where packs are restricted (PacksRestricted, from the server's PolicyService
+-- check; unknown counts as restricted) the packs show as unavailable.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Crew = require(ReplicatedStorage.Shared.Config.CrewConfig)
@@ -41,6 +44,16 @@ function CrewController.new(player: Player, hud)
 		return value and value.Value or 0
 	end
 
+	local function packsRestricted(): boolean
+		return player:GetAttribute("PacksRestricted") ~= false
+	end
+
+	-- Clears the message line, or shows why packs are unavailable.
+	local function resetResult()
+		local restricted = packsRestricted()
+		view.ShowResult(not restricted, restricted and Crew.RestrictedMessage or "")
+	end
+
 	local function render()
 		local mine, wearing = owned(), equipped()
 		local slots = tonumber(player:GetAttribute("CrewSlots")) or Crew.Slots
@@ -56,6 +69,8 @@ function CrewController.new(player: Player, hud)
 		for courtId in string.gmatch(tostring(player:GetAttribute("UnlockedCourts") or ""), "[^,]+") do unlocked[courtId] = true end
 		local money = cash()
 		local triple = player:GetAttribute("Pass_CrewTriple") == true
+		local lucky = player:GetAttribute("Pass_CrewLucky") == true
+		local restricted = packsRestricted()
 		for _, packId in Crew.PackIds() do
 			local pack = Crew.Packs[packId]
 			local court = Courts.Get(pack.Court)
@@ -65,6 +80,8 @@ function CrewController.new(player: Player, hud)
 				CanAffordThree = money >= pack.Price * 3,
 				HasTriple = triple,
 				CourtName = court and court.DisplayName or pack.Court,
+				Lucky = lucky,
+				Restricted = restricted,
 			})
 		end
 		for memberId in Crew.Members do
@@ -100,7 +117,7 @@ function CrewController.new(player: Player, hud)
 	revealStep = nextReveal
 
 	local function open(packId: string, count: number)
-		if revealing then return end
+		if revealing or packsRestricted() then return end
 		request:FireServer("Buy", packId, count)
 	end
 
@@ -134,11 +151,15 @@ function CrewController.new(player: Player, hud)
 	table.insert(connections, hud.CrewButton.Activated:Connect(function()
 		view.Panel.Visible = not view.Panel.Visible
 		if view.Panel.Visible then
-			view.ShowResult(true, "")
+			resetResult()
 			render()
 		end
 	end))
-	for _, attribute in { "CrewOwned", "CrewEquipped", "CrewSlots", "CrewCash", "CrewTrain", "UnlockedCourts", "Pass_CrewTriple" } do
+	table.insert(connections, player:GetAttributeChangedSignal("PacksRestricted"):Connect(function()
+		if view.Panel.Visible then resetResult() end
+	end))
+	for _, attribute in { "CrewOwned", "CrewEquipped", "CrewSlots", "CrewCash", "CrewTrain", "UnlockedCourts", "Pass_CrewTriple",
+		"Pass_CrewLucky", "PacksRestricted" } do
 		table.insert(connections, player:GetAttributeChangedSignal(attribute):Connect(function()
 			if view.Panel.Visible and not revealing then render() end
 		end))

@@ -1,7 +1,8 @@
 -- Court pickups on this client (PickupConfig; the server decides and pays everything):
 --   Cash bills: after each of your dunks the server sends a few drops. They burst out of the
 --     rim, land around the hoop, fly to you inside MagnetRadius, and ask the server to
---     collect ("Collect", id) when they reach you.
+--     collect ("Collect", id) when they reach you. CASH RAIN bills ("Rain") fall from the sky
+--     around you instead.
 --   Golden Ball: an announcement and a gold beam from you to the ball while it's up; the
 --     server tells everyone on the court who grabbed it.
 local Players = game:GetService("Players")
@@ -101,17 +102,20 @@ function PickupController.new(player: Player)
 
 	table.insert(connections, remote.OnClientEvent:Connect(function(kind, a, b, c, d)
 		if kind == "Bills" and type(a) == "table" then
-			local rim = DunkVFX.FindRim(player)
+			local rain = b == "Rain"
+			local rim = not rain and DunkVFX.FindRim(player) or nil
 			local from = rim and rim.Position or nil
 			for _, drop in a do
 				if type(drop) == "table" and type(drop.Id) == "number" and typeof(drop.Position) == "Vector3" then
-					local bill = makeBill(from or drop.Position)
+					local bill = makeBill(rain and drop.Position + Vector3.new(0, 30, 0) or from or drop.Position)
 					bill.Parent = folder
-					bills[drop.Id] = { Part = bill, Spawned = os.clock(), Collecting = false }
-					-- Burst out of the rim and land where the server put it.
+					-- Rain bills take longer to land, so they start flying to you a little later.
+					bills[drop.Id] = { Part = bill, Spawned = os.clock() + (rain and 0.4 or 0), Collecting = false }
+					-- Burst out of the rim (or fall from the sky) and land where the server put it.
 					local landing = CFrame.new(drop.Position) * CFrame.Angles(0, math.rad(math.random(0, 359)), 0)
-					TweenService:Create(bill, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-						{ CFrame = landing }):Play()
+					local info = rain and TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+						or TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+					TweenService:Create(bill, info, { CFrame = landing }):Play()
 				end
 			end
 		elseif kind == "Collected" and typeof(b) == "number" then

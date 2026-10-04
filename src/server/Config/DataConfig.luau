@@ -23,6 +23,10 @@ return {
 	StudioCodesStoreName = "DunkSimulator_Codes_DEV_v1",
 	ProductionReferralStoreName = "DunkSimulator_Referrals_v1",
 	StudioReferralStoreName = "DunkSimulator_Referrals_DEV_v1",
+	-- Experience notifications: players seen each UTC day ("Recent_<yyyymmdd>_<shard>" = list of
+	-- UserIds) and each day's "sent" marker ("Sent_<yyyymmdd>"). See NotificationService.
+	ProductionNotificationStoreName = "DunkSimulator_Notifications_v1",
+	StudioNotificationStoreName = "DunkSimulator_Notifications_DEV_v1",
 	KeyPrefix = "Player_",
 	AutosaveSeconds = 90,
 	AutosaveJitterSeconds = 10,

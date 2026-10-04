@@ -15,8 +15,19 @@ return {
 		CollectRadius = 16,
 		Color = Color3.fromRGB(80, 200, 95),
 	},
+	-- CASH RAIN server event (EventConfig.ServerEvents): bills fall around every player on a
+	-- court. Each bill is worth BillDunks of a plain dunk at that player's Vertical
+	-- (DailyConfig.DunkValue), so the rain is worth the same to everyone whatever their progress.
+	Rain = {
+		BillsPerSecond = 2,
+		BillDunks = 0.25,
+		-- Bills land this far from the player (they fly to you inside Bills.MagnetRadius).
+		MinRadius = 4,
+		MaxRadius = 16,
+	},
 	-- A Golden Ball appears on each court with players about every EverySeconds. First to
 	-- touch it wins RewardDunks dunks' worth of Cash (DailyConfig.DunkValue at their Vertical).
+	-- Events can make them come faster (EventConfig GoldenBallSeconds: Dunk Night, GOLDEN BALL STORM).
 	GoldenBall = {
 		EverySeconds = 75,
 		JitterSeconds = 15,

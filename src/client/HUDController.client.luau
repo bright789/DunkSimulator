@@ -51,6 +51,14 @@ local GiftsController = require(script.Parent:WaitForChild("GiftsController"))
 local gifts = GiftsController.new(player, view)
 local GoalController = require(script.Parent:WaitForChild("GoalController"))
 local goals = GoalController.new(player, view)
+-- Pack A: event pill and banners (Dunk Night, server events), AFK Practice strip, and the
+-- notification opt-in prompt.
+local EventsController = require(script.Parent:WaitForChild("EventsController"))
+local events = EventsController.new(player, view)
+local AfkController = require(script.Parent:WaitForChild("AfkController"))
+local afk = AfkController.new(player)
+local NotificationController = require(script.Parent:WaitForChild("NotificationController"))
+local notifications = NotificationController.new(player)
 local connections = {}
 local previous = {}
 local destroyed = false
@@ -165,6 +173,9 @@ script.Destroying:Connect(function()
 	payoutOffer.Destroy()
 	gifts.Destroy()
 	goals.Destroy()
+	events.Destroy()
+	afk.Destroy()
+	notifications.Destroy()
 	daily.Destroy()
 	contest.Destroy()
 	locker.Destroy()

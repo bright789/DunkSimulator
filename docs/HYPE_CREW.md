@@ -97,3 +97,28 @@ While you're away, your fans keep earning.
 **Not tested:**
 - Other players seeing your crew (needs two players).
 - Buying the three passes live (ids added 2026-09-27; they need to be put on sale first).
+
+## Paid random items compliance (2026-10-03, "Pack A")
+
+Cash can be bought with Robux (Cash Stack/Vault, payout boosts, Starter Pack) and packs cost Cash, so Hype Crew packs count as **paid random items** under [Roblox's rules](https://create.roblox.com/docs/production/monetization/paid-random-items). Two changes:
+
+**1. The odds shown are the odds you get.** `CrewConfig.Odds(packId, lucky)` is the one place the odds are worked out. `CrewService` rolls with its weights and the PACKS page shows its chances, so they can't drift apart. For **Lucky Packs** (`CrewLucky`) owners the page shows the boosted odds under a gold **LUCKY ODDS** label (otherwise **ODDS**), and it updates when the `Pass_CrewLucky` attribute changes (e.g. right after buying the pass). Chances that aren't whole percents show one decimal:
+
+| Pack | Normal odds | LUCKY ODDS (Epic/Legendary weights x2) |
+| --- | --- | --- |
+| Street | Common 60% / Uncommon 30% / Rare 10% | same (no Epic or Legendary) |
+| Varsity | Common 35% / Uncommon 35% / Rare 24% / Epic 6% | 33% / 33% / 22.6% / 11.3% |
+| Campus | Uncommon 35% / Rare 38% / Epic 22% / Legendary 5% | 27.6% / 29.9% / 34.6% / 7.9% |
+| Skyline | Rare 45% / Epic 40% / Legendary 15% | 29% / 51.6% / 19.4% |
+
+The pack card is now 190 px tall to fit the label.
+
+**2. Regions where paid random items are restricted.**
+- **Server:** `CrewService` asks `PolicyService:GetPolicyInfoForPlayerAsync(player)` when the player's data is ready (in `pcall`, one retry after 1 s) and caches `ArePaidRandomItemsRestricted` per player. If the lookup fails it counts as restricted (the safe answer) and is asked again 60 s later (up to 3 times at join, and again on the next pack request).
+- If restricted, `CrewRequest("Buy", ...)` is refused before any Cash is spent with **"Hype Crew packs aren't available in your region."** (`CrewConfig.RestrictedMessage`).
+- The **30-minute playtime gift** gives the price of the pack it would have opened (the best pack your courts unlock, `CrewService.BestPackPrice`) as extra Cash instead of a pack, and the GIFTS panel shows that Cash and no "CREW PACK".
+- The answer is published as the player attribute `PacksRestricted` (true/false; missing = not known yet). The client uses that attribute instead of asking PolicyService itself, so the screen always matches what the server will allow.
+- **Client:** while `PacksRestricted` isn't `false` (restricted or not known yet), every pack's button reads **NOT AVAILABLE**, OPEN x3 (and its "(PASS)" upsell) is hidden, and the menu shows the region message. The **Lucky Packs** and **Triple Open** cards are hidden in the Locker's PASSES tab (`PackPass = true` in `MonetizationConfig`). MY CREW and equipping still work.
+- Free crew members granted outside packs (Dunk Pass tiers and their free packs, codes) are not random purchases and are unchanged.
+
+**Code:** `CrewConfig` (`Odds`, `LuckyRarities`, `RestrictedMessage`), `CrewService` (`PacksRestricted`, `BestPackPrice`, policy lookup), `GiftService`, `CrewController` + `ui/CrewView`, `LockerController` + `ui/LockerView`, `MonetizationConfig` (`PackPass`). Covered by the Pack A logic harness (odds with/without Lucky, the shared roll, restricted refusal, failed lookup + retry, gift Cash instead of a pack).

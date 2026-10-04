@@ -1,6 +1,7 @@
 -- HYPE CREW menu: a PACKS page (one card per pack: odds, OPEN / OPEN x3) and a MY CREW page
 -- (the collection book: every member, owned ones with stars, bonus and EQUIP), plus the
--- pack-opening reveal (a card that flips to show who you got). Display only.
+-- pack-opening reveal (a card that flips to show who you got). Display only. The odds shown
+-- are the ones the player really gets (CrewConfig.Odds, with the Lucky Packs pass if owned).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Config = require(ReplicatedStorage.Shared.Config.HUDConfig)
@@ -45,6 +46,18 @@ local function stars(count: number): string
 	return string.rep("★", count) .. string.rep("☆", Crew.MaxStars - count)
 end
 
+-- "60%", or "27.6%" when the chance isn't a whole percent.
+local function percent(chance: number): string
+	local value = chance * 100
+	local whole = math.floor(value + 0.5)
+	if math.abs(value - whole) < 0.05 then return string.format("%d%%", whole) end
+	return string.format("%.1f%%", value)
+end
+
+local function oddsText(entry): string
+	return string.format("%s  %s", string.upper(entry.Rarity), percent(entry.Chance))
+end
+
 function CrewView.new(playerGui: PlayerGui)
 	local screen = UI.Screen("HypeCrew", 10)
 	local panel = UI.Panel(screen, "Menu", UDim2.fromScale(0.8, 0.78), UDim2.fromScale(0.5, 0.5))
@@ -85,7 +98,7 @@ function CrewView.new(playerGui: PlayerGui)
 		end)
 		return scroll
 	end
-	local packsPage = page("Packs", Vector2.new(138, 178))
+	local packsPage = page("Packs", Vector2.new(138, 190))
 	local crewPage = page("Crew", Vector2.new(104, 136))
 	crewPage.Visible = false
 
@@ -111,21 +124,19 @@ function CrewView.new(playerGui: PlayerGui)
 		UI.Round(header, 10)
 		header.Parent = card
 		label(header, "Name", pack.Name, UDim2.new(1, -8, 1, -6), UDim2.fromOffset(4, 3), 15, true).Font = Config.BoldFont
+		-- "ODDS", or "LUCKY ODDS" for Lucky Packs pass owners (SetPack updates both).
+		local oddsTitle = label(card, "OddsTitle", "ODDS", UDim2.new(1, -16, 0, 14), UDim2.fromOffset(8, 37), 11)
+		oddsTitle.Font = Config.BoldFont
+		oddsTitle.TextColor3 = Config.Colors.Muted
 		local odds = {}
-		local rarities = {}
-		for rarity in pack.Odds do table.insert(rarities, rarity) end
-		table.sort(rarities, function(a, b) return Crew.Rarities[a].Order < Crew.Rarities[b].Order end)
-		local total = 0
-		for _, rarity in rarities do total += pack.Odds[rarity] end
-		for index, rarity in rarities do
-			local line = label(card, "Odds" .. index, string.format("%s  %d%%", string.upper(rarity), math.floor(pack.Odds[rarity] / total * 100 + 0.5)),
-				UDim2.new(1, -16, 0, 16), UDim2.fromOffset(8, 38 + (index - 1) * 17), 12)
-			line.TextColor3 = Crew.Rarities[rarity].Color
-			odds[rarity] = line
+		for index, entry in Crew.Odds(packId, false) do
+			local line = label(card, "Odds" .. index, oddsText(entry), UDim2.new(1, -16, 0, 15), UDim2.fromOffset(8, 52 + (index - 1) * 16), 12)
+			line.TextColor3 = Crew.Rarities[entry.Rarity].Color
+			odds[entry.Rarity] = line
 		end
 		local open = button(card, "Open", "", UDim2.new(1, -16, 0, 30), UDim2.new(0, 8, 1, -72), 14)
 		local openThree = button(card, "OpenThree", "", UDim2.new(1, -16, 0, 26), UDim2.new(0, 8, 1, -36), 12)
-		packCards[packId] = { Open = open, OpenThree = openThree, Odds = odds }
+		packCards[packId] = { Open = open, OpenThree = openThree, Odds = odds, OddsTitle = oddsTitle }
 	end
 
 	-- Collection book cards.
@@ -226,10 +237,24 @@ function CrewView.new(playerGui: PlayerGui)
 		crewTab.Text = crewTabText
 	end
 
-	-- `state`: Unlocked, CanAfford, CanAffordThree, HasTriple, CourtName.
+	-- `state`: Unlocked, CanAfford, CanAffordThree, HasTriple, CourtName, Lucky (owns Lucky Packs:
+	-- show the boosted odds), Restricted (packs aren't available in this player's region).
 	function view.SetPack(packId: string, state)
 		local card = packCards[packId]
 		local pack = Crew.Packs[packId]
+		for _, entry in Crew.Odds(packId, state.Lucky) do
+			local line = card.Odds[entry.Rarity]
+			if line then line.Text = oddsText(entry) end
+		end
+		card.OddsTitle.Text = state.Lucky and "LUCKY ODDS" or "ODDS"
+		card.OddsTitle.TextColor3 = state.Lucky and Config.Colors.Gold or Config.Colors.Muted
+		if state.Restricted then
+			card.Open.Text = "NOT AVAILABLE"
+			setEnabled(card.Open, false)
+			card.OpenThree.Text = ""
+			card.OpenThree.Visible = false
+			return
+		end
 		if not state.Unlocked then
 			card.Open.Text = "UNLOCK " .. string.upper(state.CourtName)
 			setEnabled(card.Open, false)

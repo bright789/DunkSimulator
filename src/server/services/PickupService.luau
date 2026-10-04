@@ -3,10 +3,13 @@
 --     here (id, position, value, expiry) and are sent to that player only; the client draws
 --     them and fires PickupEvent("Collect", id) when it touches one. The server checks the
 --     drop exists, hasn't expired and the character is close enough, then pays.
---   Golden Ball: one per court with players, about every EverySeconds. It's a real part in
+--   Golden Ball: one per court with players, about every EverySeconds (or the shorter
+--     GoldenBallSeconds of a running event, EventConfig). It's a real part in
 --     Workspace.GoldenBalls that everyone on the court sees; the first character within
 --     GrabRadius (checked here, not by Touched) wins the Cash.
--- Events to clients on PickupEvent: ("Bills", { {Id, Position, Value} }), ("Collected", id, value),
+--   Cash Rain: ServerEventService calls RainBills during the CASH RAIN event; those bills are
+--     ordinary drops (same checks), sent with a "Rain" flag so the client drops them from the sky.
+-- Events to clients on PickupEvent: ("Bills", { {Id, Position, Value} }, "Rain"?), ("Collected", id, value),
 -- ("GoldenSpawn", position), ("GoldenGrab", displayName, value, position, isYou).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,6 +19,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage.Shared.Config.PickupConfig)
 local Courts = require(ReplicatedStorage.Shared.Config.CourtConfig)
 local Daily = require(ReplicatedStorage.Shared.Config.DailyConfig)
+local Events = require(ReplicatedStorage.Shared.Config.EventConfig)
 local PlayerService = require(script.Parent.PlayerService)
 local GameplayObjects = require(script.Parent.GameplayObjects)
 local Analytics = require(script.Parent.AnalyticsReporter)
@@ -32,6 +36,7 @@ local nextDropId = 0
 local balls: { [string]: { Part: BasePart, Expires: number } } = {}
 local nextSpawn: { [string]: number } = {}
 local ballFolder: Folder
+local isStudio = RunService:IsStudio()
 
 local function rootOf(player: Player): BasePart?
 	local character = player.Character
@@ -99,6 +104,34 @@ function PickupService.SpillForDunk(player: Player, dunkCash: number)
 		table.insert(sent, { Id = nextDropId, Position = position, Value = value })
 	end
 	sendTo(player, "Bills", sent)
+end
+
+-- Cash Rain: `count` bills fall around this player (ServerEventService, during CASH RAIN).
+function PickupService.RainBills(player: Player, count: number)
+	local rain = Config.Rain
+	local root = rootOf(player)
+	if not root or type(count) ~= "number" or count < 1 then return end
+	local value = math.max(1, math.floor(Daily.DunkValue(PlayerService.GetVertical(player) or 0) * rain.BillDunks + 0.5))
+	local now = os.clock()
+	local mine = drops[player] or {}
+	drops[player] = mine
+	for id, drop in mine do
+		if now > drop.Expires then mine[id] = nil end
+	end
+	local sent = {}
+	for _ = 1, math.min(count, 10) do
+		local angle = random:NextNumber(0, 2 * math.pi)
+		local radius = random:NextNumber(rain.MinRadius, rain.MaxRadius)
+		local guess = root.Position + Vector3.new(math.cos(angle) * radius, 2, math.sin(angle) * radius)
+		local floor = floorBelow(guess, { ballFolder })
+		if floor then
+			local position = floor + Vector3.new(0, 1, 0)
+			nextDropId += 1
+			mine[nextDropId] = { Position = position, Value = value, Expires = now + Config.Bills.LifetimeSeconds }
+			table.insert(sent, { Id = nextDropId, Position = position, Value = value })
+		end
+	end
+	if #sent > 0 then sendTo(player, "Bills", sent, "Rain") end
 end
 
 local function collect(player: Player, dropId)
@@ -209,6 +242,9 @@ end
 local function updateBalls()
 	local now = os.clock()
 	local golden = Config.GoldenBall
+	-- Seconds between balls right now: a running event's GoldenBallSeconds, or the usual EverySeconds.
+	local every = Events.GoldenBallSeconds(os.time(), isStudio, Events.ReadServerEvent(Workspace)) or golden.EverySeconds
+	local jitter = math.min(golden.JitterSeconds, every * 0.2)
 	for courtId in Courts.Definitions do
 		local present = playersOn(courtId)
 		local ball = balls[courtId]
@@ -228,11 +264,14 @@ local function updateBalls()
 				end
 			end
 		elseif not nextSpawn[courtId] then
-			nextSpawn[courtId] = now + golden.EverySeconds * 0.5
+			nextSpawn[courtId] = now + every * 0.5
 		elseif now >= nextSpawn[courtId] then
 			nextSpawn[courtId] = spawnBall(courtId, present)
-				and now + golden.EverySeconds + random:NextNumber(-golden.JitterSeconds, golden.JitterSeconds)
+				and now + every + random:NextNumber(-jitter, jitter)
 				or now + 2
+		elseif nextSpawn[courtId] > now + every then
+			-- An event just made balls come faster: don't wait out the old, longer timer.
+			nextSpawn[courtId] = now + every
 		end
 	end
 end

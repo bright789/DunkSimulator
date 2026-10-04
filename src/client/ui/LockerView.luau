@@ -195,7 +195,7 @@ function LockerView.new(playerGui: PlayerGui)
 			about.TextYAlignment = Enum.TextYAlignment.Top
 			about.TextColor3 = Config.Colors.Muted
 			local action = button(card, "Action", "", UDim2.fromScale(0.9, 0.2), UDim2.fromScale(0.05, 0.74), 14)
-			offers[offer.Key] = { Button = action, Offer = offer, Kind = list.Kind, About = about }
+			offers[offer.Key] = { Button = action, Offer = offer, Kind = list.Kind, About = about, Card = card }
 		end
 	end
 	local feedback = UI.Label(panel, "Feedback", "", UDim2.fromScale(0.92, 0.05), UDim2.fromScale(0.04, 0.935), 12)
@@ -244,10 +244,12 @@ function LockerView.new(playerGui: PlayerGui)
 	end
 
 	-- `owned[key]` = pass owned; `prices[key]` = Robux price (nil until known);
-	-- `offSale[key]` = created on Roblox but not on sale; `vertical` = your Vertical (nil until known).
+	-- `offSale[key]` = created on Roblox but not on sale; `vertical` = your Vertical (nil until known);
+	-- `hidden[key]` = don't show this offer at all (pack passes where packs are restricted).
 	function view.RenderOffers(owned: { [string]: boolean }, prices: { [string]: number }, offSale: { [string]: boolean },
-		vertical: number?)
+		vertical: number?, hidden: { [string]: boolean }?)
 		for key, entry in offers do
+			entry.Card.Visible = not (hidden and hidden[key])
 			-- Cash packs also show what they're worth at your Vertical right now.
 			if entry.Offer.PackDunks and vertical then
 				entry.About.Text = string.format("%s Right now: $%s.", entry.Offer.Description,

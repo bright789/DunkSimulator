@@ -28,8 +28,15 @@ function LockerController.new(player: Player, hud)
 	local function render()
 		view.Render(snapshot, pending)
 		local owned = {}
-		for _, pass in Monetization.Passes do owned[pass.Key] = player:GetAttribute("Pass_" .. pass.Key) == true end
-		view.RenderOffers(owned, prices, offSale, vertical)
+		-- Pack passes are hidden where Hype Crew packs (paid random items) are restricted. The
+		-- server sets PacksRestricted from PolicyService; until it has answered, they stay hidden.
+		local hidden = {}
+		local packsOff = player:GetAttribute("PacksRestricted") ~= false
+		for _, pass in Monetization.Passes do
+			owned[pass.Key] = player:GetAttribute("Pass_" .. pass.Key) == true
+			hidden[pass.Key] = pass.PackPass == true and packsOff
+		end
+		view.RenderOffers(owned, prices, offSale, vertical, hidden)
 	end
 	-- Opens Roblox's own purchase prompt; the server verifies and applies the purchase.
 	local function promptPass(key: string)
@@ -126,6 +133,7 @@ function LockerController.new(player: Player, hud)
 	for _, pass in Monetization.Passes do
 		table.insert(connections, player:GetAttributeChangedSignal("Pass_" .. pass.Key):Connect(render))
 	end
+	table.insert(connections, player:GetAttributeChangedSignal("PacksRestricted"):Connect(render))
 
 	-- Keep prices' affordability (and the Cash packs' value) live while the menu is open.
 	function controller.SetStat(name: string, value: number)

@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config.ProgressionConfig)
 local DunkConfig = require(ReplicatedStorage.Shared.Config.DunkConfig)
@@ -64,6 +65,16 @@ local PlayerService = {}
 local states: { [Player]: PlayerState } = {}
 local initialized = false
 local placeCharacter = nil
+
+-- Multipliers from the timed events running now (EventConfig): scheduled events, Dunk Night
+-- and the random server event ServerEventService published on Workspace.
+local function eventCashMultiplier(): number
+	return Events.CashMultiplier(os.time(), isStudio, Events.ReadServerEvent(Workspace))
+end
+
+local function eventTrainingMultiplier(): number
+	return Events.TrainingMultiplier(os.time(), isStudio, Events.ReadServerEvent(Workspace))
+end
 
 -- Each court limits how high you jump to its training cap (Neighborhood 75, High School 150,
 -- College 250, Rooftop 350) so big jumps never go through a gym ceiling. Only the jump is
@@ -347,7 +358,8 @@ function PlayerService.SetDunkState(player: Player, dunkState: string)
 	end
 end
 
--- One training rep. `repMultiplier` (active-training PERFECT/GOOD, 1-3) scales the gain.
+-- One training rep. `repMultiplier` (active-training PERFECT/GOOD, 1-3) scales the gain, and
+-- so do running events (Dunk Night, TRAINING FRENZY: EventConfig TrainingMultiplier).
 -- Returns whether the rep counted and the Vertical it added (fractional, before rounding).
 function PlayerService.AwardTraining(player: Player, repMultiplier: number?): (boolean, number)
 	local state = states[player]
@@ -368,7 +380,8 @@ function PlayerService.AwardTraining(player: Player, repMultiplier: number?): (b
 	local scale = Courts.TrainingProgressScale
 	local bonuses = Courts.GetBonuses(state.CurrentCourt, state.UnlockedCourts)
 	local earnedUnits = math.floor(level.VerticalPerRep * bonuses.TrainingMultiplier
-		* Rebirths.TrainingMultiplier(state.Rebirths) * Crew.Multipliers(state.Crew).Train * rep * scale + 0.5)
+		* Rebirths.TrainingMultiplier(state.Rebirths) * Crew.Multipliers(state.Crew).Train * rep * eventTrainingMultiplier()
+		* scale + 0.5)
 	local remainderUnits = math.floor(state.VerticalTrainingRemainder * scale + 0.5)
 	local totalUnits = earnedUnits + remainderUnits
 	local wholeGain = math.floor(totalUnits / scale)
@@ -449,7 +462,7 @@ function PlayerService.RegisterDunk(player: Player, styleId: string, rating: str
 		* Daily.BoostMultiplier(state.Daily.BoostUntil, os.time())
 		* (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1) * state.FriendMultiplier * state.GroupMultiplier
 		* state.PremiumMultiplier
-		* Events.CashMultiplier(os.time(), isStudio) * bonus * Crew.Multipliers(state.Crew).Cash, state.Vertical, rating)
+		* eventCashMultiplier() * bonus * Crew.Multipliers(state.Crew).Cash, state.Vertical, rating)
 	state.Cash = math.min(state.Cash + cashReward, DataConfig.MaxCash)
 	state.Dunks += 1
 	state.CashDisplay.Value = state.Cash
@@ -481,7 +494,7 @@ function PlayerService.AwardDunkTrick(player: Player, trickId: string, comboInde
 	local cash = DunkRewards.TrickCash(trickId, comboIndex, bonuses.DunkCashMultiplier
 		* Rebirths.CashMultiplier(state.Rebirths) * Daily.BoostMultiplier(state.Daily.BoostUntil, os.time())
 		* (1 + (shoe and shoe.TrickBonus or 0)) * (state.Passes.DoubleCash and Monetization.DoubleCashMultiplier or 1)
-		* state.FriendMultiplier * state.GroupMultiplier * state.PremiumMultiplier * Events.CashMultiplier(os.time(), isStudio)
+		* state.FriendMultiplier * state.GroupMultiplier * state.PremiumMultiplier * eventCashMultiplier()
 		* Crew.Multipliers(state.Crew).Cash)
 	if cash <= 0 or state.Cash > DataConfig.MaxCash - cash then return nil end
 	state.Cash += cash

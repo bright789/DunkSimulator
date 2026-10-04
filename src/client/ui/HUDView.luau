@@ -242,7 +242,8 @@ function HUDView.new(playerGui: PlayerGui)
 	premiumButton.Text = "⭐ PREMIUM: +10% CASH"
 	premiumButton.TextColor3 = Config.Colors.Gold
 	premiumButton.Parent = column
-	-- Timed event pill (EventConfig), e.g. "2X CASH WEEKEND  1d 4h".
+	-- Timed event pill (EventConfig), e.g. "2X CASH WEEKEND  1d 4h". One line per running event
+	-- (it grows taller), filled by EventsController.
 	local eventPill = UI.Panel(column, "Event", UDim2.new(1, 0, 0, Config.Layout.BoostHeight), UDim2.new())
 	eventPill.LayoutOrder = 10
 	eventPill.Visible = false
@@ -396,11 +397,14 @@ function HUDView.new(playerGui: PlayerGui)
 		end
 	end
 
-	-- Event countdown pill: pass nil to hide it.
+	-- Event countdown pill: one line per event ("\n" between them); pass nil to hide it.
 	function view.SetEvent(text: string?)
 		eventLabel.Text = text or ""
-		if eventPill.Visible ~= (text ~= nil) then
+		local lines = text and select(2, string.gsub(text, "\n", "")) + 1 or 1
+		local height = Config.Layout.BoostHeight + (lines - 1) * 18
+		if eventPill.Visible ~= (text ~= nil) or eventPill.Size.Y.Offset ~= height then
 			eventPill.Visible = text ~= nil
+			eventPill.Size = UDim2.new(1, 0, 0, height)
 			resize()
 		end
 	end
